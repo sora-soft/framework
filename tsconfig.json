@@ -1,0 +1,25 @@
+{
+  "compilerOptions": {
+    "moduleResolution": "node",
+    "module": "commonjs",
+    "target": "es5",
+    "noImplicitAny": false,
+    "outDir": "./dist",
+    "sourceMap": true,
+    "alwaysStrict": true,
+    "typeRoots" : [
+      "./node_modules/@types",
+      "./typings"
+    ],
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "lib": [ "es2017" ]
+  },
+  "include": [
+    "./src/**/*"
+, "test"  ],
+  "exclude": [
+    "dist",
+    "node_modules"
+  ]
+}
