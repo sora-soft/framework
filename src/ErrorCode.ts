@@ -1,1 +1,7 @@
 export enum FrameWorkErrorCode {}
+
+export enum RPCErrorCode {
+  ERR_RPC_UNKNOWN = 'ERR_RPC_UNKNOWN',
+  ERR_RPC_TIMEOUT = 'ERR_RPC_TIMEOUT',
+  ERR_RPC_TUNNEL_NOT_AVAILABLE = 'ERR_RPC_TUNNEL_NOT_AVAILABLE'
+}

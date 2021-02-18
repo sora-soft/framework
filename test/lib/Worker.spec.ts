@@ -3,16 +3,14 @@ import {WorkerState} from '../../src/Enum';
 import {describe, it} from 'mocha';
 import assert = require('assert');
 import {Time} from '../../src/utility/Time';
-import {WorkerEvent} from '../../src/Event';
 
 const TestWorkerName = 'test';
-const TestWorkerUUID = '1d6aaf6b-01df-4771-bd00-6b159ebb7810';
 
 describe('Worker', () => {
   describe('constructor', () => {
     class TestWorker extends Worker {
     constructor(name: string) {
-      super(name, TestWorkerUUID);
+      super(name);
     }
 
     async startup() {
@@ -42,9 +40,9 @@ describe('Worker', () => {
       assert.strictEqual(worker.state, WorkerState.INIT);
     });
 
-    it('should set uuid', () => {
-      assert.strictEqual(worker.uuid, TestWorkerUUID);
-    })
+    // it('should set uuid', () => {
+    //   assert.strictEqual(worker.uuid, TestWorkerUUID);
+    // })
   });
 
   describe('life cycle', async () => {
@@ -75,18 +73,18 @@ describe('Worker', () => {
         public shutdownReason = null;
     }
 
-    const events = [];
-    function onEvent(event: WorkerEvent) {
-      return () => {
-        events.push(event);
-      }
-    }
+    // const events = [];
+    // function onEvent(event: WorkerEvent) {
+    //   return () => {
+    //     events.push(event);
+    //   }
+    // }
 
-    const startTestWorker = new StartTestWorker(TestWorkerName, TestWorkerUUID);
-    startTestWorker.stateEventEmitter.on(WorkerEvent.STARTING, onEvent(WorkerEvent.STARTING));
-    startTestWorker.stateEventEmitter.on(WorkerEvent.READY, onEvent(WorkerEvent.READY));
-    startTestWorker.stateEventEmitter.on(WorkerEvent.STOPPING, onEvent(WorkerEvent.STOPPING));
-    startTestWorker.stateEventEmitter.on(WorkerEvent.STOPPED, onEvent(WorkerEvent.STOPPED));
+    const startTestWorker = new StartTestWorker(TestWorkerName);
+    // startTestWorker.stateEventEmitter.on(WorkerEvent.STARTING, onEvent(WorkerEvent.STARTING));
+    // startTestWorker.stateEventEmitter.on(WorkerEvent.READY, onEvent(WorkerEvent.READY));
+    // startTestWorker.stateEventEmitter.on(WorkerEvent.STOPPING, onEvent(WorkerEvent.STOPPING));
+    // startTestWorker.stateEventEmitter.on(WorkerEvent.STOPPED, onEvent(WorkerEvent.STOPPED));
     it('start check', async () => {
       return startTestWorker.start();
     })
@@ -108,9 +106,9 @@ describe('Worker', () => {
     it('state should be STOPPED', () => {
       assert.strictEqual(startTestWorker.state, WorkerState.STOPPED);
     });
-    it('event emitter should be called', () => {
-      assert.deepStrictEqual(events, [WorkerEvent.STARTING, WorkerEvent.READY, WorkerEvent.STOPPING, WorkerEvent.STOPPED]);
-    })
+    // it('event emitter should be called', () => {
+    //   assert.deepStrictEqual(events, [WorkerEvent.STARTING, WorkerEvent.READY, WorkerEvent.STOPPING, WorkerEvent.STOPPED]);
+    // });
   });
 
   describe('doJob', async () => {
@@ -141,7 +139,7 @@ describe('Worker', () => {
       public jobCounter = 0;
     }
 
-    const jobWorker = new JobWorker(TestWorkerName, TestWorkerUUID);
+    const jobWorker = new JobWorker(TestWorkerName);
     it ('start job', async () => {
       return jobWorker.start();
     })

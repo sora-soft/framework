@@ -1,9 +1,10 @@
-export type JobExecutor<T = unknown> = () => Promise<T>;
+import {Executor, JobExecutor} from './Executor';
 
-class ExecutorQueue {
-  constructor() {}
-
+class QueueExecutor extends Executor {
   public async doJob<T = unknown>(executor: JobExecutor<T>) {
+    if (this.isStopped_)
+      return;
+
     const promise = new Promise<T>((resolve, reject) => {
       this.executorQueue_.push({
         resolve,
@@ -13,10 +14,6 @@ class ExecutorQueue {
     });
     this.doJobInQueue();
     return promise;
-  }
-
-  public async start() {
-    this.isStopped_ = false;
   }
 
   public async stop() {
@@ -57,7 +54,6 @@ class ExecutorQueue {
   private executorQueue_: {resolve: (value: unknown) => void, reject: (err: Error) => void, executor: JobExecutor}[] = [];
   private stopCallback_: () => void;
   private isDoingJob_ = false;
-  private isStopped_ = true;
 }
 
-export {ExecutorQueue};
+export {QueueExecutor};

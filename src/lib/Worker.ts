@@ -1,50 +1,40 @@
-import EventEmitter = require('events');
 import {WorkerState} from '../Enum';
-import {WorkerEvent} from '../Event';
-import {ExecutorQueue, JobExecutor} from '../utility/ExecutorQueue';
 import {Time} from '../utility/Time';
+import {v4 as uuid} from 'uuid';
+import {LifeCycle} from '../utility/LifeCycle';
+import {Executor, JobExecutor} from '../utility/Executor';
 
 abstract class Worker {
-  constructor(name: string, uuid: string) {
+  constructor(name: string) {
     this.name_ = name;
-    this.state_ = WorkerState.INIT;
-    this.stateEventEmitter_ = new EventEmitter();
-    this.jobExecutor_ = new ExecutorQueue();
-    this.uuid_ = uuid;
+    this.lifeCycle_ = new LifeCycle();
+    this.executor_ = new Executor();
+    this.id_ = uuid();
   }
 
   // 连接component等准备工作
   protected abstract startup(): Promise<void>;
-  // 开始正式工作
-  protected abstract afterStartup(): Promise<void>;
   async start() {
-    this.state_ = WorkerState.PENDING;
-    this.stateEventEmitter_.emit(WorkerEvent.STARTING);
+    await this.lifeCycle_.setState(WorkerState.PENDING);
+    this.executor_.start();
     await this.startup().catch(this.onError.bind(this));
-    this.state_ = WorkerState.READY;
-    this.stateEventEmitter_.emit(WorkerEvent.READY);
-    await this.afterStartup().catch(this.onError.bind(this));
+    await this.lifeCycle_.setState(WorkerState.READY);
   }
 
   protected abstract shutdown(reason: string): Promise<void>;
   async stop(reason: string) {
-    this.state_ = WorkerState.STOPPING;
-    this.stateEventEmitter_.emit(WorkerEvent.STOPPING);
-    await this.jobExecutor_.stop();
-
-    return this.shutdown(reason).then(() => {
-      this.state_ = WorkerState.STOPPED;
-      this.stateEventEmitter_.emit(WorkerEvent.STOPPED);
-    }).catch(this.onError.bind(this));
+    await this.lifeCycle_.setState(WorkerState.STOPPING);
+    await this.shutdown(reason).catch(this.onError.bind(this));
+    await this.executor_.stop();
+    await this.lifeCycle_.setState(WorkerState.STOPPED);
   }
 
-  // 任何 Worker 都应该同一时间只处理一件事情以此保证事务的顺序处理
   protected async doJob<T>(executor: JobExecutor<T>) {
-    return this.jobExecutor_.doJob<T>(executor);
+    return this.executor_.doJob<T>(executor);
   }
 
   protected async doJobInterval(executor: JobExecutor, timeMS: number) {
-    while(this.state_ === WorkerState.READY) {
+    while(this.state === WorkerState.READY) {
       const startTime = Date.now();
       await this.doJob(executor);
       const nextExecuteMS = timeMS + startTime - Date.now();
@@ -53,9 +43,8 @@ abstract class Worker {
     }
   }
 
-  protected onError(err: Error) {
-    this.state_ = WorkerState.ERROR;
-    this.stateEventEmitter_.emit(WorkerEvent.ERROR, err);
+  protected async onError(err: Error) {
+    await this.lifeCycle_.setState(WorkerState.ERROR, err);
     throw err;
   }
 
@@ -64,26 +53,31 @@ abstract class Worker {
   }
 
   get state() {
-    return this.state_;
+    return this.lifeCycle_.state;
   }
 
   get isIdle() {
-    return this.state_ === WorkerState.READY && this.jobExecutor_.isIdle;
+    return this.state === WorkerState.READY && this.executor_.isIdle;
   }
 
   get stateEventEmitter() {
-    return this.stateEventEmitter_;
+    return this.lifeCycle_;
   }
 
-  get uuid() {
-    return this.uuid_;
+  get id() {
+    return this.id_;
   }
 
-  protected state_: WorkerState;
-  protected stateEventEmitter_: EventEmitter;
-  private jobExecutor_: ExecutorQueue;
+  get executor() {
+    return this.executor_;
+  }
+
+  // protected state_: WorkerState;
+  // protected stateEventEmitter_: EventEmitter;
+  protected lifeCycle_: LifeCycle<WorkerState>;
+  private executor_: Executor;
   private name_: string;
-  private uuid_: string;
+  private id_: string;
 }
 
 export {Worker}

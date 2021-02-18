@@ -1,7 +1,4 @@
-export enum WorkerEvent {
-  STARTING = 'starting',
-  READY = 'ready',
-  STOPPING = 'stopping',
-  STOPPED = 'stopped',
-  ERROR = 'error'
+export enum LifeCycleEvent {
+  StateChange = 'StateChange',
+  StateChangeTo = 'StateChangeTo'
 }
