@@ -10,46 +10,22 @@ export type RPCHandler<Req = unknown, Res = unknown> = (body: Req, req?: Request
 export type NotifyHandler<Req = unknown> = (body: Req, req?: Notify<Req>) => Promise<void>;
 
 class Route {
-  constructor(id: string) {
-    this.id_ = id;
+  protected static method(target: Route, key: string) {
+    target.registerMethod(key, target[key]);
   }
 
-  registerMethod(method: string, callback: RPCHandler) {
-    if (!this.methodMap_)
-      this.methodMap_ = new Map();
-
-    this.methodMap_.set(method, callback.bind(this));
+  protected static notify(target: Route, key: string) {
+    target.registerNotify(key, target[key]);
   }
 
-  registerNotify(method: string, callback: NotifyHandler) {
-    if (!this.notifyMap_)
-      this.notifyMap_ = new Map();
-
-    this.notifyMap_.set(method, callback.bind(this));
-  }
-
-  async callMethod(method: string, request: Request, response: Response) {
-    if (this.methodMap_.has(method)) {
-      const handler = this.methodMap_.get(method);
-      return handler(request.payload, request, response);
-    }
-  }
-
-  async callNotify(method: string, request: Notify) {
-    if (this.notifyMap_.has(method)) {
-      const handler = this.notifyMap_.get(method);
-      return handler(request.payload, request);
-    }
-  }
-
-  callback() {
+  static callback(route: Route) {
     return async (packet: IRawNetPacket) => {
       switch (packet.opcode) {
         case OPCode.REQUEST:
           const request = new Request(packet);
           const response = new Response();
           const rpcId = request.getHeader(Const.RPC_ID_HEADER);
-          const result = await this.callMethod(request.method, request, response).catch(err => {
+          const result = await route.callMethod(request.method, request, response).catch(err => {
             // logging
             return {
               error: err.code || RPCErrorCode.ERR_RPC_UNKNOWN,
@@ -57,13 +33,13 @@ class Route {
             }
           });
           response.setHeader(Const.RPC_ID_HEADER, rpcId);
-          response.setHeader(Const.RPC_FROM_ID_HEADER, this.id_);
+          response.setHeader(Const.RPC_FROM_ID_HEADER, route.id_);
           response.payload = result;
           return response.toPacket();
         case OPCode.NOTIFY:
           // notify 不需要回复
           const notify = new Notify(packet);
-          await this.callNotify(notify.method, notify).catch(err => {
+          await route.callNotify(notify.method, notify).catch(err => {
             // logging
           });
           return null;
@@ -71,7 +47,38 @@ class Route {
           // 不应该在路由处收到 rpc 回包消息
           return null;
       }
+    }
+  }
 
+  constructor(id: string) {
+    this.id_ = id;
+  }
+
+  protected registerMethod(method: string, callback: RPCHandler) {
+    if (!this.methodMap_)
+      this.methodMap_ = new Map();
+
+    this.methodMap_.set(method, callback.bind(this));
+  }
+
+  protected registerNotify(method: string, callback: NotifyHandler) {
+    if (!this.notifyMap_)
+      this.notifyMap_ = new Map();
+
+    this.notifyMap_.set(method, callback.bind(this));
+  }
+
+  protected async callMethod(method: string, request: Request, response: Response) {
+    if (this.methodMap_.has(method)) {
+      const handler = this.methodMap_.get(method);
+      return handler(request.payload, request, response);
+    }
+  }
+
+  protected async callNotify(method: string, request: Notify) {
+    if (this.notifyMap_.has(method)) {
+      const handler = this.notifyMap_.get(method);
+      return handler(request.payload, request);
     }
   }
 
