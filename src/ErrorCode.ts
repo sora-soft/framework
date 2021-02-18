@@ -1,4 +1,6 @@
-export enum FrameWorkErrorCode {}
+export enum FrameWorkErrorCode {
+  ERR_FRAMEWORK_UNKNOWN = 'ERR_FRAMEWORK_UNKNOWN'
+}
 
 export enum RPCErrorCode {
   ERR_RPC_UNKNOWN = 'ERR_RPC_UNKNOWN',

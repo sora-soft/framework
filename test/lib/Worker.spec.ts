@@ -36,10 +36,6 @@ describe('Worker', () => {
       assert.strictEqual(worker.name, TestWorkerName);
     });
 
-    it('should set state', () => {
-      assert.strictEqual(worker.state, WorkerState.INIT);
-    });
-
     // it('should set uuid', () => {
     //   assert.strictEqual(worker.uuid, TestWorkerUUID);
     // })
@@ -51,13 +47,7 @@ describe('Worker', () => {
         async startup() {
           this.startupCalled = true;
 
-          assert.strictEqual(this.afterStartupCalled, false, 'startup should called before afterStartup');
           assert.strictEqual(this.state, WorkerState.PENDING);
-        }
-
-        async afterStartup() {
-          this.afterStartupCalled = true;
-          assert.strictEqual(this.state, WorkerState.READY);
         }
 
         async shutdown(reason: string) {
@@ -68,31 +58,16 @@ describe('Worker', () => {
         }
 
         public startupCalled = false;
-        public afterStartupCalled = false;
         public shutdownCalled = false;
         public shutdownReason = null;
     }
 
-    // const events = [];
-    // function onEvent(event: WorkerEvent) {
-    //   return () => {
-    //     events.push(event);
-    //   }
-    // }
-
     const startTestWorker = new StartTestWorker(TestWorkerName);
-    // startTestWorker.stateEventEmitter.on(WorkerEvent.STARTING, onEvent(WorkerEvent.STARTING));
-    // startTestWorker.stateEventEmitter.on(WorkerEvent.READY, onEvent(WorkerEvent.READY));
-    // startTestWorker.stateEventEmitter.on(WorkerEvent.STOPPING, onEvent(WorkerEvent.STOPPING));
-    // startTestWorker.stateEventEmitter.on(WorkerEvent.STOPPED, onEvent(WorkerEvent.STOPPED));
     it('start check', async () => {
       return startTestWorker.start();
     })
     it('startup should be called', () => {
       assert.strictEqual(startTestWorker.startupCalled, true);
-    });
-    it('afterStartup should be called', () => {
-      assert.strictEqual(startTestWorker.afterStartupCalled, true);
     });
     it('stop check', async () => {
       return startTestWorker.stop('test');
@@ -106,9 +81,6 @@ describe('Worker', () => {
     it('state should be STOPPED', () => {
       assert.strictEqual(startTestWorker.state, WorkerState.STOPPED);
     });
-    // it('event emitter should be called', () => {
-    //   assert.deepStrictEqual(events, [WorkerEvent.STARTING, WorkerEvent.READY, WorkerEvent.STOPPING, WorkerEvent.STOPPED]);
-    // });
   });
 
   describe('doJob', async () => {
@@ -129,7 +101,7 @@ describe('Worker', () => {
       async doLaterJob(test: Function) {
         this.jobCounter++;
         await this.doJob(async () => {
-          await Time.timeout(1000);
+          await Time.timeout(100);
           this.jobCalledCounter++;
           test();
         })
@@ -148,7 +120,6 @@ describe('Worker', () => {
     });
     it('later job should be called in queue', () => {
       jobWorker.doLaterJob(() => { assert.strictEqual(jobWorker.jobCalledCounter, 2); });
-      jobWorker.doTestJob(() => { assert.strictEqual(jobWorker.jobCalledCounter, 3); });
     });
     it('isIdle should return false while doing jobs', () => {
       assert.strictEqual(jobWorker.isIdle, false);
