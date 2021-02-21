@@ -61,6 +61,10 @@ class RawPacket<T> {
     this.payload_ = value;
   }
 
+  get headers() {
+    return Utility.mapToJSON(this.headers);
+  }
+
   protected headers_: Map<string, any>;
   private opCode_: OPCode;
   private method_: string;

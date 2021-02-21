@@ -4,9 +4,13 @@ import {LifeCycleEvent} from '../Event';
 export type LifeCycleHandler = (...args: any) => Promise<void>;
 
 class LifeCycle<T> extends EventEmitter {
-
   static stateChangeEvent(state: number) {
     return `state-change:${state}`;
+  }
+
+  constructor(state: T) {
+    super();
+    this.state_ = state;
   }
 
   async setState(state: T, ...args: any[]) {

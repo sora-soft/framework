@@ -2,6 +2,7 @@ import {Const} from '../../Const';
 import {OPCode} from '../../Enum';
 import {RPCErrorCode} from '../../ErrorCode';
 import {IRawNetPacket} from '../../interface/rpc';
+import {Service} from '../Service';
 import {Notify} from './Notify';
 import {Request} from './Request';
 import {Response} from './Response';
@@ -26,21 +27,21 @@ class Route {
           const response = new Response();
           const rpcId = request.getHeader(Const.RPC_ID_HEADER);
           const result = await route.callMethod(request.method, request, response).catch(err => {
-            // logging
+            // TODO logging
             return {
               error: err.code || RPCErrorCode.ERR_RPC_UNKNOWN,
               message: err.message,
             }
           });
           response.setHeader(Const.RPC_ID_HEADER, rpcId);
-          response.setHeader(Const.RPC_FROM_ID_HEADER, route.id_);
+          response.setHeader(Const.RPC_FROM_ID_HEADER, route.service_.id);
           response.payload = result;
           return response.toPacket();
         case OPCode.NOTIFY:
           // notify 不需要回复
           const notify = new Notify(packet);
           await route.callNotify(notify.method, notify).catch(err => {
-            // logging
+            // TODO logging
           });
           return null;
         case OPCode.RESPONSE:
@@ -50,8 +51,8 @@ class Route {
     }
   }
 
-  constructor(id: string) {
-    this.id_ = id;
+  constructor(service: Service) {
+    this.service_ = service;
   }
 
   protected registerMethod(method: string, callback: RPCHandler) {
@@ -82,9 +83,13 @@ class Route {
     }
   }
 
+  protected get service() {
+    return this.service_;
+  }
+
   private methodMap_: Map<string, RPCHandler>;
   private notifyMap_: Map<string, NotifyHandler>;
-  private id_: string;
+  private service_: Service;
 }
 
 export {Route}

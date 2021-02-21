@@ -4,30 +4,46 @@ import {ListenerState} from '../../Enum';
 import util = require('util');
 import {TCPUtility} from './TCPUtility';
 import {Executor} from '../../utility/Executor';
-
-interface ITCPListenerOptions {
-  port: number;
-  host: string;
-  labels: string[];
-}
+import {ILabels, ITCPListenerOptions} from '../../interface/config';
+import {Notify} from '../rpc/Notify';
+import {v4 as uuid} from 'uuid';
 
 class TCPListener extends Listener {
   constructor(options: ITCPListenerOptions, callback: ListenerCallback, executor: Executor) {
     super(callback, executor);
     this.options_ = options;
-    this.socketId_ = 0;
 
     this.server_ = net.createServer();
     this.server_.on('connection', this.onSocketConnect.bind(this));
+  }
+
+  get metaData() {
+    return {
+      id: this.id,
+      protocol: 'tcp',
+      endpoint: `${this.options_.host}:${this.options_.port}`,
+      state: this.state
+    }
+  }
+
+  async notify(session: string, notify: Notify) {
+    const socket = this.sockets_.get(session);
+    if (!socket || socket.destroyed)
+      return;
+
+    const packet = notify.toPacket();
+    const data = TCPUtility.encodeMessage(packet);
+    await util.promisify<Buffer, void>(socket.write.bind(socket))(data);
   }
 
   protected async listen() {
     await util.promisify<number, string, void>(this.server_.listen.bind(this.server_))(this.options_.port, this.options_.host);
 
     return {
+      id: this.id,
       protocol: 'tcp',
       endpoint: `${this.options_.host}:${this.options_.port}`,
-      labels: this.options_.labels
+      state: this.state
     }
   }
 
@@ -39,9 +55,9 @@ class TCPListener extends Listener {
     await util.promisify(this.server_.close.bind(this.server_))();
   }
 
-  private onSocketDisconnect(id: number) {
+  private onSocketDisconnect(session: string) {
     return () => {
-      this.sockets_.delete(id);
+      this.sockets_.delete(session);
       if (!this.sockets_.size && this.waitForAllSocketCloseCallback_)
         this.waitForAllSocketCloseCallback_();
     }
@@ -53,10 +69,10 @@ class TCPListener extends Listener {
       return;
     }
 
-    const id = ++this.socketId_;
-    this.sockets_.set(id, socket);
+    const session = uuid();
+    this.sockets_.set(session, socket);
     socket.on('data', this.onSocketData(socket).bind(this));
-    socket.on('close', this.onSocketDisconnect(id).bind(this));
+    socket.on('close', this.onSocketDisconnect(session).bind(this));
   }
 
   private onSocketData(socket: net.Socket) {
@@ -93,8 +109,7 @@ class TCPListener extends Listener {
 
   private server_: net.Server;
   private options_: ITCPListenerOptions;
-  private sockets_: Map<number, net.Socket> = new Map();
-  private socketId_: number;
+  private sockets_: Map<string, net.Socket> = new Map();
   private waitForAllSocketCloseCallback_: () => void;
 }
 

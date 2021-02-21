@@ -2,15 +2,12 @@
   "compilerOptions": {
     "moduleResolution": "node",
     "module": "commonjs",
+    "declaration": true,
     "target": "es5",
     "noImplicitAny": false,
     "outDir": "./dist",
     "sourceMap": true,
     "alwaysStrict": true,
-    "typeRoots" : [
-      "./node_modules/@types",
-      "./typings"
-    ],
     "downlevelIteration": true,
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
@@ -18,7 +15,7 @@
   },
   "include": [
     "./src/**/*"
-, "test"  ],
+  ],
   "exclude": [
     "dist",
     "node_modules"

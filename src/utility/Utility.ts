@@ -12,6 +12,18 @@ class Utility {
   static parseInt(value: string) {
     return Number.parseInt(value, 10) || 0;
   }
+
+  static randomInt(begin: number, end: number) {
+    if (begin >= end)
+      return begin;
+
+    return Math.floor(begin + (end - begin) * Math.random());
+  }
+
+  static randomOne<T>(array: T[]) {
+    const index = this.randomInt(0, array.length);
+    return array[index];
+  }
 }
 
 export {Utility}

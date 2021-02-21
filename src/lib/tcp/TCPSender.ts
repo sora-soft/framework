@@ -6,8 +6,16 @@ import {Utility} from '../../utility/Utility';
 import {TCPUtility} from './TCPUtility';
 import {RPCError} from '../rpc/RPCError';
 import {RPCErrorCode} from '../../ErrorCode';
+import {Provider} from '../rpc/Provider';
+import {OPCode} from '../../Enum';
 
 class TCPSender extends Sender {
+  static register() {
+    Provider.registerSender('tcp', (targetId) => {
+      return new TCPSender(targetId);
+    });
+  }
+
   async connect(listenInfo: IListenerInfo) {
     if (this.socket_ && !this.socket_.destroyed)
       return;
@@ -49,9 +57,17 @@ class TCPSender extends Sender {
 
         const content = cache.slice(0, packetLength);
         cache = cache.slice(packetLength);
-        const packet = JSON.parse(content.toString());
+        const packet: IRawNetPacket = JSON.parse(content.toString());
 
-        this.emitRPCResponse(packet);
+        switch (packet.opcode) {
+          case OPCode.RESPONSE:
+            this.emitRPCResponse(packet);
+            break;
+          case OPCode.NOTIFY:
+          case OPCode.REQUEST:
+            // 这里不应该接收到请求
+            break;
+        }
         packetLength = 0;
       }
     }

@@ -10,9 +10,9 @@ export interface IRawNetPacket<T = unknown> {
 }
 
 export interface IListenerInfo {
+  id: string;
   protocol: string;
   endpoint: string;
-  labels: string[];
 }
 
 export interface IRawReqPacket<T = unknown> {

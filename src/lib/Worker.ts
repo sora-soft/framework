@@ -3,11 +3,12 @@ import {Time} from '../utility/Time';
 import {v4 as uuid} from 'uuid';
 import {LifeCycle} from '../utility/LifeCycle';
 import {Executor, JobExecutor} from '../utility/Executor';
+import {IWorkerMetaData} from '../interface/discovery';
 
 abstract class Worker {
   constructor(name: string) {
     this.name_ = name;
-    this.lifeCycle_ = new LifeCycle();
+    this.lifeCycle_ = new LifeCycle(WorkerState.INIT);
     this.executor_ = new Executor();
     this.id_ = uuid();
   }
@@ -72,8 +73,14 @@ abstract class Worker {
     return this.executor_;
   }
 
-  // protected state_: WorkerState;
-  // protected stateEventEmitter_: EventEmitter;
+  get metaData(): IWorkerMetaData {
+    return {
+      name: this.name,
+      state: this.state,
+      id: this.id_
+    }
+  }
+
   protected lifeCycle_: LifeCycle<WorkerState>;
   private executor_: Executor;
   private name_: string;

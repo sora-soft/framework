@@ -1,14 +1,21 @@
 import {ListenerState, OPCode} from '../../Enum';
 import {LifeCycle} from '../../utility/LifeCycle';
 import {v4 as uuid} from 'uuid';
-import {IListenerInfo, IRawNetPacket, IRawReqPacket, IRawResPacket} from '../../interface/rpc';
+import {IListenerInfo, IRawNetPacket, IRawResPacket} from '../../interface/rpc';
 import {Executor} from '../../utility/Executor';
+import {Notify} from './Notify';
+import {IEventEmitter} from '../../interface/event';
+import {ListenerEvent} from '../../Event';
+
+export interface IListenerEvent {
+  [ListenerEvent.NewConnect]: (session: string, ...args: any[]) => void;
+}
 
 export type ListenerCallback = (data: IRawNetPacket) => Promise<IRawResPacket>;
 
 abstract class Listener {
   constructor(callback: ListenerCallback, executor: Executor) {
-    this.lifeCycle_ = new LifeCycle();
+    this.lifeCycle_ = new LifeCycle(ListenerState.INIT);
     this.callback_ = callback;
     this.executor_ = executor;
     this.id_ = uuid();
@@ -35,6 +42,9 @@ abstract class Listener {
     });
   }
 
+  abstract notify(id: string, notify: Notify): Promise<void>;
+  abstract get metaData(): IListenerInfo;
+
   private async onError(err: Error) {
     await this.lifeCycle_.setState(ListenerState.ERROR, err);
     throw err;
@@ -56,6 +66,7 @@ abstract class Listener {
     return this.id_;
   }
 
+  protected connectionEmitter: IEventEmitter<IListenerEvent>;
   private callback_: ListenerCallback;
   private info_: IListenerInfo;
   private lifeCycle_: LifeCycle<ListenerState>;

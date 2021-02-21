@@ -29,7 +29,19 @@
     "variable-name": [true, "ban-keywords", "check-format", "allow-leading-underscore", "allow-pascal-case", "allow-snake-case", "allow-trailing-underscore"],
     "max-line-length": false,
     "ban-types": false,
-    "no-namespace": false
+    "no-namespace": false,
+    "no-empty-interface": false,
+    "naming-convention": [
+      "error",
+      {
+        "selector": "interface",
+        "format": ["PascalCase"],
+        "custom": {
+          "regex": "^I[A-Z]",
+          "match": true
+        }
+      }
+    ]
   },
   "rulesDirectory": []
 }
