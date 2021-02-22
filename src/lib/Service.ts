@@ -19,6 +19,16 @@ abstract class Service extends Worker {
         });
       }
     });
+
+    this.lifeCycle_.on(LifeCycleEvent.StateChangeTo, (state: WorkerState) => {
+      switch (state) {
+        case WorkerState.ERROR:
+          for (const [id] of this.listenerPool_) {
+            this.uninstallListener(id);
+          }
+          break;
+      }
+    });
   }
 
   public async installListener(listener: Listener) {

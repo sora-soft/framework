@@ -7,13 +7,13 @@ import {TimeoutError} from '../../utility/TimeoutError';
 import {Waiter} from '../../utility/Waiter';
 import {Notify} from './Notify';
 import {Request} from './Request';
-import {Route} from './Route';
 import {RPCError} from './RPCError';
 
 abstract class Sender {
-  constructor(targetId: string) {
+  constructor(listenerId: string, targetId: string) {
     this.lifeCycle_ = new LifeCycle(SenderState.INIT);
     this.waiter_ = new Waiter();
+    this.listenerId_ = listenerId;
     this.targetId_ = targetId;
   }
 
@@ -33,6 +33,7 @@ abstract class Sender {
       return;
 
     this.lifeCycle_.setState(SenderState.STOPPING);
+    await this.waiter_.waitForAll(10000);
     await this.disconnect().catch(this.onError.bind(this));
     this.lifeCycle_.setState(SenderState.STOPPED);
   }
@@ -76,6 +77,10 @@ abstract class Sender {
     return this.lifeCycle_.state;
   }
 
+  get listenerId() {
+    return this.listenerId_;
+  }
+
   get targetId() {
     return this.targetId_;
   }
@@ -83,6 +88,7 @@ abstract class Sender {
   protected lifeCycle_: LifeCycle<SenderState>;
   protected listenInfo_: IListenerInfo;
   private waiter_: Waiter<IRawResPacket>;
+  private listenerId_: string;
   private targetId_: string;
 }
 

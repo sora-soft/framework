@@ -1,6 +1,6 @@
-import {ListenerState, SenderState} from '../../Enum';
+import {ListenerState, SenderState, WorkerState} from '../../Enum';
 import {RPCErrorCode} from '../../ErrorCode';
-import {DiscoveryListenerEvent} from '../../Event';
+import {DiscoveryListenerEvent, DiscoveryServiceEvent} from '../../Event';
 import {IListenerMetaData} from '../../interface/discovery';
 import {LabelFilter} from '../../utility/LabelFilter';
 import {Utility} from '../../utility/Utility';
@@ -12,7 +12,7 @@ import {Route} from './Route';
 import {RPCError} from './RPCError';
 import {Sender} from './Sender';
 
-export type senderBuilder = (targetId: string) => Sender;
+export type senderBuilder = (listenerId: string, targetId: string) => Sender;
 export interface IRequestOptions {
   headers?: {
     [k: string]: any
@@ -36,11 +36,11 @@ class Provider<T extends Route> {
     this.senderBuilder_.set(protocol, builder);
   }
 
-  protected static senderFactory(protocol: string, targetId: string) {
+  protected static senderFactory(protocol: string, listenerId: string, targetId: string) {
     const builder = this.senderBuilder_.get(protocol);
     if (!builder)
       return null;
-    return builder(targetId);
+    return builder(listenerId, targetId);
   }
 
   private static senderBuilder_: Map<string, senderBuilder> = new Map();
@@ -88,7 +88,7 @@ class Provider<T extends Route> {
               const sender = Utility.randomOne([...this.senders_].map(([id, s]) => {
                 return s;
               }).filter(s => {
-                return s.state === SenderState.READY && (!toId || s.targetId === toId);
+                return s.state === SenderState.READY && (!toId || s.listenerId === toId);
               }))
 
               if (!sender)
@@ -115,9 +115,9 @@ class Provider<T extends Route> {
               const senders = [...this.senders_].map(([id, s]) => {
                 return s;
               }).filter(s => {
-                const available = s.state === SenderState.READY && !targetSet.has(s.targetId);
+                const available = s.state === SenderState.READY && !targetSet.has(s.listenerId);
                 if (available) {
-                  targetSet.add(s.targetId);
+                  targetSet.add(s.listenerId);
                 }
                 return available;
               });
@@ -145,6 +145,20 @@ class Provider<T extends Route> {
     for (const info of endpoints) {
       this.createSender(info);
     }
+
+    Runtime.discovery.serviceEmitter.on(DiscoveryServiceEvent.ServiceStateUpdate, async (id, state, pre, meta) => {
+      switch (state) {
+        case WorkerState.ERROR:
+        case WorkerState.STOPPING:
+          for (const sender of this.senderList_) {
+            if (sender.listenerId === id) {
+              this.senders_.delete(sender.listenerId);
+              sender.off();
+            }
+          }
+          break;
+      }
+    });
 
     Runtime.discovery.listenerEmitter.on(DiscoveryListenerEvent.ListenerCreated, async (info) => {
       if (info.service === this.name_ && this.filter_.isSatisfy(info.labels))
@@ -174,8 +188,8 @@ class Provider<T extends Route> {
       if (!sender)
         return;
 
-      await sender.off();
       this.senders_.delete(id);
+      await sender.off();
     });
   }
 
@@ -187,8 +201,18 @@ class Provider<T extends Route> {
     return this.senders_;
   }
 
+  private get senderList_() {
+    return [...this.senders_].map(([id, sender]) => sender);
+  }
+
   private async createSender(endpoint: IListenerMetaData) {
-    const sender = Provider.senderFactory(endpoint.protocol, endpoint.targetId);
+    if (this.senders_.has(endpoint.id)) {
+      const preSender = this.senders_.get(endpoint.id);
+      this.senders_.delete(endpoint.id);
+      preSender.off();
+    }
+
+    const sender = Provider.senderFactory(endpoint.protocol, endpoint.id, endpoint.targetId);
     if (!sender)
       return;
 

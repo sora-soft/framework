@@ -11,8 +11,8 @@ import {OPCode} from '../../Enum';
 
 class TCPSender extends Sender {
   static register() {
-    Provider.registerSender('tcp', (targetId) => {
-      return new TCPSender(targetId);
+    Provider.registerSender('tcp', (listenerId, targetId) => {
+      return new TCPSender(listenerId, targetId);
     });
   }
 
@@ -29,6 +29,7 @@ class TCPSender extends Sender {
   }
 
   async disconnect() {
+    // 由客户端主动断开tcp连接
     this.socket_.destroy();
   }
 
