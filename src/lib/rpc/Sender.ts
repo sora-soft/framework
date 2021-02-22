@@ -17,6 +17,8 @@ abstract class Sender {
     this.targetId_ = targetId;
   }
 
+  abstract isAvailable(): boolean;
+
   protected abstract connect(listenInfo: IListenerInfo): Promise<void>;
   public async start(listenInfo: IListenerInfo) {
     if (this.lifeCycle_.state > SenderState.INIT)
@@ -83,6 +85,10 @@ abstract class Sender {
 
   get targetId() {
     return this.targetId_;
+  }
+
+  get stateEmitter() {
+    return this.lifeCycle_.emitter;
   }
 
   protected lifeCycle_: LifeCycle<SenderState>;

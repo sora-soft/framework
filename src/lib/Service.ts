@@ -20,7 +20,7 @@ abstract class Service extends Worker {
       }
     });
 
-    this.lifeCycle_.on(LifeCycleEvent.StateChangeTo, (state: WorkerState) => {
+    this.lifeCycle_.emitter.on(LifeCycleEvent.StateChangeTo, (state: WorkerState) => {
       switch (state) {
         case WorkerState.ERROR:
           for (const [id] of this.listenerPool_) {

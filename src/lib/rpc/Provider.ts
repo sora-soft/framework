@@ -1,6 +1,6 @@
 import {ListenerState, SenderState, WorkerState} from '../../Enum';
 import {RPCErrorCode} from '../../ErrorCode';
-import {DiscoveryListenerEvent, DiscoveryServiceEvent} from '../../Event';
+import {DiscoveryListenerEvent, DiscoveryServiceEvent, LifeCycleEvent} from '../../Event';
 import {IListenerMetaData} from '../../interface/discovery';
 import {LabelFilter} from '../../utility/LabelFilter';
 import {Utility} from '../../utility/Utility';
@@ -58,7 +58,7 @@ class Provider<T extends Route> {
               const sender = Utility.randomOne([...this.senders_].map(([id, s]) => {
                 return s;
               }).filter((s) => {
-                return s.state === SenderState.READY && (!toId || s.targetId === toId);
+                return s.state === SenderState.READY && (!toId || s.targetId === toId) && s.isAvailable();
               }));
 
               if (!sender)
@@ -88,7 +88,7 @@ class Provider<T extends Route> {
               const sender = Utility.randomOne([...this.senders_].map(([id, s]) => {
                 return s;
               }).filter(s => {
-                return s.state === SenderState.READY && (!toId || s.listenerId === toId);
+                return s.state === SenderState.READY && (!toId || s.listenerId === toId) && s.isAvailable();
               }))
 
               if (!sender)
@@ -115,7 +115,7 @@ class Provider<T extends Route> {
               const senders = [...this.senders_].map(([id, s]) => {
                 return s;
               }).filter(s => {
-                const available = s.state === SenderState.READY && !targetSet.has(s.listenerId);
+                const available = s.state === SenderState.READY && !targetSet.has(s.listenerId) && s.isAvailable();
                 if (available) {
                   targetSet.add(s.listenerId);
                 }
@@ -150,10 +150,10 @@ class Provider<T extends Route> {
       switch (state) {
         case WorkerState.ERROR:
         case WorkerState.STOPPING:
+        case WorkerState.STOPPED:
           for (const sender of this.senderList_) {
-            if (sender.listenerId === id) {
-              this.senders_.delete(sender.listenerId);
-              sender.off();
+            if (sender.targetId === id) {
+              this.removeSender(sender.listenerId);
             }
           }
           break;
@@ -165,10 +165,10 @@ class Provider<T extends Route> {
         this.createSender(info);
     });
     Runtime.discovery.listenerEmitter.on(DiscoveryListenerEvent.ListenerStateUpdate, async (id, state, pre, meta) => {
-      const sender = this.senders_.get(id);
+      let sender = this.senders_.get(id);
       if (!sender) {
         if (meta.service === this.name_ && this.filter_.isSatisfy(meta.labels))
-          this.createSender(meta);
+          sender = await this.createSender(meta);
         return;
       }
 
@@ -179,17 +179,12 @@ class Provider<T extends Route> {
         case ListenerState.STOPPING:
         case ListenerState.STOPPED:
         case ListenerState.ERROR:
-          await sender.off();
+          this.removeSender(id);
           break;
       }
     });
     Runtime.discovery.listenerEmitter.on(DiscoveryListenerEvent.ListenerDeleted, async (id) => {
-      const sender = this.senders_.get(id);
-      if (!sender)
-        return;
-
-      this.senders_.delete(id);
-      await sender.off();
+      this.removeSender(id);
     });
   }
 
@@ -205,30 +200,43 @@ class Provider<T extends Route> {
     return [...this.senders_].map(([id, sender]) => sender);
   }
 
+  private async removeSender(id: string) {
+    const sender = this.senders_.get(id);
+    if (!sender)
+      return;
+
+    this.senders_.delete(id);
+    await sender.off();
+  }
+
   private async createSender(endpoint: IListenerMetaData) {
     if (this.senders_.has(endpoint.id)) {
-      const preSender = this.senders_.get(endpoint.id);
-      this.senders_.delete(endpoint.id);
-      preSender.off();
+      this.removeSender(endpoint.id);
     }
 
     const sender = Provider.senderFactory(endpoint.protocol, endpoint.id, endpoint.targetId);
     if (!sender)
       return;
 
-    this.senders_.set(endpoint.id, sender);
-    if (endpoint.state === ListenerState.READY)
-      await sender.start(endpoint);
+    sender.stateEmitter.on(LifeCycleEvent.StateChangeTo, (state) => {
+      switch(state) {
+        case SenderState.ERROR:
+        case SenderState.STOPPED:
+          this.removeSender(sender.listenerId);
+          break;
+      }
+    });
 
+    this.senders_.set(endpoint.id, sender);
     return sender;
   }
 
   private name_: string;
   private senders_: Map<string /*endpoint id*/, Sender>;
   private caller_: {
-    rpc: (fromId?: string) => ConvertRPCRouteMethod<T>,
+    rpc: (fromId?: string, toId?: string) => ConvertRPCRouteMethod<T>,
     notify: (fromId?: string, toId?: string) => ConvertRouteMethod<T>,
-    broadcast: (fromId?: string) => ConvertRouteMethod<T>
+    broadcast: (fromId?: string) => ConvertRouteMethod<T>,
   };
   private filter_: LabelFilter;
 }

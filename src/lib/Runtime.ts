@@ -19,6 +19,14 @@ class Runtime {
     await this.installService(node);
 
     await this.discovery_.registerNode(this.node_.nodeMetaData);
+
+    process.on('uncaughtException', (err) => {
+      // TODO
+    });
+
+    process.on('unhandledRejection', (err) => {
+      // TODO
+    })
   }
 
   static async shutdown() {

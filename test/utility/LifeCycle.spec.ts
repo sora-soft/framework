@@ -11,19 +11,18 @@ enum TestState {
 
 describe('LifeCycle', () => {
   describe('event emitter', () => {
-    const lifeCycle = new LifeCycle<TestState>();
+    const lifeCycle = new LifeCycle<TestState>(TestState.STATE1);
     let stateChangeEventCalled = false;
 
-    lifeCycle.on(LifeCycleEvent.StateChange, (pre, current) => {
+    lifeCycle.emitter.on(LifeCycleEvent.StateChange, (pre, current) => {
       assert.strictEqual(pre, undefined);
       assert.strictEqual(current, TestState.STATE1);
+      stateChangeEventCalled = true;
     });
 
-    lifeCycle.on(LifeCycleEvent.StateChangeTo, (state) => {
+    lifeCycle.emitter.on(LifeCycleEvent.StateChangeTo, (state) => {
       assert.strictEqual(state, TestState.STATE1);
     });
-
-    lifeCycle.on(LifeCycle.stateChangeEvent(TestState.STATE1), () => { stateChangeEventCalled = true });
 
     it('setState', async () => {
       await lifeCycle.setState(TestState.STATE1);
@@ -32,7 +31,7 @@ describe('LifeCycle', () => {
   });
 
   describe('handler', () => {
-    const lifeCycle = new LifeCycle<TestState>();
+    const lifeCycle = new LifeCycle<TestState>(TestState.STATE1);
     const eventArg = 'test';
     let handlerCalled = false;
 

@@ -7,7 +7,9 @@ import {TCPUtility} from './TCPUtility';
 import {RPCError} from '../rpc/RPCError';
 import {RPCErrorCode} from '../../ErrorCode';
 import {Provider} from '../rpc/Provider';
-import {OPCode} from '../../Enum';
+import {OPCode, SenderState} from '../../Enum';
+import {Retry} from '../../utility/Retry';
+import {AsyncReject} from '../../interface/util';
 
 class TCPSender extends Sender {
   static register() {
@@ -16,28 +18,76 @@ class TCPSender extends Sender {
     });
   }
 
+  isAvailable() {
+    return this.socket_ && !this.socket_.destroyed && this.connected_;
+  }
+
   async connect(listenInfo: IListenerInfo) {
     if (this.socket_ && !this.socket_.destroyed)
       return;
 
-    const [ip, portStr] = listenInfo.endpoint.split(':');
-    const port = Utility.parseInt(portStr);
-    this.socket_ = new net.Socket();
-    this.socket_.on('data', this.onSocketData(this.socket_).bind(this));
-    await util.promisify<number, string, void>(this.socket_.connect.bind(this.socket_))(port, ip);
+    const retry = new Retry(async () => {
+      return new Promise<void>((resolve, reject) => {
+        // TODO logging
+        const [ip, portStr] = listenInfo.endpoint.split(':');
+        const port = Utility.parseInt(portStr);
+        this.socket_ = new net.Socket();
+        this.socket_.on('data', this.onSocketData(this.socket_).bind(this));
+        this.socket_.on('error', this.onRetry_('error', this.socket_, reject).bind(this));
+        this.socket_.on('close', this.onRetry_('close', this.socket_, reject).bind(this));
+        this.socket_.on('timeout', this.onRetry_('timeout', this.socket_, reject).bind(this));
 
+        this.socket_.connect(port, ip, () => {
+          this.connected_ = true;
+          resolve();
+        });
+      });
+    }, 50);
+
+    await retry.doJob();
   }
 
   async disconnect() {
     // 由客户端主动断开tcp连接
-    this.socket_.destroy();
+    if (this.socket_)
+      this.socket_.destroy();
+    this.socket_ = null;
+  }
+
+  private async reconnect_() {
+    this.connected_ = false;
+    this.connect(this.listenInfo_).catch((err: Error) => {
+      this.lifeCycle_.setState(SenderState.ERROR, err);
+    });
+  }
+
+  private onRetry_(event: string, socket: net.Socket, reject: AsyncReject) {
+    return (err: Error) => {
+      if (this.socket_ !== socket)
+        return;
+
+      if (this.socket_)
+        this.socket_.removeAllListeners();
+
+      this.socket_ = null;
+      if (this.lifeCycle_.state === SenderState.READY) {
+        if (this.connected_) {
+          this.reconnect_();
+        } else {
+          reject(err);
+        }
+      }
+    }
+
   }
 
   async send(request: IRawNetPacket) {
     const data = TCPUtility.encodeMessage(request);
-    if (this.socket_.destroyed)
+    if (!this.isAvailable())
       throw new RPCError(RPCErrorCode.ERR_RPC_TUNNEL_NOT_AVAILABLE, `ERR_RPC_TUNNEL_NOT_AVAILABLE, endpoint=${this.listenInfo_.endpoint}`);
-    await util.promisify<Buffer, void>(this.socket_.write.bind(this.socket_))(data);
+    await util.promisify<Buffer, void>(this.socket_.write.bind(this.socket_))(data).catch((err: Error) => {
+      throw new RPCError(RPCErrorCode.ERR_RPC_SENDER_INNER, `ERR_RPC_SENDER_INNER, err=${err.message}`);
+    });
   }
 
   private onSocketData(socket: net.Socket) {
@@ -75,6 +125,7 @@ class TCPSender extends Sender {
   }
 
   private socket_: net.Socket;
+  private connected_ = false;
 }
 
 export {TCPSender}

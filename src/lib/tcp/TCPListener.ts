@@ -49,17 +49,12 @@ class TCPListener extends Listener {
 
   protected async shutdown() {
     // 要等所有 socket 由对方关闭
-    if (this.sockets_.size)
-      await new Promise<void>((resolve) => { this.waitForAllSocketCloseCallback_ = resolve });
-
     await util.promisify(this.server_.close.bind(this.server_))();
   }
 
   private onSocketDisconnect(session: string) {
     return () => {
       this.sockets_.delete(session);
-      if (!this.sockets_.size && this.waitForAllSocketCloseCallback_)
-        this.waitForAllSocketCloseCallback_();
     }
   }
 
@@ -73,6 +68,7 @@ class TCPListener extends Listener {
     this.sockets_.set(session, socket);
     socket.on('data', this.onSocketData(socket).bind(this));
     socket.on('close', this.onSocketDisconnect(session).bind(this));
+    socket.on('error', this.onSocketDisconnect(session).bind(this));
   }
 
   private onSocketData(socket: net.Socket) {
@@ -110,7 +106,6 @@ class TCPListener extends Listener {
   private server_: net.Server;
   private options_: ITCPListenerOptions;
   private sockets_: Map<string, net.Socket> = new Map();
-  private waitForAllSocketCloseCallback_: () => void;
 }
 
 export {TCPListener};

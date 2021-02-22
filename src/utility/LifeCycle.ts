@@ -1,24 +1,30 @@
 import EventEmitter = require('events');
 import {LifeCycleEvent} from '../Event';
+import {IEventEmitter} from '../interface/event';
 
 export type LifeCycleHandler = (...args: any) => Promise<void>;
 
-class LifeCycle<T> extends EventEmitter {
-  static stateChangeEvent(state: number) {
-    return `state-change:${state}`;
-  }
+export interface ILifeCycleEvent<T> {
+  [LifeCycleEvent.StateChange]: (preState: T, state: T, ...args) => void;
+  [LifeCycleEvent.StateChangeTo]: (state: T, ...args) => void;
+}
+
+class LifeCycle<T> {
+  // static stateChangeEvent(state: number) {
+  //   return `state-change:${state}`;
+  // }
 
   constructor(state: T) {
-    super();
     this.state_ = state;
+    this.emitter_ = new EventEmitter();
   }
 
   async setState(state: T, ...args: any[]) {
     const preState = this.state_;
     this.state_ = state;
-    this.emit(LifeCycleEvent.StateChange, preState, state, ...args);
-    this.emit(LifeCycleEvent.StateChangeTo, state, ...args);
-    this.emit(LifeCycle.stateChangeEvent(state as any), ...args);
+    this.emitter_.emit(LifeCycleEvent.StateChange, preState, state, ...args);
+    this.emitter_.emit(LifeCycleEvent.StateChangeTo, state, ...args);
+    // this.emitter_.emit(LifeCycle.stateChangeEvent(state as any), ...args);
     const handlers = this.handlers_.get(state) || [];
     for (const handler of handlers) {
       await handler(...args);
@@ -35,8 +41,13 @@ class LifeCycle<T> extends EventEmitter {
     return this.state_;
   }
 
+  get emitter() {
+    return this.emitter_;
+  }
+
   private state_: T;
   private handlers_: Map<T, LifeCycleHandler[]> = new Map();
+  private emitter_: IEventEmitter<ILifeCycleEvent<T>>;
 }
 
 export {LifeCycle}

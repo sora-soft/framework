@@ -55,7 +55,7 @@ abstract class Listener {
   }
 
   get stateEventEmitter() {
-    return this.lifeCycle_;
+    return this.lifeCycle_.emitter;
   }
 
   get state() {
