@@ -2,6 +2,8 @@ import {Const} from '../../Const';
 import {OPCode} from '../../Enum';
 import {RPCErrorCode} from '../../ErrorCode';
 import {IRawNetPacket} from '../../interface/rpc';
+import {Logger} from '../logger/Logger';
+import {Runtime} from '../Runtime';
 import {Service} from '../Service';
 import {Notify} from './Notify';
 import {Request} from './Request';
@@ -27,7 +29,7 @@ class Route {
           const response = new Response();
           const rpcId = request.getHeader(Const.RPC_ID_HEADER);
           const result = await route.callMethod(request.method, request, response).catch(err => {
-            // TODO logging
+            Runtime.frameLogger.error('route', err, { event: 'rpc-handler', error: Logger.errorMessage(err), method: request.method, request: request.payload });
             return {
               error: err.code || RPCErrorCode.ERR_RPC_UNKNOWN,
               message: err.message,
@@ -41,7 +43,7 @@ class Route {
           // notify 不需要回复
           const notify = new Notify(packet);
           await route.callNotify(notify.method, notify).catch(err => {
-            // TODO logging
+            Runtime.frameLogger.error('route', err, { event: 'notify-handler', error: Logger.errorMessage(err), method: notify.method, request: notify.payload })
           });
           return null;
         case OPCode.RESPONSE:

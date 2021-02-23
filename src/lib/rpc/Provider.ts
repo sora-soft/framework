@@ -2,8 +2,10 @@ import {ListenerState, SenderState, WorkerState} from '../../Enum';
 import {RPCErrorCode} from '../../ErrorCode';
 import {DiscoveryListenerEvent, DiscoveryServiceEvent, LifeCycleEvent} from '../../Event';
 import {IListenerMetaData} from '../../interface/discovery';
+import {IListenerInfo} from '../../interface/rpc';
 import {LabelFilter} from '../../utility/LabelFilter';
 import {Utility} from '../../utility/Utility';
+import {Logger} from '../logger/Logger';
 import {Runtime} from '../Runtime';
 import {Notify} from './Notify';
 import {Request} from './Request';
@@ -174,7 +176,9 @@ class Provider<T extends Route> {
 
       switch (state) {
         case ListenerState.READY:
-          await sender.start(meta);
+          await sender.start(meta).catch(err => {
+            Runtime.frameLogger.error(this.logCategory, err, { event: 'sender-started-failed', error: Logger.errorMessage(err), name: this.name_ });
+          });
           break;
         case ListenerState.STOPPING:
         case ListenerState.STOPPED:
@@ -206,11 +210,16 @@ class Provider<T extends Route> {
       return;
 
     this.senders_.delete(id);
-    await sender.off();
+    await sender.off().catch(err => {
+      Runtime.frameLogger.error(this.logCategory, err, { event: 'sender-started-failed', error: Logger.errorMessage(err), name: this.name_ });
+    });;
   }
 
   private async createSender(endpoint: IListenerMetaData) {
     if (this.senders_.has(endpoint.id)) {
+      const exited = this.senders_.get(endpoint.id);
+      Runtime.frameLogger.debug(this.logCategory, { event: 'remove-exited-sender', listener: this.formatLogListener(endpoint), targetId: exited.targetId, state: exited.state, name: this.name_ });
+
       this.removeSender(endpoint.id);
     }
 
@@ -227,8 +236,24 @@ class Provider<T extends Route> {
       }
     });
 
+    Runtime.frameLogger.success(this.logCategory, { event: 'sender-created', listener: this.formatLogListener(endpoint), targetId: sender.targetId, name: this.name_ });
+
     this.senders_.set(endpoint.id, sender);
+
+    if (endpoint.state === ListenerState.READY)
+      sender.start(endpoint).catch(err => {
+        Runtime.frameLogger.error(this.logCategory, err, { event: 'sender-started-failed', error: Logger.errorMessage(err), name: this.name_ });
+      });
+
     return sender;
+  }
+
+  private get logCategory() {
+    return `provider.${this.name_}`;
+  }
+
+  private formatLogListener(listener: IListenerInfo) {
+    return { id: listener.id, protocol: listener.protocol, endpoint: listener.endpoint };
   }
 
   private name_: string;

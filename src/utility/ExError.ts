@@ -4,6 +4,7 @@ class ExError extends Error {
     super(message);
 
     Object.setPrototypeOf(this, ExError.prototype);
+    Error.captureStackTrace(this, this.constructor);
   }
 
   get code() {

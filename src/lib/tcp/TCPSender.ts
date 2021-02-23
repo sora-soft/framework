@@ -10,6 +10,7 @@ import {Provider} from '../rpc/Provider';
 import {OPCode, SenderState} from '../../Enum';
 import {Retry} from '../../utility/Retry';
 import {AsyncReject} from '../../interface/util';
+import {Runtime} from '../Runtime';
 
 class TCPSender extends Sender {
   static register() {
@@ -22,13 +23,13 @@ class TCPSender extends Sender {
     return this.socket_ && !this.socket_.destroyed && this.connected_;
   }
 
-  async connect(listenInfo: IListenerInfo) {
+  async connect(listenInfo: IListenerInfo, reconnect = false) {
     if (this.socket_ && !this.socket_.destroyed)
       return;
 
     const retry = new Retry(async () => {
       return new Promise<void>((resolve, reject) => {
-        // TODO logging
+        Runtime.frameLogger.info('sender', {event: reconnect ? 'tcp-sender-reconnect' : 'tcp-sender-connect', endpoint: listenInfo.endpoint});
         const [ip, portStr] = listenInfo.endpoint.split(':');
         const port = Utility.parseInt(portStr);
         this.socket_ = new net.Socket();
@@ -56,7 +57,7 @@ class TCPSender extends Sender {
 
   private async reconnect_() {
     this.connected_ = false;
-    this.connect(this.listenInfo_).catch((err: Error) => {
+    this.connect(this.listenInfo_, true).catch((err: Error) => {
       this.lifeCycle_.setState(SenderState.ERROR, err);
     });
   }

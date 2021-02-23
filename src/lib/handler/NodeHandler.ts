@@ -1,6 +1,6 @@
-import {FrameWorkErrorCode} from '../../ErrorCode';
+import {FrameworkErrorCode} from '../../ErrorCode';
 import {IServiceOptions, IWorkerOptions} from '../../interface/config';
-import {FrameWorkError} from '../FrameWorkError';
+import {FrameworkError} from '../FrameworkError';
 import {Node} from '../Node';
 import {Route} from '../rpc/Route';
 import {Runtime} from '../Runtime';
@@ -25,7 +25,7 @@ class NodeHandler extends Route {
   async createService(body: IReqCreateService) {
     const service = Node.serviceFactory(body.name, body.options);
     if (!service)
-      throw new FrameWorkError(FrameWorkErrorCode.ERR_SERVICE_NOT_FOUND, `ERR_SERVICE_NOT_FOUND, name=${body.name}`);
+      throw new FrameworkError(FrameworkErrorCode.ERR_SERVICE_NOT_FOUND, `ERR_SERVICE_NOT_FOUND, name=${body.name}`);
     await Runtime.installService(service);
     return {id: service.id};
   }
@@ -34,7 +34,7 @@ class NodeHandler extends Route {
   async createWorker(body: IReqCreateWorker) {
     const worker = Node.workerFactory(body.name, body.options);
     if (!worker)
-      throw new FrameWorkError(FrameWorkErrorCode.ERR_WORKER_NOT_FOUND, `ERR_WORKER_NOT_FOUND, name=${body.name}`);
+      throw new FrameworkError(FrameworkErrorCode.ERR_WORKER_NOT_FOUND, `ERR_WORKER_NOT_FOUND, name=${body.name}`);
     await Runtime.installWorker(worker);
     return {id: worker.id};
   }

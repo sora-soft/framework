@@ -1,4 +1,4 @@
-export enum FrameWorkErrorCode {
+export enum FrameworkErrorCode {
   ERR_FRAMEWORK_UNKNOWN = 'ERR_FRAMEWORK_UNKNOWN',
   ERR_SERVICE_NOT_FOUND = 'ERR_SERVICE_NOT_FOUND',
   ERR_WORKER_NOT_FOUND = 'ERR_WORKER_NOT_FOUND',

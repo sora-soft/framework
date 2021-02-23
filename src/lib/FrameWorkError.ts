@@ -1,11 +1,12 @@
-import {FrameWorkErrorCode} from '../ErrorCode';
+import {FrameworkErrorCode} from '../ErrorCode';
 import {ExError} from '../utility/ExError';
 
-class FrameWorkError extends ExError {
-  constructor(code: FrameWorkErrorCode, message: string) {
+class FrameworkError extends ExError {
+  constructor(code: FrameworkErrorCode, message: string) {
     super(code, message);
-    Object.setPrototypeOf(this, FrameWorkError.prototype);
+    Object.setPrototypeOf(this, FrameworkError.prototype);
+    Error.captureStackTrace(this, this.constructor);
   }
 }
 
-export {FrameWorkError};
+export {FrameworkError};

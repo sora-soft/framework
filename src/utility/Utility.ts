@@ -24,6 +24,54 @@ class Utility {
     const index = this.randomInt(0, array.length);
     return array[index];
   }
+
+  static formatLogTimeString(date: Date) {
+    const timezoneOffsetMin = new Date().getTimezoneOffset();
+    const offsetHrsNum = Math.abs( timezoneOffsetMin / 60 );
+    const offsetMinNum = Math.abs(timezoneOffsetMin % 60);
+    let offsetHrs = '';
+    let offsetMin = '';
+    let timezoneStandard = '';
+
+    if(offsetHrsNum < 10)
+      offsetHrs = '0' + offsetHrsNum;
+
+    if(offsetMinNum < 10)
+      offsetMin = '0' + offsetMinNum;
+
+    // Add an opposite sign to the offset
+    // If offset is 0, it means timezone is UTC
+    if(timezoneOffsetMin < 0)
+      timezoneStandard = '+' + offsetHrs + ':' + offsetMin;
+    else if(timezoneOffsetMin > 0)
+      timezoneStandard = '-' + offsetHrs + ':' + offsetMin;
+    else if(timezoneOffsetMin == 0)
+      timezoneStandard = 'Z';
+
+
+    const dt = new Date();
+    const currentDate = dt.getDate();
+    const currentMonth = dt.getMonth() + 1;
+    const currentYear = dt.getFullYear();
+    const currentHrs = dt.getHours();
+    const currentMins = dt.getMinutes();
+    const currentSecs = dt.getSeconds();
+    // const current_datetime;
+
+    // Add 0 before date, month, hrs, mins or secs if they are less than 0
+    const currentDateStr = currentDate < 10 ? '0' + currentDate : currentDate;
+    const currentMonthStr = currentMonth < 10 ? '0' + currentMonth : currentMonth;
+    const currentHrsStr = currentHrs < 10 ? '0' + currentHrs : currentHrs;
+    const currentMinsStr = currentMins < 10 ? '0' + currentMins : currentMins;
+    const currentSecsStr = currentSecs < 10 ? '0' + currentSecs : currentSecs;
+
+    // Current datetime
+    // String such as 2016-07-16T19:20:30
+    const currentDateTime = currentYear + '-' + currentMonthStr + '-' + currentDateStr + 'T' + currentHrsStr + ':' + currentMinsStr + ':' + currentSecsStr;
+    // Timezone difference in hours and minutes
+    // String such as +5:30 or -6:00 or Z
+    return currentDateTime + timezoneStandard;
+  }
 }
 
 export {Utility}

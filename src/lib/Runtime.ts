@@ -2,14 +2,23 @@ import {WorkerState} from '../Enum';
 import {LifeCycleEvent} from '../Event';
 import {IRuntimeOptions, IServiceOptions} from '../interface/config';
 import {Discovery} from './discovery/Discovery';
+import {FrameworkLogger} from './FrameworkLogger';
 import {Node} from './Node'
 import {Service} from './Service';
 import {Worker} from './Worker';
 
 class Runtime {
+  static get frameLogger() {
+    if (!this.frameLogger_)
+      this.frameLogger_ = new FrameworkLogger();
+    return this.frameLogger_;
+  }
+
+  private static frameLogger_: FrameworkLogger;
 
   static async loadConfig(options: IRuntimeOptions) {
     this.scope_ = options.scope;
+    this.frameLogger.success('runtime', {event: 'load-config', config: options});
   }
 
   static async startup(node: Node, discovery: Discovery) {
@@ -43,6 +52,8 @@ class Runtime {
       return;
     this.services_.set(service.id, service);
 
+    this.frameLogger.info('runtime', {event: 'service-starting', name: service.name, id: service.id });
+
     service.stateEventEmitter.on(LifeCycleEvent.StateChange, (state: WorkerState) => {
       this.discovery_.registerService(service.metaData);
     });
@@ -50,15 +61,21 @@ class Runtime {
     await this.discovery_.registerService(service.metaData);
 
     await service.start();
+
+    this.frameLogger.success('runtime', {event: 'service-started', name: service.name, id: service.id});
   }
 
   static async installWorker(worker: Worker) {
     if (this.workers_.has(worker.id))
       return;
 
-    this.workers_.set(worker.id, worker);
+    this.frameLogger.info('runtime', {event: 'worker-starting', name: worker.name, id: worker.id });
 
+    this.workers_.set(worker.id, worker);
     await worker.start();
+
+    this.frameLogger.success('runtime', {event: 'worker-started', name: worker.name, id: worker.id});
+
   }
 
   static async uninstallWorker(id: string, reason: string) {
@@ -66,10 +83,14 @@ class Runtime {
     if (!worker)
       return;
 
+    this.frameLogger.info('runtime', {event: 'worker-stopping', name: worker.name, id: worker.id });
+
+    this.workers_.delete(id);
+
     if (worker.state < WorkerState.STOPPING)
       await worker.stop(reason);
 
-    this.workers_.delete(id);
+    this.frameLogger.success('runtime', {event: 'worker-stopped', name: worker.name, id: worker.id});
   }
 
   static async uninstallService(id: string, reason: string) {
@@ -77,10 +98,13 @@ class Runtime {
     if (!service)
       return;
 
+    this.frameLogger.info('runtime', {event: 'service-stopping', name: service.name, id: service.id });
+
+    this.services_.delete(id);
     if (service.state < WorkerState.STOPPING)
       await service.stop(reason);
 
-    this.services_.delete(id);
+    this.frameLogger.success('runtime', {event: 'service-stopped', name: service.name, id: service.id});
   }
 
   static get node() {
