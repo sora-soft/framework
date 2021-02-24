@@ -1,6 +1,7 @@
 import {WorkerState} from '../Enum';
 import {LifeCycleEvent} from '../Event';
 import {IRuntimeOptions} from '../interface/config';
+import {Time} from '../utility/Time';
 import {Discovery} from './discovery/Discovery';
 import {FrameworkLogger} from './FrameworkLogger';
 import {Logger} from './logger/Logger';
@@ -23,29 +24,71 @@ class Runtime {
   }
 
   static async startup(node: Node, discovery: Discovery) {
-    this.discovery_ = discovery;
-    await this.discovery_.connect();
-    this.node_ = node;
-    await this.installService(node);
-
-    await this.discovery_.registerNode(this.node_.nodeStateData);
-
     process.on('uncaughtException', (err) => {
       this.frameLogger_.error('runtime', err, {event: 'uncaught-exception', error: Logger.errorMessage(err)});
     });
 
     process.on('unhandledRejection', (err: Error) => {
       this.frameLogger_.error('runtime', err, {event: 'uncaught-rejection', error: Logger.errorMessage(err)});
-    })
+    });
+
+    process.on('SIGINT', async () => {
+      this.frameLogger_.info('process', `receive SIGINT`);
+      await this.shutdown();
+      this.frameLogger_.info('process', 'process exit');
+      process.exit(0);
+    });
+
+    process.on('SIGTERM', async () => {
+      this.frameLogger_.info('process', `receive SIGTERM`);
+      await this.shutdown();
+      this.frameLogger_.info('process', 'process exit');
+      process.exit(0);
+    });
+
+    this.discovery_ = discovery;
+    await this.discovery_.connect().catch(err => {
+      this.frameLogger_.fatal('runtime', err, { event: 'connect-discovery', error: Logger.errorMessage(err)});
+      process.exit(1);
+    });
+    this.node_ = node;
+    await this.installService(node).catch(err => {
+      this.frameLogger_.fatal('runtime', err, { event: 'install-node', error: Logger.errorMessage(err)});
+      process.exit(1);
+    });
+
+    await this.discovery_.registerNode(this.node_.nodeStateData).catch(err => {
+      this.frameLogger_.fatal('runtime', err, { event: 'register-node', error: Logger.errorMessage(err)});
+      process.exit(1);
+    });
   }
 
   static async shutdown() {
     const promises = [];
     for (const [id, service] of [...this.services_]) {
-      const promise = this.uninstallService(id, 'runtime_shutdown');
+      const promise = this.uninstallService(id, 'runtime_shutdown').catch((err: Error) => {
+        this.frameLogger_.error('runtime', err, { event: 'uninstall-service', error: Logger.errorMessage(err), id: service.id});
+      });
       promises.push(promise);
     }
     await Promise.all(promises);
+
+    this.frameLogger_.info('runtime', { event: 'all-service-closed'});
+
+    promises.length = 0;
+    for (const [id, worker] of [...this.workers_]) {
+      const promise = this.uninstallWorker(id, 'runtime_shutdown').catch((err: Error) => {
+        this.frameLogger_.error('runtime', err, { event: 'uninstall-worker', error: Logger.errorMessage(err), id: worker.id});
+      });;
+      promises.push(promise);
+    }
+    await Promise.all(promises);
+
+    this.frameLogger_.info('runtime', { event: 'all-worker-closed'});
+
+    await this.discovery_.disconnect();
+
+    this.frameLogger_.info('runtime', { event: 'discovery-disconnected'});
   }
 
   static async installService(service: Service) {
@@ -91,7 +134,7 @@ class Runtime {
     if (worker.state < WorkerState.STOPPING)
       await worker.stop(reason);
 
-    this.frameLogger.success('runtime', {event: 'worker-stopped', name: worker.name, id: worker.id});
+    this.frameLogger.success('runtime', {event: 'worker-stopped', name: worker.name, id: worker.id, reason});
   }
 
   static async uninstallService(id: string, reason: string) {
@@ -105,7 +148,7 @@ class Runtime {
     if (service.state < WorkerState.STOPPING)
       await service.stop(reason);
 
-    this.frameLogger.success('runtime', {event: 'service-stopped', name: service.name, id: service.id});
+    this.frameLogger.success('runtime', {event: 'service-stopped', name: service.name, id: service.id, reason});
   }
 
   static get node() {

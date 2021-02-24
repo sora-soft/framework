@@ -169,11 +169,14 @@ class Provider<T extends Route> {
     });
     Runtime.discovery.listenerEmitter.on(DiscoveryListenerEvent.ListenerStateUpdate, async (id, state, pre, meta) => {
       let sender = this.senders_.get(id);
-      if (!sender) {
+      if (!sender && state === ListenerState.READY) {
         if (meta.service === this.name_ && this.filter_.isSatisfy(meta.labels))
           sender = await this.createSender(meta);
         return;
       }
+
+      if (!sender)
+        return;
 
       switch (state) {
         case ListenerState.READY:
@@ -210,9 +213,10 @@ class Provider<T extends Route> {
     if (!sender)
       return;
 
+    Runtime.frameLogger.info(this.logCategory, { event: 'remove-sender', name: this.name_, id });
     this.senders_.delete(id);
     await sender.off().catch(err => {
-      Runtime.frameLogger.error(this.logCategory, err, { event: 'sender-started-failed', error: Logger.errorMessage(err), name: this.name_ });
+      Runtime.frameLogger.error(this.logCategory, err, { event: 'sender-stop-failed', error: Logger.errorMessage(err), name: this.name_ });
     });;
   }
 

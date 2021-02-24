@@ -5,6 +5,7 @@ import {IListenerInfo, IRawNetPacket, IRawResPacket} from '../../interface/rpc';
 import {LifeCycle} from '../../utility/LifeCycle'
 import {TimeoutError} from '../../utility/TimeoutError';
 import {Waiter} from '../../utility/Waiter';
+import {Runtime} from '../Runtime';
 import {Notify} from './Notify';
 import {Request} from './Request';
 import {Route} from './Route';
