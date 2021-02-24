@@ -1,9 +1,11 @@
-import {ListenerState, SenderState} from '../../Enum';
+import {ListenerState, SenderState, WorkerState} from '../../Enum';
 import {RPCErrorCode} from '../../ErrorCode';
-import {DiscoveryListenerEvent} from '../../Event';
+import {DiscoveryListenerEvent, DiscoveryServiceEvent, LifeCycleEvent} from '../../Event';
 import {IListenerMetaData} from '../../interface/discovery';
+import {IListenerInfo} from '../../interface/rpc';
 import {LabelFilter} from '../../utility/LabelFilter';
 import {Utility} from '../../utility/Utility';
+import {Logger} from '../logger/Logger';
 import {Runtime} from '../Runtime';
 import {Notify} from './Notify';
 import {Request} from './Request';
@@ -12,7 +14,7 @@ import {Route} from './Route';
 import {RPCError} from './RPCError';
 import {Sender} from './Sender';
 
-export type senderBuilder = (targetId: string) => Sender;
+export type senderBuilder = (listenerId: string, targetId: string) => Sender;
 export interface IRequestOptions {
   headers?: {
     [k: string]: any
@@ -27,7 +29,7 @@ type ConvertRPCRouteMethod<T extends Route> = {
   [K in keyof T]: RawRouteRPCMethod<T, K> & RouteRPCMethod<T, K>;
 }
 type RouteMethod<T extends Route, K extends keyof T> = (body: Parameters<TypeOfClassMethod<T, K>>[0], options?: IRequestOptions) => Promise<void>;
-type ConvertRouteMethod<T extends Route> = {
+export type ConvertRouteMethod<T extends Route> = {
   [K in keyof T]: RouteMethod<T, K>
 }
 
@@ -36,19 +38,20 @@ class Provider<T extends Route> {
     this.senderBuilder_.set(protocol, builder);
   }
 
-  protected static senderFactory(protocol: string, targetId: string) {
+  protected static senderFactory(protocol: string, listenerId: string, targetId: string) {
     const builder = this.senderBuilder_.get(protocol);
     if (!builder)
       return null;
-    return builder(targetId);
+    return builder(listenerId, targetId);
   }
 
   private static senderBuilder_: Map<string, senderBuilder> = new Map();
 
-  constructor(name: string, filter: LabelFilter = new LabelFilter([])) {
+  constructor(name: string, filter: LabelFilter = new LabelFilter([]), route?: Route) {
     this.name_ = name;
     this.senders_ = new Map();
     this.filter_ = filter;
+    this.route_ = route;
 
     this.caller_ = {
       rpc: (fromId?: string, toId?: string) => {
@@ -58,7 +61,7 @@ class Provider<T extends Route> {
               const sender = Utility.randomOne([...this.senders_].map(([id, s]) => {
                 return s;
               }).filter((s) => {
-                return s.state === SenderState.READY && (!toId || s.targetId === toId);
+                return s.state === SenderState.READY && (!toId || s.targetId === toId) && s.isAvailable();
               }));
 
               if (!sender)
@@ -88,7 +91,7 @@ class Provider<T extends Route> {
               const sender = Utility.randomOne([...this.senders_].map(([id, s]) => {
                 return s;
               }).filter(s => {
-                return s.state === SenderState.READY && (!toId || s.targetId === toId);
+                return s.state === SenderState.READY && (!toId || s.listenerId === toId) && s.isAvailable();
               }))
 
               if (!sender)
@@ -115,9 +118,9 @@ class Provider<T extends Route> {
               const senders = [...this.senders_].map(([id, s]) => {
                 return s;
               }).filter(s => {
-                const available = s.state === SenderState.READY && !targetSet.has(s.targetId);
+                const available = s.state === SenderState.READY && !targetSet.has(s.listenerId) && s.isAvailable();
                 if (available) {
-                  targetSet.add(s.targetId);
+                  targetSet.add(s.listenerId);
                 }
                 return available;
               });
@@ -146,36 +149,50 @@ class Provider<T extends Route> {
       this.createSender(info);
     }
 
+    Runtime.discovery.serviceEmitter.on(DiscoveryServiceEvent.ServiceStateUpdate, async (id, state, pre, meta) => {
+      switch (state) {
+        case WorkerState.ERROR:
+        case WorkerState.STOPPING:
+        case WorkerState.STOPPED:
+          for (const sender of this.senderList_) {
+            if (sender.targetId === id) {
+              this.removeSender(sender.listenerId);
+            }
+          }
+          break;
+      }
+    });
+
     Runtime.discovery.listenerEmitter.on(DiscoveryListenerEvent.ListenerCreated, async (info) => {
       if (info.service === this.name_ && this.filter_.isSatisfy(info.labels))
         this.createSender(info);
     });
     Runtime.discovery.listenerEmitter.on(DiscoveryListenerEvent.ListenerStateUpdate, async (id, state, pre, meta) => {
-      const sender = this.senders_.get(id);
-      if (!sender) {
+      let sender = this.senders_.get(id);
+      if (!sender && state === ListenerState.READY) {
         if (meta.service === this.name_ && this.filter_.isSatisfy(meta.labels))
-          this.createSender(meta);
+          sender = await this.createSender(meta);
         return;
       }
 
+      if (!sender)
+        return;
+
       switch (state) {
         case ListenerState.READY:
-          await sender.start(meta);
+          await sender.start(meta).catch(err => {
+            Runtime.frameLogger.error(this.logCategory, err, { event: 'sender-started-failed', error: Logger.errorMessage(err), name: this.name_ });
+          });
           break;
         case ListenerState.STOPPING:
         case ListenerState.STOPPED:
         case ListenerState.ERROR:
-          await sender.off();
+          this.removeSender(id);
           break;
       }
     });
     Runtime.discovery.listenerEmitter.on(DiscoveryListenerEvent.ListenerDeleted, async (id) => {
-      const sender = this.senders_.get(id);
-      if (!sender)
-        return;
-
-      await sender.off();
-      this.senders_.delete(id);
+      this.removeSender(id);
     });
   }
 
@@ -187,26 +204,74 @@ class Provider<T extends Route> {
     return this.senders_;
   }
 
-  private async createSender(endpoint: IListenerMetaData) {
-    const sender = Provider.senderFactory(endpoint.protocol, endpoint.targetId);
+  private get senderList_() {
+    return [...this.senders_].map(([id, sender]) => sender);
+  }
+
+  private async removeSender(id: string) {
+    const sender = this.senders_.get(id);
     if (!sender)
       return;
 
+    Runtime.frameLogger.info(this.logCategory, { event: 'remove-sender', name: this.name_, id });
+    this.senders_.delete(id);
+    await sender.off().catch(err => {
+      Runtime.frameLogger.error(this.logCategory, err, { event: 'sender-stop-failed', error: Logger.errorMessage(err), name: this.name_ });
+    });;
+  }
+
+  private async createSender(endpoint: IListenerMetaData) {
+    if (this.senders_.has(endpoint.id)) {
+      const exited = this.senders_.get(endpoint.id);
+      Runtime.frameLogger.debug(this.logCategory, { event: 'remove-exited-sender', listener: this.formatLogListener(endpoint), targetId: exited.targetId, state: exited.state, name: this.name_ });
+
+      this.removeSender(endpoint.id);
+    }
+
+    const sender = Provider.senderFactory(endpoint.protocol, endpoint.id, endpoint.targetId);
+    if (!sender)
+      return;
+
+    sender.stateEmitter.on(LifeCycleEvent.StateChangeTo, (state) => {
+      switch(state) {
+        case SenderState.ERROR:
+        case SenderState.STOPPED:
+          this.removeSender(sender.listenerId);
+          break;
+      }
+    });
+
+    Runtime.frameLogger.success(this.logCategory, { event: 'sender-created', listener: this.formatLogListener(endpoint), targetId: sender.targetId, name: this.name_ });
+
     this.senders_.set(endpoint.id, sender);
+    if (this.route_)
+      sender.enableResponse(this.route_);
+
     if (endpoint.state === ListenerState.READY)
-      await sender.start(endpoint);
+      sender.start(endpoint).catch(err => {
+        Runtime.frameLogger.error(this.logCategory, err, { event: 'sender-started-failed', error: Logger.errorMessage(err), name: this.name_ });
+      });
 
     return sender;
+  }
+
+  private get logCategory() {
+    return `provider.${this.name_}`;
+  }
+
+  private formatLogListener(listener: IListenerInfo) {
+    return { id: listener.id, protocol: listener.protocol, endpoint: listener.endpoint };
   }
 
   private name_: string;
   private senders_: Map<string /*endpoint id*/, Sender>;
   private caller_: {
-    rpc: (fromId?: string) => ConvertRPCRouteMethod<T>,
+    rpc: (fromId?: string, toId?: string) => ConvertRPCRouteMethod<T>,
     notify: (fromId?: string, toId?: string) => ConvertRouteMethod<T>,
-    broadcast: (fromId?: string) => ConvertRouteMethod<T>
+    broadcast: (fromId?: string) => ConvertRouteMethod<T>,
   };
   private filter_: LabelFilter;
+  private route_: Route;
 }
 
 export {Provider}

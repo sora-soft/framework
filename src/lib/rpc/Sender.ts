@@ -5,17 +5,21 @@ import {IListenerInfo, IRawNetPacket, IRawResPacket} from '../../interface/rpc';
 import {LifeCycle} from '../../utility/LifeCycle'
 import {TimeoutError} from '../../utility/TimeoutError';
 import {Waiter} from '../../utility/Waiter';
+import {Runtime} from '../Runtime';
 import {Notify} from './Notify';
 import {Request} from './Request';
 import {Route} from './Route';
 import {RPCError} from './RPCError';
 
 abstract class Sender {
-  constructor(targetId: string) {
+  constructor(listenerId: string, targetId: string) {
     this.lifeCycle_ = new LifeCycle(SenderState.INIT);
     this.waiter_ = new Waiter();
+    this.listenerId_ = listenerId;
     this.targetId_ = targetId;
   }
+
+  abstract isAvailable(): boolean;
 
   protected abstract connect(listenInfo: IListenerInfo): Promise<void>;
   public async start(listenInfo: IListenerInfo) {
@@ -33,6 +37,7 @@ abstract class Sender {
       return;
 
     this.lifeCycle_.setState(SenderState.STOPPING);
+    await this.waiter_.waitForAll(10000);
     await this.disconnect().catch(this.onError.bind(this));
     this.lifeCycle_.setState(SenderState.STOPPED);
   }
@@ -72,17 +77,40 @@ abstract class Sender {
     }
   }
 
+  enableResponse(route: Route) {
+    this.route_ = route;
+  }
+
   get state() {
     return this.lifeCycle_.state;
+  }
+
+  get listenerId() {
+    return this.listenerId_;
   }
 
   get targetId() {
     return this.targetId_;
   }
 
+  get stateEmitter() {
+    return this.lifeCycle_.emitter;
+  }
+
+  set session(value: string) {
+    this.session_ = value;
+  }
+
+  get session() {
+    return this.session_;
+  }
+
   protected lifeCycle_: LifeCycle<SenderState>;
   protected listenInfo_: IListenerInfo;
+  protected route_: Route;
+  protected session_: string;
   private waiter_: Waiter<IRawResPacket>;
+  private listenerId_: string;
   private targetId_: string;
 }
 

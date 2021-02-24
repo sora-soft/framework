@@ -41,7 +41,8 @@
           "match": true
         }
       }
-    ]
+    ],
+    "array-type": false
   },
   "rulesDirectory": []
 }

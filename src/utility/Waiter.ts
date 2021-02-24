@@ -29,6 +29,10 @@ class Waiter<T> {
       this.pool_.delete(id);
       info.resolve(result);
     }
+    if (!this.pool_.size && this.allStoppedCallback_) {
+      clearTimeout(this.stopTimeoutTimer_);
+      this.allStoppedCallback_();
+    }
   }
 
   emitError(id: number, error: Error) {
@@ -40,7 +44,23 @@ class Waiter<T> {
     }
   }
 
+  async waitForAll(ttlMS: number) {
+    if (!this.pool_.size)
+      return;
+
+    const promise = new Promise<void>((resolve) => {
+      this.allStoppedCallback_ = resolve;
+    });
+    this.stopTimeoutTimer_ = setTimeout(() => {
+      if (this.allStoppedCallback_)
+        this.allStoppedCallback_();
+    }, ttlMS);
+    return promise;
+  }
+
   private pool_: Map<number, {resolve: (value: T) => void, reject: (error: Error) => void, timer: NodeJS.Timeout}>;
+  private allStoppedCallback_: () => void;
+  private stopTimeoutTimer_: NodeJS.Timer;
   private id_: number;
 }
 

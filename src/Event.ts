@@ -27,3 +27,8 @@ export enum DiscoveryNodeEvent {
 export enum ListenerEvent {
   NewConnect = 'new-connection',
 }
+
+export enum RetryEvent {
+  Error = 'retry-error',
+  MaxRetryTime = 'max-retry-time',
+}

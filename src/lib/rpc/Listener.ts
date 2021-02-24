@@ -11,7 +11,7 @@ export interface IListenerEvent {
   [ListenerEvent.NewConnect]: (session: string, ...args: any[]) => void;
 }
 
-export type ListenerCallback = (data: IRawNetPacket) => Promise<IRawResPacket>;
+export type ListenerCallback = (data: IRawNetPacket, session: string) => Promise<IRawResPacket>;
 
 abstract class Listener {
   constructor(callback: ListenerCallback, executor: Executor) {
@@ -42,7 +42,6 @@ abstract class Listener {
     });
   }
 
-  abstract notify(id: string, notify: Notify): Promise<void>;
   abstract get metaData(): IListenerInfo;
 
   private async onError(err: Error) {
@@ -55,7 +54,7 @@ abstract class Listener {
   }
 
   get stateEventEmitter() {
-    return this.lifeCycle_;
+    return this.lifeCycle_.emitter;
   }
 
   get state() {
@@ -66,10 +65,14 @@ abstract class Listener {
     return this.id_;
   }
 
-  protected connectionEmitter: IEventEmitter<IListenerEvent>;
+  get connectionEmitter() {
+    return this.connectionEmitter_;
+  }
+
+  protected connectionEmitter_: IEventEmitter<IListenerEvent>;
+  protected lifeCycle_: LifeCycle<ListenerState>;
   private callback_: ListenerCallback;
   private info_: IListenerInfo;
-  private lifeCycle_: LifeCycle<ListenerState>;
   private id_: string;
   private executor_: Executor;
 }

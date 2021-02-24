@@ -4,11 +4,13 @@ import {Service} from './Service';
 import {TCPListener} from './tcp/TCPListener';
 import {Route} from './rpc/Route';
 import {NodeHandler} from './handler/NodeHandler';
-import {INodeMetaData} from '../interface/discovery';
+import {INodeMetaData, IServiceMetaData, IWorkerMetaData} from '../interface/discovery';
 import {Worker} from './Worker';
-
-export type serviceBuilder = (options: IServiceOptions) => Service;
-export type workerBuilder = (options: IWorkerOptions) => Worker;
+import {TCPSender} from './tcp/TCPSender';
+import {Broadcaster} from './rpc/Broadcaster';
+import {INodeNotifyHandler} from './handler/NodeNotifyHandler';
+import {Runtime} from './Runtime';
+import {INodeRunData, serviceBuilder, workerBuilder} from '../interface/node';
 
 class Node extends Service {
   static registerWorker(name: string, builder: workerBuilder) {
@@ -43,23 +45,45 @@ class Node extends Service {
 
   async startup() {
     const route = new NodeHandler(this);
-    this.listener_ = new TCPListener(this.nodeOptions_.api, Route.callback(route), this.executor);
-    await this.installListener(this.listener_);
+    this.TCPListener_ = new TCPListener(this.nodeOptions_.api, Route.callback(route), this.executor);
+
+    await this.installListener(this.TCPListener_);
+
+    this.doJobInterval(async () => {
+      this.broadcaster_.notify(this.id).notifyNodeState(this.nodeRunData);
+    }, 1000);
   }
 
   async shutdown() {}
 
-  get nodeMetaData(): INodeMetaData {
+  registerBroadcaster(method: keyof INodeNotifyHandler, session: string) {
+    const socket = this.TCPListener_.getSocket(session);
+    if (!socket)
+      return;
+    const sender = new TCPSender(this.TCPListener_.id, this.id, socket);
+    this.broadcaster_.registerSender(method, sender);
+  }
+
+  get nodeRunData(): INodeRunData {
+    return {
+      services: Runtime.services.map((service) => service.metaData),
+      workers: Runtime.workers.map((worker) => worker.metaData),
+      node: Runtime.node.nodeStateData,
+    }
+  }
+
+  get nodeStateData(): INodeMetaData {
     return {
       id: this.id,
       host: os.hostname(),
       pid: process.pid,
-      endpoint: this.listener_.metaData,
+      endpoint: this.TCPListener_.metaData,
       state: this.state,
     }
   }
   private nodeOptions_: INodeOptions;
-  private listener_: TCPListener;
+  private broadcaster_: Broadcaster<INodeNotifyHandler>;
+  private TCPListener_: TCPListener;
 }
 
 export {Node};

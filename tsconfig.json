@@ -3,15 +3,13 @@
     "moduleResolution": "node",
     "module": "commonjs",
     "declaration": true,
-    "target": "es5",
-    "noImplicitAny": false,
+    "target": "ESNext",
     "outDir": "./dist",
     "sourceMap": true,
     "alwaysStrict": true,
     "downlevelIteration": true,
     "experimentalDecorators": true,
-    "emitDecoratorMetadata": true,
-    "lib": [ "es2017" ]
+    "emitDecoratorMetadata": true
   },
   "include": [
     "./src/**/*"
