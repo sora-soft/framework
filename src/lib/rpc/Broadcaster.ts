@@ -39,11 +39,14 @@ class Broadcaster<T extends Route> {
     this.senders_.delete(session);
   }
 
-  notify(fromId: string): ConvertRouteMethod<T> {
+  notify(fromId?: string, toSession?: string[]): ConvertRouteMethod<T> {
     return new Proxy<ConvertRouteMethod<T>>({} as any, {
       get: (target, prop: string, receiver) => {
         return async (body: unknown, options: IRequestOptions = {}) => {
           for (const [session, handler] of this.senders_) {
+            if (toSession && !toSession.includes(session))
+              continue;
+
             if (!handler.methods.has(prop))
               continue;
 
@@ -56,7 +59,7 @@ class Broadcaster<T extends Route> {
               headers: options.headers || {},
             });
             await handler.sender.sendNotify(notify, fromId).catch(err => {
-              Runtime.frameLogger.error('broadcaster', err, {event: 'broadcast-sender-notify-error', error: Logger.errorMessage(err)});
+              Runtime.frameLogger.error('broadcaster', err, {event: 'broadcast-sender-notify', error: Logger.errorMessage(err)});
             });
           }
         };

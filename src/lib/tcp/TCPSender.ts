@@ -27,7 +27,7 @@ class TCPSender extends Sender {
       this.socket_ = socket;
       this.canReconnect_ = false;
       this.bindSocketEvent((err: Error) => {
-        Runtime.frameLogger.error('listener-sender', err, { event: 'listener-sender-error', error: Logger.errorMessage(err)});
+        Runtime.frameLogger.error('listener-sender', err, { event: 'listener-sender-on-error', error: Logger.errorMessage(err)});
       });
       this.lifeCycle_.setState(SenderState.READY);
     }

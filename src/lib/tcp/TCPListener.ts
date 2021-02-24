@@ -43,7 +43,7 @@ class TCPListener extends Listener {
 
   private onServerError(err: Error) {
     this.lifeCycle_.setState(ListenerState.ERROR, err);
-    Runtime.frameLogger.error('listener.tcp', err, {event: 'tcp-server-error', error: Logger.errorMessage(err)});
+    Runtime.frameLogger.error('listener.tcp', err, {event: 'tcp-server-on-error', error: Logger.errorMessage(err)});
   }
 
   protected async listen() {
