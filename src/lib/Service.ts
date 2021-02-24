@@ -1,4 +1,4 @@
-import {WorkerState} from '../Enum';
+import {ListenerState, WorkerState} from '../Enum';
 import {LifeCycleEvent} from '../Event';
 import {IServiceOptions} from '../interface/config';
 import {IServiceMetaData} from '../interface/discovery';
@@ -45,12 +45,19 @@ abstract class Service extends Worker {
       targetId: this.id,
     });
 
-    listener.stateEventEmitter.on(LifeCycleEvent.StateChange, () => {
+    listener.stateEventEmitter.on(LifeCycleEvent.StateChange, async (pre, state, err: Error) => {
       Runtime.discovery.registerEndpoint({
         ...listener.metaData,
         state: listener.state,
         targetId: this.id,
       });
+
+      switch (state) {
+        case ListenerState.ERROR:
+          Runtime.frameLogger.error(this.logCategory, err, { event: 'listener-err', id: listener.id, preState: pre, error: Logger.errorMessage(err) });
+          this.uninstallListener(listener.id);
+          break;
+      }
     });
 
     await listener.startListen();

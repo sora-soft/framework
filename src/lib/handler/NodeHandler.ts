@@ -1,7 +1,9 @@
+import {Const} from '../../Const';
 import {FrameworkErrorCode} from '../../ErrorCode';
 import {IServiceOptions, IWorkerOptions} from '../../interface/config';
 import {FrameworkError} from '../FrameworkError';
 import {Node} from '../Node';
+import {Request} from '../rpc/Request';
 import {Route} from '../rpc/Route';
 import {Runtime} from '../Runtime';
 
@@ -20,7 +22,7 @@ export interface IReqRemoveWorker {
   reason: string;
 }
 
-class NodeHandler extends Route {
+class NodeHandler extends Route<Node> {
   @Route.method
   async createService(body: IReqCreateService) {
     const service = Node.serviceFactory(body.name, body.options);
@@ -52,11 +54,18 @@ class NodeHandler extends Route {
   }
 
   @Route.method
+  async registerRunningDataNotify(body: {}, request: Request<{}>) {
+    const session = request.getHeader(Const.RPC_SESSION_HEADER);
+    this.service.registerBroadcaster('notifyNodeState', session);
+    return {};
+  }
+
+  @Route.method
   async fetchRunningData() {
     return {
       services: Runtime.services.map((service) => service.metaData),
       workers: Runtime.workers.map((worker) => worker.metaData),
-      node: Runtime.node.nodeMetaData,
+      node: Runtime.node.nodeStateData,
     }
   }
 }

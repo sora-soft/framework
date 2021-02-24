@@ -29,7 +29,7 @@ type ConvertRPCRouteMethod<T extends Route> = {
   [K in keyof T]: RawRouteRPCMethod<T, K> & RouteRPCMethod<T, K>;
 }
 type RouteMethod<T extends Route, K extends keyof T> = (body: Parameters<TypeOfClassMethod<T, K>>[0], options?: IRequestOptions) => Promise<void>;
-type ConvertRouteMethod<T extends Route> = {
+export type ConvertRouteMethod<T extends Route> = {
   [K in keyof T]: RouteMethod<T, K>
 }
 
@@ -47,10 +47,11 @@ class Provider<T extends Route> {
 
   private static senderBuilder_: Map<string, senderBuilder> = new Map();
 
-  constructor(name: string, filter: LabelFilter = new LabelFilter([])) {
+  constructor(name: string, filter: LabelFilter = new LabelFilter([]), route?: Route) {
     this.name_ = name;
     this.senders_ = new Map();
     this.filter_ = filter;
+    this.route_ = route;
 
     this.caller_ = {
       rpc: (fromId?: string, toId?: string) => {
@@ -239,6 +240,8 @@ class Provider<T extends Route> {
     Runtime.frameLogger.success(this.logCategory, { event: 'sender-created', listener: this.formatLogListener(endpoint), targetId: sender.targetId, name: this.name_ });
 
     this.senders_.set(endpoint.id, sender);
+    if (this.route_)
+      sender.enableResponse(this.route_);
 
     if (endpoint.state === ListenerState.READY)
       sender.start(endpoint).catch(err => {
@@ -264,6 +267,7 @@ class Provider<T extends Route> {
     broadcast: (fromId?: string) => ConvertRouteMethod<T>,
   };
   private filter_: LabelFilter;
+  private route_: Route;
 }
 
 export {Provider}

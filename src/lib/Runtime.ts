@@ -1,8 +1,9 @@
 import {WorkerState} from '../Enum';
 import {LifeCycleEvent} from '../Event';
-import {IRuntimeOptions, IServiceOptions} from '../interface/config';
+import {IRuntimeOptions} from '../interface/config';
 import {Discovery} from './discovery/Discovery';
 import {FrameworkLogger} from './FrameworkLogger';
+import {Logger} from './logger/Logger';
 import {Node} from './Node'
 import {Service} from './Service';
 import {Worker} from './Worker';
@@ -27,14 +28,14 @@ class Runtime {
     this.node_ = node;
     await this.installService(node);
 
-    await this.discovery_.registerNode(this.node_.nodeMetaData);
+    await this.discovery_.registerNode(this.node_.nodeStateData);
 
     process.on('uncaughtException', (err) => {
-      // TODO
+      this.frameLogger_.error('runtime', err, {event: 'uncaught-exception', error: Logger.errorMessage(err)});
     });
 
-    process.on('unhandledRejection', (err) => {
-      // TODO
+    process.on('unhandledRejection', (err: Error) => {
+      this.frameLogger_.error('runtime', err, {event: 'uncaught-rejection', error: Logger.errorMessage(err)});
     })
   }
 

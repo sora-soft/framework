@@ -7,6 +7,8 @@ import {Executor} from '../../utility/Executor';
 import {ILabels, ITCPListenerOptions} from '../../interface/config';
 import {Notify} from '../rpc/Notify';
 import {v4 as uuid} from 'uuid';
+import {ListenerEvent} from '../../Event';
+import {TCPSender} from './TCPSender';
 
 class TCPListener extends Listener {
   constructor(options: ITCPListenerOptions, callback: ListenerCallback, executor: Executor) {
@@ -26,14 +28,8 @@ class TCPListener extends Listener {
     }
   }
 
-  async notify(session: string, notify: Notify) {
-    const socket = this.sockets_.get(session);
-    if (!socket || socket.destroyed)
-      return;
-
-    const packet = notify.toPacket();
-    const data = TCPUtility.encodeMessage(packet);
-    await util.promisify<Buffer, void>(socket.write.bind(socket))(data);
+  getSocket(session: string) {
+    return this.sockets_.get(session);
   }
 
   protected async listen() {
@@ -66,12 +62,14 @@ class TCPListener extends Listener {
 
     const session = uuid();
     this.sockets_.set(session, socket);
-    socket.on('data', this.onSocketData(socket).bind(this));
+    socket.on('data', this.onSocketData(session, socket).bind(this));
     socket.on('close', this.onSocketDisconnect(session).bind(this));
     socket.on('error', this.onSocketDisconnect(session).bind(this));
+
+    this.connectionEmitter_.emit(ListenerEvent.NewConnect, session, socket);
   }
 
-  private onSocketData(socket: net.Socket) {
+  private onSocketData(session: string, socket: net.Socket) {
     let packetLength = 0;
     let cache = Buffer.alloc(0);
 
@@ -92,7 +90,7 @@ class TCPListener extends Listener {
           cache = cache.slice(packetLength);
           const packet = JSON.parse(content.toString());
 
-          const response = await listenerDataCallback(packet);
+          const response = await listenerDataCallback(packet, session);
           if (response) {
             const resData = TCPUtility.encodeMessage(response);
             util.promisify<Buffer, void>(socket.write.bind(socket))(resData);

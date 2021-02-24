@@ -7,6 +7,7 @@ import {TimeoutError} from '../../utility/TimeoutError';
 import {Waiter} from '../../utility/Waiter';
 import {Notify} from './Notify';
 import {Request} from './Request';
+import {Route} from './Route';
 import {RPCError} from './RPCError';
 
 abstract class Sender {
@@ -75,6 +76,10 @@ abstract class Sender {
     }
   }
 
+  enableResponse(route: Route) {
+    this.route_ = route;
+  }
+
   get state() {
     return this.lifeCycle_.state;
   }
@@ -91,8 +96,18 @@ abstract class Sender {
     return this.lifeCycle_.emitter;
   }
 
+  set session(value: string) {
+    this.session_ = value;
+  }
+
+  get session() {
+    return this.session_;
+  }
+
   protected lifeCycle_: LifeCycle<SenderState>;
   protected listenInfo_: IListenerInfo;
+  protected route_: Route;
+  protected session_: string;
   private waiter_: Waiter<IRawResPacket>;
   private listenerId_: string;
   private targetId_: string;

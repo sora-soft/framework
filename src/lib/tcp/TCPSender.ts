@@ -11,12 +11,26 @@ import {OPCode, SenderState} from '../../Enum';
 import {Retry} from '../../utility/Retry';
 import {AsyncReject} from '../../interface/util';
 import {Runtime} from '../Runtime';
+import {Logger} from '../logger/Logger';
+import {Route} from '../rpc/Route';
 
 class TCPSender extends Sender {
   static register() {
     Provider.registerSender('tcp', (listenerId, targetId) => {
       return new TCPSender(listenerId, targetId);
     });
+  }
+
+  constructor(listenerId: string, targetId: string, socket?: net.Socket) {
+    super(listenerId, targetId);
+    if (socket) {
+      this.socket_ = socket;
+      this.canReconnect_ = false;
+      this.bindSocketEvent((err: Error) => {
+        Runtime.frameLogger.error('listener-sender', err, { event: 'listener-sender-error', error: Logger.errorMessage(err)});
+      });
+      this.lifeCycle_.setState(SenderState.READY);
+    }
   }
 
   isAvailable() {
@@ -33,10 +47,7 @@ class TCPSender extends Sender {
         const [ip, portStr] = listenInfo.endpoint.split(':');
         const port = Utility.parseInt(portStr);
         this.socket_ = new net.Socket();
-        this.socket_.on('data', this.onSocketData(this.socket_).bind(this));
-        this.socket_.on('error', this.onRetry_('error', this.socket_, reject).bind(this));
-        this.socket_.on('close', this.onRetry_('close', this.socket_, reject).bind(this));
-        this.socket_.on('timeout', this.onRetry_('timeout', this.socket_, reject).bind(this));
+        this.bindSocketEvent(reject);
 
         this.socket_.connect(port, ip, () => {
           this.connected_ = true;
@@ -46,6 +57,13 @@ class TCPSender extends Sender {
     }, 50);
 
     await retry.doJob();
+  }
+
+  bindSocketEvent(reject: AsyncReject) {
+    this.socket_.on('data', this.onSocketData(this.socket_).bind(this));
+    this.socket_.on('error', this.onRetry_('error', this.socket_, reject).bind(this));
+    this.socket_.on('close', this.onRetry_('close', this.socket_, reject).bind(this));
+    this.socket_.on('timeout', this.onRetry_('timeout', this.socket_, reject).bind(this));
   }
 
   async disconnect() {
@@ -67,8 +85,13 @@ class TCPSender extends Sender {
       if (this.socket_ !== socket)
         return;
 
-      if (this.socket_)
+      if (this.socket_) {
         this.socket_.removeAllListeners();
+        if (!this.canReconnect_) {
+          this.socket_.destroy();
+          return;
+        }
+      }
 
       this.socket_ = null;
       if (this.lifeCycle_.state === SenderState.READY) {
@@ -116,6 +139,11 @@ class TCPSender extends Sender {
             this.emitRPCResponse(packet);
             break;
           case OPCode.NOTIFY:
+            if (this.route_) {
+              Route.callback(this.route_)(packet, this.session_).catch(err => {
+                Runtime.frameLogger.error('sender.tcp', err, { event: 'sender-notify-handler', error: Logger.errorMessage(err) });
+              });
+            }
           case OPCode.REQUEST:
             // 这里不应该接收到请求
             break;
@@ -127,6 +155,7 @@ class TCPSender extends Sender {
 
   private socket_: net.Socket;
   private connected_ = false;
+  private canReconnect_ = true;
 }
 
 export {TCPSender}
