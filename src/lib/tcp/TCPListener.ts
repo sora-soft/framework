@@ -4,17 +4,26 @@ import {ListenerState} from '../../Enum';
 import util = require('util');
 import {TCPUtility} from './TCPUtility';
 import {Executor} from '../../utility/Executor';
-import {ILabels, ITCPListenerOptions} from '../../interface/config';
-import {Notify} from '../rpc/Notify';
+import {ITCPListenerOptions} from '../../interface/config';
 import {v4 as uuid} from 'uuid';
 import {ListenerEvent} from '../../Event';
-import {TCPSender} from './TCPSender';
+import EventEmitter = require('events');
+import {Runtime} from '../Runtime';
+import {Logger} from '../logger/Logger';
+import {ExError} from '../../utility/ExError';
+import {Utility} from '../../utility/Utility';
+import {TCPErrorCode} from '../../ErrorCode';
+import {TCPError} from './TCPError';
+import {Time} from '../../utility/Time';
+import {IListenerInfo} from '../../interface/rpc';
+
 
 class TCPListener extends Listener {
   constructor(options: ITCPListenerOptions, callback: ListenerCallback, executor: Executor) {
     super(callback, executor);
     this.options_ = options;
 
+    this.connectionEmitter_ = new EventEmitter();
     this.server_ = net.createServer();
     this.server_.on('connection', this.onSocketConnect.bind(this));
   }
@@ -23,7 +32,7 @@ class TCPListener extends Listener {
     return {
       id: this.id,
       protocol: 'tcp',
-      endpoint: `${this.options_.host}:${this.options_.port}`,
+      endpoint: `${this.options_.host}:${this.usePort_}`,
       state: this.state
     }
   }
@@ -32,15 +41,60 @@ class TCPListener extends Listener {
     return this.sockets_.get(session);
   }
 
+  private onServerError(err: Error) {
+    this.lifeCycle_.setState(ListenerState.ERROR, err);
+    Runtime.frameLogger.error('listener.tcp', err, {event: 'tcp-server-error', error: Logger.errorMessage(err)});
+  }
+
   protected async listen() {
-    await util.promisify<number, string, void>(this.server_.listen.bind(this.server_))(this.options_.port, this.options_.host);
+    if (this.options_.portRange)
+      return this.listenRange(this.options_.portRange[0], this.options_.portRange[1]);
+
+    if (this.options_.port)
+      this.usePort_ = this.options_.port;
+
+    await util.promisify<number, string, void>(this.server_.listen.bind(this.server_))(this.usePort_, this.options_.host);
+
+    this.server_.on('error', this.onServerError.bind(this));
 
     return {
       id: this.id,
       protocol: 'tcp',
-      endpoint: `${this.options_.host}:${this.options_.port}`,
+      endpoint: `${this.options_.host}:${this.usePort_}`,
       state: this.state
     }
+  }
+
+  protected listenRange(min: number, max: number) {
+    return new Promise<IListenerInfo>((resolve, reject) => {
+      this.usePort_ = min + Utility.randomInt(0, 5);
+
+      const onError = async (err: ExError) => {
+        if (this.usePort_ + 5 > max) {
+          reject(new TCPError(TCPErrorCode.ERR_NO_AVAILABLE_PORT, `ERR_NO_AVAILABLE_PORT`));
+        }
+
+        this.usePort_ = this.usePort_ + Utility.randomInt(0, 5);
+        await Time.timeout(100);
+
+        this.server_.listen(this.usePort_, this.options_.host);
+      }
+
+      this.server_.on('error', onError);
+
+      this.server_.once('listening', () => {
+        this.server_.removeListener('error', onError);
+
+        this.server_.on('error', this.onServerError.bind(this));
+        resolve({
+          id: this.id,
+          protocol: 'tcp',
+          endpoint: `${this.options_.host}:${this.usePort_}`,
+        });
+      });
+
+      this.server_.listen(this.usePort_, this.options_.host);
+    })
   }
 
   protected async shutdown() {
@@ -101,6 +155,7 @@ class TCPListener extends Listener {
     }
   }
 
+  private usePort_: number;
   private server_: net.Server;
   private options_: ITCPListenerOptions;
   private sockets_: Map<string, net.Socket> = new Map();

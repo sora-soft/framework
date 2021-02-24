@@ -1,5 +1,6 @@
 export interface ITCPListenerOptions {
-  port: number;
+  portRange?: number[];
+  port?: number;
   host: string;
 }
 

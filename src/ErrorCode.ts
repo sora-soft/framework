@@ -16,3 +16,7 @@ export enum RPCErrorCode {
 export enum RetryErrorCode {
   ERR_RETRY_TOO_MANY_RETRY = 'ERR_RETRY_TOO_MANY_RETRY',
 }
+
+export enum TCPErrorCode {
+  ERR_NO_AVAILABLE_PORT = 'ERR_NO_AVAILABLE_PORT',
+}

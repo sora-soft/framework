@@ -70,9 +70,9 @@ abstract class Listener {
   }
 
   protected connectionEmitter_: IEventEmitter<IListenerEvent>;
+  protected lifeCycle_: LifeCycle<ListenerState>;
   private callback_: ListenerCallback;
   private info_: IListenerInfo;
-  private lifeCycle_: LifeCycle<ListenerState>;
   private id_: string;
   private executor_: Executor;
 }
