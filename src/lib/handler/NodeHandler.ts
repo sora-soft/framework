@@ -54,7 +54,7 @@ class NodeHandler extends Route<Node> {
   }
 
   @Route.method
-  async registerRunningDataNotify(body: {}, request: Request<{}>) {
+  async registerRunningDataNotify(body: void, request: Request<{}>) {
     const session = request.getHeader(Const.RPC_SESSION_HEADER);
     this.service.registerBroadcaster('notifyNodeState', session);
     return {};

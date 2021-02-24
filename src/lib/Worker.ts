@@ -35,7 +35,15 @@ abstract class Worker {
   }
 
   protected async doJobInterval(executor: JobExecutor, timeMS: number) {
-    while(this.state === WorkerState.READY) {
+    while(true) {
+      if (this.state !== WorkerState.READY) {
+        await Time.timeout(timeMS);
+        continue;
+      }
+
+      if (this.state > WorkerState.READY)
+        break;
+
       const startTime = Date.now();
       await this.doJob(executor);
       const nextExecuteMS = timeMS + startTime - Date.now();

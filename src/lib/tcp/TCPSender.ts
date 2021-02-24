@@ -30,6 +30,12 @@ class TCPSender extends Sender {
         Runtime.frameLogger.error('listener-sender', err, { event: 'listener-sender-on-error', error: Logger.errorMessage(err)});
       });
       this.lifeCycle_.setState(SenderState.READY);
+      this.listenInfo_ = {
+        id: listenerId,
+        protocol: 'tcp',
+        endpoint: `${socket.remoteAddress}:${socket.remotePort}`
+      };
+      this.connected_ = true;
     }
   }
 

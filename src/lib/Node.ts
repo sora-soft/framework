@@ -5,7 +5,6 @@ import {TCPListener} from './tcp/TCPListener';
 import {Route} from './rpc/Route';
 import {NodeHandler} from './handler/NodeHandler';
 import {INodeMetaData, IServiceMetaData, IWorkerMetaData} from '../interface/discovery';
-import {Worker} from './Worker';
 import {TCPSender} from './tcp/TCPSender';
 import {Broadcaster} from './rpc/Broadcaster';
 import {INodeNotifyHandler} from './handler/NodeNotifyHandler';
@@ -41,6 +40,7 @@ class Node extends Service {
   constructor(options: INodeOptions) {
     super('node', options);
     this.nodeOptions_ = options;
+    this.broadcaster_ = new Broadcaster();
   }
 
   async startup() {

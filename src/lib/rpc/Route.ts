@@ -64,20 +64,20 @@ class Route<T extends Service = Service> {
     if (!this.methodMap_)
       this.methodMap_ = new Map();
 
-    this.methodMap_.set(method, callback.bind(this));
+    this.methodMap_.set(method, callback);
   }
 
   protected registerNotify(method: string, callback: NotifyHandler) {
     if (!this.notifyMap_)
       this.notifyMap_ = new Map();
 
-    this.notifyMap_.set(method, callback.bind(this));
+    this.notifyMap_.set(method, callback);
   }
 
   protected async callMethod(method: string, request: Request, response: Response) {
     if (this.methodMap_.has(method)) {
       const handler = this.methodMap_.get(method);
-      return handler(request.payload, request, response);
+      return handler.bind(this)(request.payload, request, response);
     }
   }
 
