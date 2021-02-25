@@ -24,12 +24,14 @@ class Route<T extends Service = Service> {
 
   static callback(route: Route): ListenerCallback {
     return async (packet: IRawNetPacket, session: string) => {
+      const startTime = Date.now();
       switch (packet.opcode) {
         case OPCode.REQUEST:
           const request = new Request(packet);
           const response = new Response();
           const rpcId = request.getHeader(Const.RPC_ID_HEADER);
           request.setHeader(Const.RPC_SESSION_HEADER, session);
+          Runtime.rpcLogger.debug('route', { method: request.method, request: request.payload });
           const result = await route.callMethod(request.method, request, response).catch(err => {
             Runtime.frameLogger.error('route', err, { event: 'rpc-handler', error: Logger.errorMessage(err), method: request.method, request: request.payload });
             return {
@@ -40,14 +42,17 @@ class Route<T extends Service = Service> {
           response.setHeader(Const.RPC_ID_HEADER, rpcId);
           response.setHeader(Const.RPC_FROM_ID_HEADER, route.service_.id);
           response.payload = result;
+          Runtime.rpcLogger.debug('route', { method: request.method, request: request.payload, response: response.payload, duration: Date.now() - startTime });
           return response.toPacket();
         case OPCode.NOTIFY:
           // notify 不需要回复
           const notify = new Notify(packet);
           notify.setHeader(Const.RPC_SESSION_HEADER, session);
+          Runtime.rpcLogger.debug('route', { method: notify.method, notify: notify.payload });
           await route.callNotify(notify.method, notify).catch(err => {
             Runtime.frameLogger.error('route', err, { event: 'notify-handler', error: Logger.errorMessage(err), method: notify.method, request: notify.payload })
           });
+          Runtime.rpcLogger.debug('route', { method: notify.method, notify: notify.payload, duration: Date.now() - startTime });
           return null;
         case OPCode.RESPONSE:
           // 不应该在路由处收到 rpc 回包消息

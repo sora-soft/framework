@@ -37,7 +37,7 @@ abstract class Service extends Worker {
 
   public async installListener(listener: Listener) {
 
-    Runtime.frameLogger.debug(this.logCategory, { event: 'install-listener', serviceId: this.id, meta: listener.metaData });
+    Runtime.frameLogger.info(this.logCategory, { event: 'install-listener', serviceId: this.id, meta: listener.metaData });
 
     await Runtime.discovery.registerEndpoint({
       ...listener.metaData,
@@ -72,7 +72,7 @@ abstract class Service extends Worker {
     if (!listener)
       return;
 
-    Runtime.frameLogger.debug(this.logCategory, { event: 'uninstall-listener', serviceId: this.id, meta: listener.metaData });
+    Runtime.frameLogger.info(this.logCategory, { event: 'uninstall-listener', serviceId: this.id, meta: listener.metaData });
 
     this.listenerPool_.delete(id);
     await listener.stopListen();

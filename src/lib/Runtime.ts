@@ -6,6 +6,7 @@ import {Discovery} from './discovery/Discovery';
 import {FrameworkLogger} from './FrameworkLogger';
 import {Logger} from './logger/Logger';
 import {Node} from './Node'
+import {RPCLogger} from './rpc/RPCLogger';
 import {Service} from './Service';
 import {Worker} from './Worker';
 
@@ -17,6 +18,14 @@ class Runtime {
   }
 
   private static frameLogger_: FrameworkLogger;
+
+  static get rpcLogger() {
+    if (!this.rpcLogger_)
+      this.rpcLogger_ = new RPCLogger();
+
+    return this.rpcLogger_;
+  }
+  private static rpcLogger_: RPCLogger;
 
   static async loadConfig(options: IRuntimeOptions) {
     this.scope_ = options.scope;
