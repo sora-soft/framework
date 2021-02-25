@@ -62,11 +62,7 @@ class NodeHandler extends Route<Node> {
 
   @Route.method
   async fetchRunningData() {
-    return {
-      services: Runtime.services.map((service) => service.metaData),
-      workers: Runtime.workers.map((worker) => worker.metaData),
-      node: Runtime.node.nodeStateData,
-    }
+    return this.service.nodeRunData;
   }
 }
 

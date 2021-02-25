@@ -66,7 +66,7 @@ class Node extends Service {
 
   get nodeRunData(): INodeRunData {
     return {
-      services: Runtime.services.map((service) => service.metaData),
+      services: Runtime.services.map((service) => service.runData),
       workers: Runtime.workers.map((worker) => worker.metaData),
       node: Runtime.node.nodeStateData,
     }

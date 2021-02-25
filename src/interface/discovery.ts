@@ -6,14 +6,15 @@ export interface IWorkerMetaData {
   name: string;
   id: string;
   state: WorkerState;
+  nodeId: string;
 }
 
-export interface IServiceMetaData {
-  name: string;
-  id: string;
-  nodeId: string;
-  state: WorkerState;
+export interface IServiceMetaData extends IWorkerMetaData {
   labels: ILabels
+}
+
+export interface IServiceRunData extends IServiceMetaData {
+  listeners: IListenerMetaData[];
 }
 
 export interface INodeMetaData {

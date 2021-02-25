@@ -34,15 +34,21 @@ class Runtime {
 
     process.on('SIGINT', async () => {
       this.frameLogger_.info('process', `receive SIGINT`);
+      if (this.isShutDowning_)
+        return;
+
+      this.isShutDowning_ = true;
       await this.shutdown();
-      this.frameLogger_.info('process', 'process exit');
       process.exit(0);
     });
 
     process.on('SIGTERM', async () => {
       this.frameLogger_.info('process', `receive SIGTERM`);
+      if (this.isShutDowning_)
+        return;
+
+      this.isShutDowning_ = true;
       await this.shutdown();
-      this.frameLogger_.info('process', 'process exit');
       process.exit(0);
     });
 
@@ -176,6 +182,7 @@ class Runtime {
   private static scope_: string;
   private static services_: Map<string, Service> = new Map();
   private static workers_: Map<string, Worker> = new Map();
+  private static isShutDowning_ = false;
 }
 
 export {Runtime}

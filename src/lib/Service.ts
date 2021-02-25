@@ -1,7 +1,7 @@
 import {ListenerState, WorkerState} from '../Enum';
 import {LifeCycleEvent} from '../Event';
 import {IServiceOptions} from '../interface/config';
-import {IServiceMetaData} from '../interface/discovery';
+import {IServiceMetaData, IServiceRunData} from '../interface/discovery';
 import {Logger} from './logger/Logger';
 import {Listener} from './rpc/Listener';
 import {Runtime} from './Runtime';
@@ -90,6 +90,18 @@ abstract class Service extends Worker {
       state: this.state,
       labels: this.options_.labels
     }
+  }
+
+  get runData(): IServiceRunData {
+    return {
+      ...this.metaData,
+      listeners: [...this.listenerPool_].map(([id, listener]) => {
+        return {
+          ...listener.metaData,
+          state: listener.state,
+        };
+      })
+    };
   }
 
   protected get logCategory() {
