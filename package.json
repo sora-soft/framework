@@ -10,6 +10,7 @@
     "dev": "ts-node src/test.ts",
     "prepublish": "tsc"
   },
+  "repository": "git@github.com:sora-soft/framework.git",
   "keywords": [
     "sora",
     "frame"
