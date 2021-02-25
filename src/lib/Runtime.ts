@@ -34,20 +34,12 @@ class Runtime {
 
     process.on('SIGINT', async () => {
       this.frameLogger_.info('process', `receive SIGINT`);
-      if (this.isShutDowning_)
-        return;
-
-      this.isShutDowning_ = true;
       await this.shutdown();
       process.exit(0);
     });
 
     process.on('SIGTERM', async () => {
       this.frameLogger_.info('process', `receive SIGTERM`);
-      if (this.isShutDowning_)
-        return;
-
-      this.isShutDowning_ = true;
       await this.shutdown();
       process.exit(0);
     });
@@ -70,6 +62,11 @@ class Runtime {
   }
 
   static async shutdown() {
+    if (this.isShutDowning_)
+      return;
+
+    this.isShutDowning_ = true;
+
     const promises = [];
     for (const [id, service] of [...this.services_]) {
       const promise = this.uninstallService(id, 'runtime_shutdown').catch((err: Error) => {

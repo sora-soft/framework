@@ -59,6 +59,12 @@ class NodeHandler extends Route<Node> {
   }
 
   @Route.method
+  async shutdown(body: void) {
+    Runtime.shutdown();
+    return {};
+  }
+
+  @Route.method
   async registerRunningDataNotify(body: void, request: Request<{}>) {
     const session = request.getHeader(Const.RPC_SESSION_HEADER);
     this.service.registerBroadcaster('notifyNodeState', session);
