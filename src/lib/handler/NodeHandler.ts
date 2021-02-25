@@ -25,6 +25,9 @@ export interface IReqRemoveWorker {
 class NodeHandler extends Route<Node> {
   @Route.method
   async createService(body: IReqCreateService) {
+    if (body.name === 'node')
+      throw new FrameworkError(FrameworkErrorCode.ERR_NODE_SERVICE_CANNOT_BE_CREATED, `ERR_NODE_SERVICE_CANNOT_BE_CREATED`);
+
     const service = Node.serviceFactory(body.name, body.options);
     if (!service)
       throw new FrameworkError(FrameworkErrorCode.ERR_SERVICE_NOT_FOUND, `ERR_SERVICE_NOT_FOUND, name=${body.name}`);
@@ -43,6 +46,8 @@ class NodeHandler extends Route<Node> {
 
   @Route.method
   async removeService(body: IReqRemoveWorker) {
+    if (body.id === this.service.id)
+      throw new FrameworkError(FrameworkErrorCode.ERR_NODE_SERVICE_CANNOT_BE_CLOSED, `ERR_NODE_SERVICE_CANNOT_BE_CLOSED`);
     Runtime.uninstallService(body.id, body.reason);
     return {};
   }
