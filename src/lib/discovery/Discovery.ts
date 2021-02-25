@@ -11,7 +11,7 @@ export interface IServiceEvent {
   [DiscoveryServiceEvent.ServiceStateUpdate]: (id: string, state: WorkerState, pre: WorkerState, info: IServiceMetaData) => void;
 }
 
-export interface IListenerEvent {
+export interface IDiscoveryListenerEvent {
   [DiscoveryListenerEvent.ListenerCreated]: (info: IListenerEventData) => void;
   [DiscoveryListenerEvent.ListenerDeleted]: (id: string, info: IListenerEventData) => void;
   [DiscoveryListenerEvent.ListenerUpdated]: (id: string, info: IListenerEventData) => void;
@@ -68,7 +68,7 @@ abstract class Discovery {
   }
 
   protected serviceEmitter_: IEventEmitter<IServiceEvent>;
-  protected listenerEmitter_: IEventEmitter<IListenerEvent>;
+  protected listenerEmitter_: IEventEmitter<IDiscoveryListenerEvent>;
   protected nodeEmitter_: IEventEmitter<INodeEvent>;
 }
 

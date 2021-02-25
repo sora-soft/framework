@@ -1,0 +1,7 @@
+.git/
+
+src/
+test/
+node_modules/
+.gitignore
+.tslint.json

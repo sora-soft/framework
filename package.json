@@ -7,7 +7,8 @@
   "scripts": {
     "build": "tsc",
     "test": "ts-mocha -p tsconfig.json test/**/*.spec.ts",
-    "dev": "ts-node src/test.ts"
+    "dev": "ts-node src/test.ts",
+    "prepublish": "tsc"
   },
   "keywords": [
     "sora",
@@ -32,7 +33,6 @@
   "dependencies": {
     "chalk": "^4.1.0",
     "error-stack-parser": "^2.0.6",
-    "etcd3": "^1.1.0",
     "uuid": "^8.3.2"
   }
 }
