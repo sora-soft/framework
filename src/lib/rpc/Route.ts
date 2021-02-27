@@ -9,6 +9,7 @@ import {ListenerCallback} from './Listener';
 import {Notify} from './Notify';
 import {Request} from './Request';
 import {Response} from './Response';
+import {RPCError} from './RPCError';
 
 export type RPCHandler<Req = unknown, Res = unknown> = (body: Req, req?: Request<Req>, response?: Response<Res>) => Promise<Res>;
 export type NotifyHandler<Req = unknown> = (body: Req, req?: Notify<Req>) => Promise<void>;
@@ -32,6 +33,9 @@ class Route<T extends Service = Service> {
           const rpcId = request.getHeader(Const.RPC_ID_HEADER);
           request.setHeader(Const.RPC_SESSION_HEADER, session);
           Runtime.rpcLogger.debug('route', { method: request.method, request: request.payload });
+          if (!route.hasMethod(request.method))
+            throw new RPCError(RPCErrorCode.ERR_RPC_METHOD_NOT_FOUND, `ERR_RPC_METHOD_NOT_FOUND, service=${route.service.name}, method=${request.method}`);
+
           const result = await route.callMethod(request.method, request, response).catch(err => {
             Runtime.frameLogger.error('route', err, { event: 'rpc-handler', error: Logger.errorMessage(err), method: request.method, request: request.payload });
             return {
@@ -49,6 +53,9 @@ class Route<T extends Service = Service> {
           const notify = new Notify(packet);
           notify.setHeader(Const.RPC_SESSION_HEADER, session);
           Runtime.rpcLogger.debug('route', { method: notify.method, notify: notify.payload });
+          if (!route.hasNotify(request.method))
+            throw new RPCError(RPCErrorCode.ERR_RPC_METHOD_NOT_FOUND, `ERR_RPC_METHOD_NOT_FOUND, service=${route.service.name}, method=${request.method}`);
+
           await route.callNotify(notify.method, notify).catch(err => {
             Runtime.frameLogger.error('route', err, { event: 'notify-handler', error: Logger.errorMessage(err), method: notify.method, request: notify.payload })
           });
@@ -63,6 +70,11 @@ class Route<T extends Service = Service> {
 
   constructor(service: T) {
     this.service_ = service;
+    if (!this.methodMap_)
+      this.methodMap_ = new Map();
+
+    if (!this.notifyMap_)
+      this.notifyMap_ = new Map();
   }
 
   protected registerMethod(method: string, callback: RPCHandler) {
@@ -91,6 +103,14 @@ class Route<T extends Service = Service> {
       const handler = this.notifyMap_.get(method);
       return handler(request.payload, request);
     }
+  }
+
+  protected hasMethod(method: string) {
+    return this.methodMap_.has(method);
+  }
+
+  protected hasNotify(method: string) {
+    return this.notifyMap_.has(method);
   }
 
   protected get service() {

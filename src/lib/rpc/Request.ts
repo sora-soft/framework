@@ -7,6 +7,7 @@ class Request<T = unknown> extends RawPacket<T> {
     super(OPCode.REQUEST);
     this.method = packet.method;
     this.payload = packet.payload;
+    this.path = packet.path;
     this.loadHeaders(packet.headers);
   }
 }

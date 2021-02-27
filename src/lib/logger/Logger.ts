@@ -48,6 +48,7 @@ abstract class Logger {
 
   constructor(options: ILoggerOptions) {
     this.options_ = options;
+    this.output_ = [];
   }
 
   debug(category: string, ...args) {
@@ -74,17 +75,17 @@ abstract class Logger {
     this.write(LogLevel.fatal, category, error, ...args);
   }
 
-  output(output: LoggerOutput) {
-    this.output_ = output;
-    return output;
+  pipe(output: LoggerOutput) {
+    this.output_.push(output);
+    return this;
   }
 
   private write(level: LogLevel, category: string, error: Error, ...args) {
     const now = new Date();
     const stack = error ? parse(error)[0] : Logger.getStackPosition(3);
     const timeString = Utility.formatLogTimeString(now);
-    if (this.output_) {
-      this.output_.log({
+    for (const output of this.output_) {
+      output.log({
         time: now,
         identify: this.options_.identify,
         category,
@@ -106,7 +107,7 @@ abstract class Logger {
   }
 
   private options_: ILoggerOptions;
-  private output_: LoggerOutput;
+  private output_: LoggerOutput[];
 }
 
 export {Logger}

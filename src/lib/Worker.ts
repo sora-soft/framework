@@ -5,12 +5,14 @@ import {LifeCycle} from '../utility/LifeCycle';
 import {Executor, JobExecutor} from '../utility/Executor';
 import {IWorkerMetaData} from '../interface/discovery';
 import {Runtime} from './Runtime';
+import {Timer} from '../utility/Timer';
 
 abstract class Worker {
   constructor(name: string) {
     this.name_ = name;
     this.lifeCycle_ = new LifeCycle(WorkerState.INIT);
     this.executor_ = new Executor();
+    this.intervalJobTimer_ = new Timer();
     this.id_ = uuid();
   }
 
@@ -26,6 +28,7 @@ abstract class Worker {
   protected abstract shutdown(reason: string): Promise<void>;
   async stop(reason: string) {
     await this.lifeCycle_.setState(WorkerState.STOPPING);
+    this.intervalJobTimer_.clearAll();
     await this.shutdown(reason).catch(this.onError.bind(this));
     await this.executor_.stop();
     await this.lifeCycle_.setState(WorkerState.STOPPED);
@@ -38,7 +41,7 @@ abstract class Worker {
   protected async doJobInterval(executor: JobExecutor, timeMS: number) {
     while(true) {
       if (this.state !== WorkerState.READY) {
-        await Time.timeout(timeMS);
+        await this.intervalJobTimer_.timeout(timeMS);
         continue;
       }
 
@@ -49,7 +52,7 @@ abstract class Worker {
       await this.doJob(executor);
       const nextExecuteMS = timeMS + startTime - Date.now();
       if (nextExecuteMS > 0)
-        await Time.timeout(nextExecuteMS);
+        await this.intervalJobTimer_.timeout(nextExecuteMS);
     }
   }
 
@@ -97,6 +100,7 @@ abstract class Worker {
   private executor_: Executor;
   private name_: string;
   private id_: string;
+  private intervalJobTimer_: Timer;
 }
 
 export {Worker}

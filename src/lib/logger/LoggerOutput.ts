@@ -24,11 +24,6 @@ abstract class LoggerOutput {
       this.next_.log(log);
   }
 
-  pipe(next: LoggerOutput) {
-    this.next_ = next;
-    return this.next_;
-  }
-
   private executor_: QueueExecutor;
   private next_: LoggerOutput;
   private options_: ILoggerOutputOptions;

@@ -9,6 +9,7 @@ import {Node} from './Node'
 import {RPCLogger} from './rpc/RPCLogger';
 import {Service} from './Service';
 import {Worker} from './Worker';
+import heapdump = require('heapdump');
 
 class Runtime {
   static get frameLogger() {
@@ -71,36 +72,43 @@ class Runtime {
   }
 
   static async shutdown() {
-    if (this.isShutDowning_)
+    if (this.shutdownPromise_) {
+      await this.shutdownPromise_;
       return;
-
-    this.isShutDowning_ = true;
-
-    const promises = [];
-    for (const [id, service] of [...this.services_]) {
-      const promise = this.uninstallService(id, 'runtime_shutdown').catch((err: Error) => {
-        this.frameLogger_.error('runtime', err, { event: 'uninstall-service', error: Logger.errorMessage(err), id: service.id});
-      });
-      promises.push(promise);
     }
-    await Promise.all(promises);
 
-    this.frameLogger_.info('runtime', { event: 'all-service-closed'});
+    this.shutdownPromise_ = new Promise(async (resolve) => {
+      const promises = [];
+      for (const [id, service] of [...this.services_]) {
+        const promise = this.uninstallService(id, 'runtime_shutdown').catch((err: Error) => {
+          this.frameLogger_.error('runtime', err, { event: 'uninstall-service', error: Logger.errorMessage(err), id: service.id});
+        });
+        promises.push(promise);
+      }
+      await Promise.all(promises);
 
-    promises.length = 0;
-    for (const [id, worker] of [...this.workers_]) {
-      const promise = this.uninstallWorker(id, 'runtime_shutdown').catch((err: Error) => {
-        this.frameLogger_.error('runtime', err, { event: 'uninstall-worker', error: Logger.errorMessage(err), id: worker.id});
-      });;
-      promises.push(promise);
-    }
-    await Promise.all(promises);
+      this.frameLogger_.info('runtime', { event: 'all-service-closed'});
 
-    this.frameLogger_.info('runtime', { event: 'all-worker-closed'});
+      promises.length = 0;
+      for (const [id, worker] of [...this.workers_]) {
+        const promise = this.uninstallWorker(id, 'runtime_shutdown').catch((err: Error) => {
+          this.frameLogger_.error('runtime', err, { event: 'uninstall-worker', error: Logger.errorMessage(err), id: worker.id});
+        });;
+        promises.push(promise);
+      }
+      await Promise.all(promises);
 
-    await this.discovery_.disconnect();
+      this.frameLogger_.info('runtime', { event: 'all-worker-closed'});
 
-    this.frameLogger_.info('runtime', { event: 'discovery-disconnected'});
+      await this.discovery_.disconnect();
+
+      this.frameLogger_.info('runtime', { event: 'discovery-disconnected'});
+
+      await Time.timeout(1000);
+      resolve();
+    });
+
+    await this.shutdownPromise_;
   }
 
   static async installService(service: Service) {
@@ -116,7 +124,9 @@ class Runtime {
 
     await this.discovery_.registerService(service.metaData);
 
-    await service.start();
+    await service.start().catch(err => {
+      this.frameLogger_.error('runtime', err, {event: 'install-service-start', error: Logger.errorMessage(err), name: service.name, id: service.id});
+    });
 
     this.frameLogger.success('runtime', {event: 'service-started', name: service.name, id: service.id});
   }
@@ -128,7 +138,9 @@ class Runtime {
     this.frameLogger.info('runtime', {event: 'worker-starting', name: worker.name, id: worker.id });
 
     this.workers_.set(worker.id, worker);
-    await worker.start();
+    await worker.start().catch(err => {
+      this.frameLogger_.error('runtime', err, {event: 'install-worker-start', error: Logger.errorMessage(err), name: worker.name, id: worker.id});
+    });;
 
     this.frameLogger.success('runtime', {event: 'worker-started', name: worker.name, id: worker.id});
 
@@ -188,7 +200,7 @@ class Runtime {
   private static scope_: string;
   private static services_: Map<string, Service> = new Map();
   private static workers_: Map<string, Worker> = new Map();
-  private static isShutDowning_ = false;
+  private static shutdownPromise_: Promise<void>;
 }
 
 export {Runtime}

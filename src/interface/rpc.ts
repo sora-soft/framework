@@ -3,6 +3,7 @@ import {OPCode} from '../Enum';
 export interface IRawNetPacket<T = unknown> {
   opcode: OPCode,
   method?: string,
+  path?: string,
   headers: {
     [key: string]: any
   },
@@ -17,6 +18,7 @@ export interface IListenerInfo {
 
 export interface IRawReqPacket<T = unknown> {
   method: string,
+  path: string,
   headers: {
     [key: string]: any
   },

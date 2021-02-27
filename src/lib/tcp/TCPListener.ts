@@ -70,14 +70,18 @@ class TCPListener extends Listener {
       this.usePort_ = min + Utility.randomInt(0, 5);
 
       const onError = async (err: ExError) => {
-        if (this.usePort_ + 5 > max) {
-          reject(new TCPError(TCPErrorCode.ERR_NO_AVAILABLE_PORT, `ERR_NO_AVAILABLE_PORT`));
+        if (err.code === 'EADDRINUSE') {
+          if (this.usePort_ + 5 > max) {
+            reject(new TCPError(TCPErrorCode.ERR_NO_AVAILABLE_PORT, `ERR_NO_AVAILABLE_PORT`));
+          }
+
+          this.usePort_ = this.usePort_ + Utility.randomInt(0, 5);
+          await Time.timeout(100);
+
+          this.server_.listen(this.usePort_, this.options_.host);
+        } else {
+          throw err;
         }
-
-        this.usePort_ = this.usePort_ + Utility.randomInt(0, 5);
-        await Time.timeout(100);
-
-        this.server_.listen(this.usePort_, this.options_.host);
       }
 
       this.server_.on('error', onError);
@@ -142,14 +146,19 @@ class TCPListener extends Listener {
 
           const content = cache.slice(0, packetLength);
           cache = cache.slice(packetLength);
-          const packet = JSON.parse(content.toString());
-
-          const response = await listenerDataCallback(packet, session);
-          if (response) {
-            const resData = TCPUtility.encodeMessage(response);
-            util.promisify<Buffer, void>(socket.write.bind(socket))(resData);
-          }
           packetLength = 0;
+
+          try {
+            const packet = JSON.parse(content.toString());
+
+            const response = await listenerDataCallback(packet, session);
+            if (response) {
+              const resData = TCPUtility.encodeMessage(response);
+              util.promisify<Buffer, void>(socket.write.bind(socket))(resData);
+            }
+          } catch (err) {
+            Runtime.frameLogger.error('listener.tcp', err, { event: 'event-handle-rpc', error: Logger.errorMessage(err)});
+          }
         }
       });
     }

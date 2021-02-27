@@ -52,11 +52,16 @@ class Provider<T extends Route> {
     this.senders_ = new Map();
     this.filter_ = filter;
     this.route_ = route;
+    this.started_ = false;
+    this.ref_ = 0;
 
     this.caller_ = {
       rpc: (fromId?: string, toId?: string) => {
         return new Proxy<ConvertRPCRouteMethod<T>>({} as any , {
           get: (target, prop: string, receiver) => {
+            if (!this.started_)
+              throw new RPCError(RPCErrorCode.ERR_RPC_PROVIDER_NOT_AVAILABLE, `ERR_RPC_PROVIDER_NOT_AVAILABLE`);
+
             return async (body: unknown, options: IRequestOptions = {}, raw = false) => {
               const sender = Utility.randomOne([...this.senders_].map(([id, s]) => {
                 return s;
@@ -73,6 +78,7 @@ class Provider<T extends Route> {
               const request = new Request({
                 method: prop,
                 payload: body,
+                path: '',
                 headers: options.headers || {},
               });
               const res = await sender.sendRpc(request, fromId);
@@ -87,6 +93,9 @@ class Provider<T extends Route> {
       notify: (fromId?: string, toId?: string) => {
         return new Proxy<ConvertRouteMethod<T>>({} as any, {
           get: (target, prop: string, receiver) => {
+            if (!this.started_)
+              throw new RPCError(RPCErrorCode.ERR_RPC_PROVIDER_NOT_AVAILABLE, `ERR_RPC_PROVIDER_NOT_AVAILABLE`);
+
             return async (body: unknown, options: IRequestOptions = {}) => {
               const sender = Utility.randomOne([...this.senders_].map(([id, s]) => {
                 return s;
@@ -103,6 +112,7 @@ class Provider<T extends Route> {
               const notify = new Notify({
                 method: prop,
                 payload: body,
+                path: '',
                 headers: options.headers || {},
               });
               await sender.sendNotify(notify, fromId);
@@ -113,6 +123,9 @@ class Provider<T extends Route> {
       broadcast: (fromId?: string) => {
         return new Proxy<ConvertRouteMethod<T>>({} as any, {
           get: (target, prop: string, receiver) => {
+            if (!this.started_)
+              throw new RPCError(RPCErrorCode.ERR_RPC_PROVIDER_NOT_AVAILABLE, `ERR_RPC_PROVIDER_NOT_AVAILABLE`);
+
             return async (body: unknown, options?: IRequestOptions) => {
               const targetSet = new Set();
               const senders = [...this.senders_].map(([id, s]) => {
@@ -132,6 +145,7 @@ class Provider<T extends Route> {
                 const notify = new Notify({
                   method: prop,
                   payload: body,
+                  path: '',
                   headers: options.headers || {},
                 });
                 return s.sendNotify(notify, fromId);
@@ -143,7 +157,24 @@ class Provider<T extends Route> {
     }
   }
 
+  async shutdown() {
+    this.ref_ --;
+    if (this.ref_)
+      return;
+
+    this.started_ = false;
+    await Promise.all([...this.senders_].map(async ([id, sender]) => {
+      await sender.off();
+    }));
+  }
+
   async startup() {
+    this.ref_ ++;
+    if (this.started_)
+      return;
+
+    this.started_ = true;
+
     const endpoints = await Runtime.discovery.getEndpointList(this.name_);
     for (const info of endpoints) {
       this.createSender(info);
@@ -202,6 +233,10 @@ class Provider<T extends Route> {
 
   get senders() {
     return this.senders_;
+  }
+
+  get isStarted() {
+    return this.started_;
   }
 
   private get senderList_() {
@@ -272,6 +307,8 @@ class Provider<T extends Route> {
   };
   private filter_: LabelFilter;
   private route_: Route;
+  private started_: boolean;
+  private ref_: number;
 }
 
 export {Provider}

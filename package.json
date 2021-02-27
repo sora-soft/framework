@@ -5,10 +5,10 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
-    "build": "tsc",
+    "build": "tsc --build --clean & tsc",
     "test": "ts-mocha -p tsconfig.json test/**/*.spec.ts",
     "dev": "ts-node src/test.ts",
-    "prepublish": "tsc"
+    "prepublish": "tsc --build --clean & tsc"
   },
   "repository": "git@github.com:sora-soft/framework.git",
   "keywords": [
@@ -21,6 +21,7 @@
     "@types/assert": "^1.5.4",
     "@types/chalk": "^2.2.0",
     "@types/expect": "^24.3.0",
+    "@types/heapdump": "^0.3.1",
     "@types/mocha": "^8.2.0",
     "@types/node": "^14.14.27",
     "@types/uuid": "^8.3.0",
@@ -34,6 +35,7 @@
   "dependencies": {
     "chalk": "^4.1.0",
     "error-stack-parser": "^2.0.6",
+    "heapdump": "^0.3.15",
     "uuid": "^8.3.2"
   }
 }

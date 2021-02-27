@@ -56,6 +56,7 @@ class Broadcaster<T extends Route> {
             const notify = new Notify({
               method: prop,
               payload: body,
+              path: '',
               headers: options.headers || {},
             });
             await handler.sender.sendNotify(notify, fromId).catch(err => {

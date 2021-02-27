@@ -8,6 +8,9 @@ class Executor {
     const promise = executor().then((result) => {
       this.workingPromises_.splice(this.workingPromises_.indexOf(promise), 1);
       return result;
+    }).catch((err) => {
+      this.workingPromises_.splice(this.workingPromises_.indexOf(promise), 1);
+      throw err;
     });
     this.workingPromises_.push(promise);
     return promise;
