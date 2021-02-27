@@ -5,10 +5,11 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
-    "build": "tsc --build --clean & tsc",
+    "build": "rm -rf dist & tsc",
     "test": "ts-mocha -p tsconfig.json test/**/*.spec.ts",
     "dev": "ts-node src/test.ts",
-    "prepublish": "tsc --build --clean & tsc"
+    "clean": "rm -rf dist",
+    "prepublish": "rm -rf dist & tsc"
   },
   "repository": "git@github.com:sora-soft/framework.git",
   "keywords": [

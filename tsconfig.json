@@ -9,8 +9,7 @@
     "alwaysStrict": true,
     "downlevelIteration": true,
     "experimentalDecorators": true,
-    "emitDecoratorMetadata": true,
-    "inlineSourceMap": true
+    "emitDecoratorMetadata": true
   },
   "include": [
     "./src/**/*"
