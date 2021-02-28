@@ -13,8 +13,10 @@ abstract class Component {
     Runtime.registerComponent(this.name_, this);
   }
 
-  setOptions(options: IComponentOptions) {
+  protected abstract setOptions(options: IComponentOptions): void;
+  loadOptions(options: IComponentOptions) {
     this.options_ = options;
+    this.setOptions(options);
   }
 
   protected abstract connect(): Promise<void>;
