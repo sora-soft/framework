@@ -18,6 +18,7 @@ export interface ILoggerData {
   position: string;
   stack: StackFrame[];
   raw: any[];
+  pid: number;
 }
 
 export enum LogLevel {
@@ -92,6 +93,7 @@ abstract class Logger {
         timeString,
         level,
         error,
+        pid: process.pid,
         content: this.generateContent(...args),
         stack: Logger.getStack(),
         position: `${path.basename(stack.fileName)}:${stack.lineNumber}:${stack.functionName}`,
