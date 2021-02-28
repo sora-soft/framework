@@ -1,8 +1,11 @@
 import {WorkerState} from '../Enum';
+import {FrameworkErrorCode} from '../ErrorCode';
 import {LifeCycleEvent} from '../Event';
 import {IRuntimeOptions} from '../interface/config';
 import {Time} from '../utility/Time';
+import {Component} from './Component';
 import {Discovery} from './discovery/Discovery';
+import {FrameworkError} from './FrameworkError';
 import {FrameworkLogger} from './FrameworkLogger';
 import {Logger} from './logger/Logger';
 import {Node} from './Node'
@@ -12,20 +15,15 @@ import {Worker} from './Worker';
 
 class Runtime {
   static get frameLogger() {
-    if (!this.frameLogger_)
-      this.frameLogger_ = new FrameworkLogger();
     return this.frameLogger_;
   }
 
-  private static frameLogger_: FrameworkLogger;
+  private static frameLogger_: FrameworkLogger = new FrameworkLogger();;
 
   static get rpcLogger() {
-    if (!this.rpcLogger_)
-      this.rpcLogger_ = new RPCLogger();
-
     return this.rpcLogger_;
   }
-  private static rpcLogger_: RPCLogger;
+  private static rpcLogger_: RPCLogger = new RPCLogger();
 
   static async loadConfig(options: IRuntimeOptions) {
     this.scope_ = options.scope;
@@ -174,6 +172,17 @@ class Runtime {
     this.frameLogger.success('runtime', {event: 'service-stopped', name: service.name, id: service.id, reason});
   }
 
+  static registerComponent(name: string, component: Component) {
+    if (this.components_.has(name))
+      this.frameLogger.error('runtime', new FrameworkError(FrameworkErrorCode.ERR_DUPLICATED_COMPONENT, `ERR_DUPLICATED_COMPONENT, name=${name}`));
+
+    this.components_.set(name, component);
+  }
+
+  static getComponent(name: string) {
+    return this.components_.get(name);
+  }
+
   static get node() {
     return this.node_;
   }
@@ -199,6 +208,7 @@ class Runtime {
   private static scope_: string;
   private static services_: Map<string, Service> = new Map();
   private static workers_: Map<string, Worker> = new Map();
+  private static components_: Map<string, Component> = new Map();
   private static shutdownPromise_: Promise<void>;
 }
 

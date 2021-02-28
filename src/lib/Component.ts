@@ -1,5 +1,7 @@
 import {FrameworkErrorCode} from '../ErrorCode';
 import {FrameworkError} from './FrameworkError';
+import {Logger} from './logger/Logger';
+import {Runtime} from './Runtime';
 
 export interface IComponentOptions {}
 
@@ -8,6 +10,7 @@ abstract class Component {
     this.name_ = name;
     this.init_ = false;
     this.ref_ = 0;
+    Runtime.registerComponent(this.name_, this);
   }
 
   setOptions(options: IComponentOptions) {
@@ -23,7 +26,9 @@ abstract class Component {
     if (this.ref_ > 1)
       return;
 
-    await this.connect();
+    await this.connect().catch(err => {
+      Runtime.frameLogger.error(`component.${this.name_}`, err, { event: 'connect-component', error: Logger.errorMessage(err) });
+    });
     this.init_ = true;
   }
 
