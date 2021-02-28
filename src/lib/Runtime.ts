@@ -9,7 +9,6 @@ import {Node} from './Node'
 import {RPCLogger} from './rpc/RPCLogger';
 import {Service} from './Service';
 import {Worker} from './Worker';
-import heapdump = require('heapdump');
 
 class Runtime {
   static get frameLogger() {

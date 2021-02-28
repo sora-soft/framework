@@ -1,3 +1,4 @@
+import {Component, IComponentOptions} from '../lib/Component';
 import {Service} from '../lib/Service';
 import {Worker} from '../lib/Worker';
 import {IServiceOptions, IWorkerOptions} from './config';
@@ -9,5 +10,5 @@ export interface INodeRunData {
   node: INodeMetaData
 }
 
-export type serviceBuilder = (options: IServiceOptions) => Service;
-export type workerBuilder = (options: IWorkerOptions) => Worker;
+export type ServiceBuilder = (options: IServiceOptions) => Service;
+export type WorkerBuilder = (options: IWorkerOptions) => Worker;

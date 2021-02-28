@@ -4,15 +4,15 @@ import {Service} from './Service';
 import {TCPListener} from './tcp/TCPListener';
 import {Route} from './rpc/Route';
 import {NodeHandler} from './handler/NodeHandler';
-import {INodeMetaData, IServiceMetaData, IWorkerMetaData} from '../interface/discovery';
+import {INodeMetaData} from '../interface/discovery';
 import {TCPSender} from './tcp/TCPSender';
 import {Broadcaster} from './rpc/Broadcaster';
 import {INodeNotifyHandler} from './handler/NodeNotifyHandler';
 import {Runtime} from './Runtime';
-import {INodeRunData, serviceBuilder, workerBuilder} from '../interface/node';
+import {INodeRunData, ServiceBuilder, WorkerBuilder} from '../interface/node';
 
 class Node extends Service {
-  static registerWorker(name: string, builder: workerBuilder) {
+  static registerWorker(name: string, builder: WorkerBuilder) {
     this.workerBuilder_.set(name, builder);
   }
 
@@ -23,7 +23,7 @@ class Node extends Service {
     return builder(options);
   }
 
-  static registerService(name: string, builder: serviceBuilder) {
+  static registerService(name: string, builder: ServiceBuilder) {
     this.serviceBuilder_.set(name, builder);
   }
 
@@ -34,8 +34,8 @@ class Node extends Service {
     return builder(options);
   }
 
-  private static serviceBuilder_: Map<string, serviceBuilder> = new Map();
-  private static workerBuilder_: Map<string, workerBuilder> = new Map();
+  private static serviceBuilder_: Map<string, ServiceBuilder> = new Map();
+  private static workerBuilder_: Map<string, WorkerBuilder> = new Map();
 
   constructor(options: INodeOptions) {
     super('node', options);
