@@ -3,7 +3,7 @@ import {ExError} from '../../utility/ExError';
 
 class TCPError extends ExError {
   constructor(code: TCPErrorCode, message: string) {
-    super(code, message);
+    super(code, 'TCPError', message);
     Object.setPrototypeOf(this, TCPError.prototype);
     Error.captureStackTrace(this, this.constructor);
   }

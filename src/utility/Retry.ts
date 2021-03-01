@@ -7,7 +7,7 @@ import {Time} from './Time';
 
 export class RetryError extends ExError {
   constructor(code: RetryErrorCode, message: string) {
-    super(code, message);
+    super(code, 'RetryError', message);
     Object.setPrototypeOf(this, RetryError.prototype);
   }
 }
