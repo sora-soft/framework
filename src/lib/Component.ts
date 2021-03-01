@@ -36,9 +36,17 @@ abstract class Component {
 
   protected abstract disconnect(): Promise<void>;
   async stop() {
+    if (this.ref_ <= 0) {
+      Runtime.frameLogger.warn(`component.${this.name_}`, { event: 'duplicate-stop' });
+      return;
+    }
+
     this.ref_ --;
-    if (!this.ref_)
-      await this.disconnect();
+    if (this.ref_ <= 0) {
+      await this.disconnect().catch(err => {
+        Runtime.frameLogger.error(`component.${this.name_}`, err, { event: 'disconnect-component', error: Logger.errorMessage(err) });
+      });
+    }
   }
 
   get ready() {
