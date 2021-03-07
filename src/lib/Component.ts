@@ -10,6 +10,7 @@ abstract class Component {
     this.name_ = name;
     this.init_ = false;
     this.ref_ = 0;
+
     Runtime.registerComponent(this.name_, this);
   }
 
@@ -31,6 +32,7 @@ abstract class Component {
     await this.connect().catch(err => {
       Runtime.frameLogger.error(`component.${this.name_}`, err, { event: 'connect-component', error: Logger.errorMessage(err) });
     });
+    Runtime.frameLogger.success(`component.${this.name_}`, { event: 'success-connect', options: this.options_ });
     this.init_ = true;
   }
 
@@ -46,6 +48,7 @@ abstract class Component {
       await this.disconnect().catch(err => {
         Runtime.frameLogger.error(`component.${this.name_}`, err, { event: 'disconnect-component', error: Logger.errorMessage(err) });
       });
+      Runtime.frameLogger.success(`component.${this.name_}`, { event: 'success-disconnect' });
     }
   }
 

@@ -125,7 +125,8 @@ class Runtime {
       this.frameLogger_.error('runtime', err, {event: 'install-service-start', error: Logger.errorMessage(err), name: service.name, id: service.id});
     });
 
-    this.frameLogger.success('runtime', {event: 'service-started', name: service.name, id: service.id});
+    if (service.state === WorkerState.READY)
+      this.frameLogger.success('runtime', {event: 'service-started', name: service.name, id: service.id});
   }
 
   static async installWorker(worker: Worker) {
@@ -139,7 +140,8 @@ class Runtime {
       this.frameLogger_.error('runtime', err, {event: 'install-worker-start', error: Logger.errorMessage(err), name: worker.name, id: worker.id});
     });;
 
-    this.frameLogger.success('runtime', {event: 'worker-started', name: worker.name, id: worker.id});
+    if (worker.state === WorkerState.READY)
+      this.frameLogger.success('runtime', {event: 'worker-started', name: worker.name, id: worker.id});
 
   }
 
@@ -153,9 +155,12 @@ class Runtime {
     this.workers_.delete(id);
 
     if (worker.state < WorkerState.STOPPING)
-      await worker.stop(reason);
+      await worker.stop(reason).catch(err => {
+        this.frameLogger_.error('runtime', err, {event: 'uninstall-worker', error: Logger.errorMessage(err), name: worker.name, id: worker.id});
+      });
 
-    this.frameLogger.success('runtime', {event: 'worker-stopped', name: worker.name, id: worker.id, reason});
+    if (worker.state === WorkerState.STOPPED)
+      this.frameLogger.success('runtime', {event: 'worker-stopped', name: worker.name, id: worker.id, reason});
   }
 
   static async uninstallService(id: string, reason: string) {
@@ -167,9 +172,12 @@ class Runtime {
 
     this.services_.delete(id);
     if (service.state < WorkerState.STOPPING)
-      await service.stop(reason);
+      await service.stop(reason).catch(err => {
+        this.frameLogger_.error('runtime', err, {event: 'uninstall-service', error: Logger.errorMessage(err), name: service.name, id: service.id});
+      });;
 
-    this.frameLogger.success('runtime', {event: 'service-stopped', name: service.name, id: service.id, reason});
+    if (service.state === WorkerState.STOPPED)
+      this.frameLogger.success('runtime', {event: 'service-stopped', name: service.name, id: service.id, reason});
   }
 
   static registerComponent(name: string, component: Component) {

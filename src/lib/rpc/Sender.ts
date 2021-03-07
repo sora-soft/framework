@@ -1,11 +1,10 @@
-import {Const} from '../../Const';
+import {RPCHeader} from '../../Const';
 import {SenderState} from '../../Enum';
 import {RPCErrorCode} from '../../ErrorCode';
 import {IListenerInfo, IRawNetPacket, IRawResPacket} from '../../interface/rpc';
 import {LifeCycle} from '../../utility/LifeCycle'
 import {TimeoutError} from '../../utility/TimeoutError';
 import {Waiter} from '../../utility/Waiter';
-import {Runtime} from '../Runtime';
 import {Notify} from './Notify';
 import {Request} from './Request';
 import {Route} from './Route';
@@ -50,9 +49,9 @@ abstract class Sender {
   protected abstract send<RequestPayload>(request: IRawNetPacket<RequestPayload>): Promise<void>;
   public async sendRpc<ResponsePayload>(request: Request, fromId?: string): Promise<IRawResPacket<ResponsePayload>> {
     const wait = this.waiter_.wait(10000);
-    request.setHeader(Const.RPC_ID_HEADER, wait.id);
+    request.setHeader(RPCHeader.RPC_ID_HEADER, wait.id);
     if (fromId)
-      request.setHeader(Const.RPC_FROM_ID_HEADER, fromId);
+      request.setHeader(RPCHeader.RPC_FROM_ID_HEADER, fromId);
     await this.send(request.toPacket());
     return wait.promise.catch((err: Error) => {
       if (err instanceof TimeoutError)
@@ -62,18 +61,18 @@ abstract class Sender {
   }
   public async sendNotify(notify: Notify, fromId?: string): Promise<void> {
     if (fromId)
-      notify.setHeader(Const.RPC_FROM_ID_HEADER, fromId);
+      notify.setHeader(RPCHeader.RPC_FROM_ID_HEADER, fromId);
     await this.send(notify.toPacket());
   }
 
   protected emitRPCResponse<ResponsePayload extends { error?: RPCErrorCode, message?: string }>(packet: IRawResPacket<ResponsePayload>) {
-    if (!packet.headers[Const.RPC_ID_HEADER])
+    if (!packet.headers[RPCHeader.RPC_ID_HEADER])
       return;
 
     if (packet.payload.error) {
-      this.waiter_.emitError(packet.headers[Const.RPC_ID_HEADER], new RPCError(packet.payload.error, packet.payload.message));
+      this.waiter_.emitError(packet.headers[RPCHeader.RPC_ID_HEADER], new RPCError(packet.payload.error, packet.payload.message));
     } else {
-      this.waiter_.emit(packet.headers[Const.RPC_ID_HEADER], packet);
+      this.waiter_.emit(packet.headers[RPCHeader.RPC_ID_HEADER], packet);
     }
   }
 

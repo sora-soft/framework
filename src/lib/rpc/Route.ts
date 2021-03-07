@@ -1,4 +1,4 @@
-import {Const} from '../../Const';
+import {RPCHeader} from '../../Const';
 import {OPCode} from '../../Enum';
 import {RPCErrorCode} from '../../ErrorCode';
 import {IRawNetPacket} from '../../interface/rpc';
@@ -30,8 +30,8 @@ class Route<T extends Service = Service> {
         case OPCode.REQUEST:
           const request = new Request(packet);
           const response = new Response();
-          const rpcId = request.getHeader(Const.RPC_ID_HEADER);
-          request.setHeader(Const.RPC_SESSION_HEADER, session);
+          const rpcId = request.getHeader(RPCHeader.RPC_ID_HEADER);
+          request.setHeader(RPCHeader.RPC_SESSION_HEADER, session);
           Runtime.rpcLogger.debug('route', { method: request.method, request: request.payload });
           if (!route.hasMethod(request.method))
             throw new RPCError(RPCErrorCode.ERR_RPC_METHOD_NOT_FOUND, `ERR_RPC_METHOD_NOT_FOUND, service=${route.service.name}, method=${request.method}`);
@@ -43,15 +43,15 @@ class Route<T extends Service = Service> {
               message: err.message,
             }
           });
-          response.setHeader(Const.RPC_ID_HEADER, rpcId);
-          response.setHeader(Const.RPC_FROM_ID_HEADER, route.service_.id);
+          response.setHeader(RPCHeader.RPC_ID_HEADER, rpcId);
+          response.setHeader(RPCHeader.RPC_FROM_ID_HEADER, route.service_.id);
           response.payload = result;
           Runtime.rpcLogger.debug('route', { method: request.method, request: request.payload, response: response.payload, duration: Date.now() - startTime });
           return response.toPacket();
         case OPCode.NOTIFY:
           // notify 不需要回复
           const notify = new Notify(packet);
-          notify.setHeader(Const.RPC_SESSION_HEADER, session);
+          notify.setHeader(RPCHeader.RPC_SESSION_HEADER, session);
           Runtime.rpcLogger.debug('route', { method: notify.method, notify: notify.payload });
           if (!route.hasNotify(request.method))
             throw new RPCError(RPCErrorCode.ERR_RPC_METHOD_NOT_FOUND, `ERR_RPC_METHOD_NOT_FOUND, service=${route.service.name}, method=${request.method}`);
@@ -93,15 +93,25 @@ class Route<T extends Service = Service> {
 
   protected async callMethod(method: string, request: Request, response: Response) {
     if (this.methodMap_.has(method)) {
-      const handler = this.methodMap_.get(method);
-      return handler.bind(this)(request.payload, request, response);
+      try {
+        return (this[method] as RPCHandler)(request.payload, request, response)
+      } catch(err) {
+        if (err.name === 'TypeGuardError') {
+          throw new RPCError(RPCErrorCode.ERR_RPC_PARAMTER_INVALID, `ERR_RPC_PARAMTER_INVALID, ${err.message.split(',').slice(0, 1).join('')}`)
+        }
+        throw err;
+      }
     }
   }
 
   protected async callNotify(method: string, request: Notify) {
     if (this.notifyMap_.has(method)) {
-      const handler = this.notifyMap_.get(method);
-      return handler(request.payload, request);
+      return (this[method] as NotifyHandler)(request.payload, request).catch(err => {
+        if (err.name === 'TypeGuardError') {
+          throw new RPCError(RPCErrorCode.ERR_RPC_PARAMTER_INVALID, `ERR_RPC_PARAMTER_INVALID, ${err.message.split(',').slice(0, 1).join('')}`)
+        }
+        throw err;
+      });
     }
   }
 

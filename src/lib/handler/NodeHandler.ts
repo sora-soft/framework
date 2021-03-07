@@ -1,4 +1,4 @@
-import {Const} from '../../Const';
+import {RPCHeader} from '../../Const';
 import {FrameworkErrorCode} from '../../ErrorCode';
 import {IServiceOptions, IWorkerOptions} from '../../interface/config';
 import {FrameworkError} from '../FrameworkError';
@@ -66,7 +66,7 @@ class NodeHandler extends Route<Node> {
 
   @Route.method
   async registerRunningDataNotify(body: void, request: Request<{}>) {
-    const session = request.getHeader(Const.RPC_SESSION_HEADER);
+    const session = request.getHeader(RPCHeader.RPC_SESSION_HEADER);
     this.service.registerBroadcaster('notifyNodeState', session);
     return {};
   }
