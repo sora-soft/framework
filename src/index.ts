@@ -48,6 +48,7 @@ export * from './utility/Time';
 export * from './utility/TimeoutError';
 export * from './utility/Utility';
 export * from './utility/Waiter';
+export * from './utility/Ref';
 
 export * from './Const';
 export * from './Enum';

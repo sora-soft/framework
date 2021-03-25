@@ -1,4 +1,5 @@
 import {FrameworkErrorCode} from '../ErrorCode';
+import {Ref} from '../utility/Ref';
 import {FrameworkError} from './FrameworkError';
 import {Logger} from './logger/Logger';
 import {Runtime} from './Runtime';
@@ -9,7 +10,7 @@ abstract class Component {
   constructor(name: string) {
     this.name_ = name;
     this.init_ = false;
-    this.ref_ = 0;
+    this.ref_ = new Ref();
 
     Runtime.registerComponent(this.name_, this);
   }
@@ -25,31 +26,28 @@ abstract class Component {
     if (!this.options_)
       throw new FrameworkError(FrameworkErrorCode.ERR_COMPONENT_OPTIONS_NOT_SET, `ERR_COMPONENT_OPTIONS_NOT_SET, name=${this.name_}`);
 
-    this.ref_ ++;
-    if (this.ref_ > 1)
-      return;
-
-    await this.connect().catch(err => {
-      Runtime.frameLogger.error(`component.${this.name_}`, err, { event: 'connect-component', error: Logger.errorMessage(err) });
+    await this.ref_.add(async () => {
+      await this.connect().catch(err => {
+        Runtime.frameLogger.error(`component.${this.name_}`, err, { event: 'connect-component', error: Logger.errorMessage(err) });
+      });
+      Runtime.frameLogger.success(`component.${this.name_}`, { event: 'success-connect', options: this.options_ });
+      this.init_ = true;
     });
-    Runtime.frameLogger.success(`component.${this.name_}`, { event: 'success-connect', options: this.options_ });
-    this.init_ = true;
   }
 
   protected abstract disconnect(): Promise<void>;
   async stop() {
-    if (this.ref_ <= 0) {
-      Runtime.frameLogger.warn(`component.${this.name_}`, { event: 'duplicate-stop' });
-      return;
-    }
-
-    this.ref_ --;
-    if (this.ref_ <= 0) {
+    await this.ref_.minus(async () => {
       await this.disconnect().catch(err => {
         Runtime.frameLogger.error(`component.${this.name_}`, err, { event: 'disconnect-component', error: Logger.errorMessage(err) });
       });
       Runtime.frameLogger.success(`component.${this.name_}`, { event: 'success-disconnect' });
-    }
+    }).catch((err: Error) => {
+      if (err.message === 'ERR_REF_NEGATIVE')
+        Runtime.frameLogger.warn(`component.${this.name_}`, { event: 'duplicate-stop' });
+      else
+        throw err;
+    });
   }
 
   get ready() {
@@ -58,8 +56,9 @@ abstract class Component {
 
   protected name_: string;
   protected options_: IComponentOptions;
+  protected ref_: Ref;
   private init_: boolean;
-  private ref_: number;
+  // private ref_: number;
 }
 
 export {Component};

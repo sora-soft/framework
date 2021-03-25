@@ -4,6 +4,7 @@ import {DiscoveryListenerEvent, DiscoveryServiceEvent, LifeCycleEvent} from '../
 import {IListenerMetaData} from '../../interface/discovery';
 import {IListenerInfo} from '../../interface/rpc';
 import {LabelFilter} from '../../utility/LabelFilter';
+import {Ref} from '../../utility/Ref';
 import {Utility} from '../../utility/Utility';
 import {Logger} from '../logger/Logger';
 import {Runtime} from '../Runtime';
@@ -52,14 +53,13 @@ class Provider<T extends Route> {
     this.senders_ = new Map();
     this.filter_ = filter;
     this.route_ = route;
-    this.started_ = false;
-    this.ref_ = 0;
+    this.ref_ = new Ref();
 
     this.caller_ = {
       rpc: (fromId?: string, toId?: string) => {
         return new Proxy<ConvertRPCRouteMethod<T>>({} as any , {
           get: (target, prop: string, receiver) => {
-            if (!this.started_)
+            if (!this.isStarted)
               throw new RPCError(RPCErrorCode.ERR_RPC_PROVIDER_NOT_AVAILABLE, `ERR_RPC_PROVIDER_NOT_AVAILABLE`);
 
             return async (body: unknown, options: IRequestOptions = {}, raw = false) => {
@@ -78,7 +78,7 @@ class Provider<T extends Route> {
               const request = new Request({
                 method: prop,
                 payload: body,
-                path: '',
+                path: `${this.name_}/${prop}`,
                 headers: options.headers || {},
               });
               const res = await sender.sendRpc(request, fromId);
@@ -93,7 +93,7 @@ class Provider<T extends Route> {
       notify: (fromId?: string, toId?: string) => {
         return new Proxy<ConvertRouteMethod<T>>({} as any, {
           get: (target, prop: string, receiver) => {
-            if (!this.started_)
+            if (!this.isStarted)
               throw new RPCError(RPCErrorCode.ERR_RPC_PROVIDER_NOT_AVAILABLE, `ERR_RPC_PROVIDER_NOT_AVAILABLE`);
 
             return async (body: unknown, options: IRequestOptions = {}) => {
@@ -112,7 +112,7 @@ class Provider<T extends Route> {
               const notify = new Notify({
                 method: prop,
                 payload: body,
-                path: '',
+                path: `${this.name_}/${prop}`,
                 headers: options.headers || {},
               });
               await sender.sendNotify(notify, fromId);
@@ -123,7 +123,7 @@ class Provider<T extends Route> {
       broadcast: (fromId?: string) => {
         return new Proxy<ConvertRouteMethod<T>>({} as any, {
           get: (target, prop: string, receiver) => {
-            if (!this.started_)
+            if (!this.isStarted)
               throw new RPCError(RPCErrorCode.ERR_RPC_PROVIDER_NOT_AVAILABLE, `ERR_RPC_PROVIDER_NOT_AVAILABLE`);
 
             return async (body: unknown, options?: IRequestOptions) => {
@@ -145,7 +145,7 @@ class Provider<T extends Route> {
                 const notify = new Notify({
                   method: prop,
                   payload: body,
-                  path: '',
+                  path: `${this.name_}/${prop}`,
                   headers: options.headers || {},
                 });
                 return s.sendNotify(notify, fromId);
@@ -158,72 +158,68 @@ class Provider<T extends Route> {
   }
 
   async shutdown() {
-    this.ref_ --;
-    if (this.ref_)
-      return;
-
-    this.started_ = false;
-    await Promise.all([...this.senders_].map(async ([id, sender]) => {
-      await sender.off();
-    }));
+    await this.ref_.minus(async () => {
+      await Promise.all([...this.senders_].map(async ([id, sender]) => {
+        await sender.off();
+      }));
+    }).catch((err: Error) => {
+      if (err.message === 'ERR_REF_NEGATIVE')
+        Runtime.frameLogger.warn(`provider.${this.name_}`, { event: 'duplicate-stop' });
+    });
   }
 
   async startup() {
-    this.ref_ ++;
-    if (this.started_)
-      return;
-
-    this.started_ = true;
-
-    const endpoints = await Runtime.discovery.getEndpointList(this.name_);
-    for (const info of endpoints) {
-      this.createSender(info);
-    }
-
-    Runtime.discovery.serviceEmitter.on(DiscoveryServiceEvent.ServiceStateUpdate, async (id, state, pre, meta) => {
-      switch (state) {
-        case WorkerState.ERROR:
-        case WorkerState.STOPPING:
-        case WorkerState.STOPPED:
-          for (const sender of this.senderList_) {
-            if (sender.targetId === id) {
-              this.removeSender(sender.listenerId);
-            }
-          }
-          break;
-      }
-    });
-
-    Runtime.discovery.listenerEmitter.on(DiscoveryListenerEvent.ListenerCreated, async (info) => {
-      if (info.service === this.name_ && this.filter_.isSatisfy(info.labels))
+    await this.ref_.add(async () => {
+      const endpoints = await Runtime.discovery.getEndpointList(this.name_);
+      for (const info of endpoints) {
         this.createSender(info);
-    });
-    Runtime.discovery.listenerEmitter.on(DiscoveryListenerEvent.ListenerStateUpdate, async (id, state, pre, meta) => {
-      let sender = this.senders_.get(id);
-      if (!sender && state === ListenerState.READY) {
-        if (meta.service === this.name_ && this.filter_.isSatisfy(meta.labels))
-          sender = await this.createSender(meta);
-        return;
       }
 
-      if (!sender)
-        return;
+      Runtime.discovery.serviceEmitter.on(DiscoveryServiceEvent.ServiceStateUpdate, async (id, state, pre, meta) => {
+        switch (state) {
+          case WorkerState.ERROR:
+          case WorkerState.STOPPING:
+          case WorkerState.STOPPED:
+            for (const sender of this.senderList_) {
+              if (sender.targetId === id) {
+                this.removeSender(sender.listenerId);
+              }
+            }
+            break;
+        }
+      });
 
-      switch (state) {
-        case ListenerState.READY:
-          await sender.start(meta).catch(err => {
-            Runtime.frameLogger.error(this.logCategory, err, { event: 'sender-started-failed', error: Logger.errorMessage(err), name: this.name_ });
-          });
-          break;
-        case ListenerState.STOPPING:
-        case ListenerState.STOPPED:
-        case ListenerState.ERROR:
-          this.removeSender(id);
-          break;
-      }
-    });
-    Runtime.discovery.listenerEmitter.on(DiscoveryListenerEvent.ListenerDeleted, async (id) => {
-      this.removeSender(id);
+      Runtime.discovery.listenerEmitter.on(DiscoveryListenerEvent.ListenerCreated, async (info) => {
+        if (info.service === this.name_ && this.filter_.isSatisfy(info.labels))
+          this.createSender(info);
+      });
+      Runtime.discovery.listenerEmitter.on(DiscoveryListenerEvent.ListenerStateUpdate, async (id, state, pre, meta) => {
+        let sender = this.senders_.get(id);
+        if (!sender && state === ListenerState.READY) {
+          if (meta.service === this.name_ && this.filter_.isSatisfy(meta.labels))
+            sender = await this.createSender(meta);
+          return;
+        }
+
+        if (!sender)
+          return;
+
+        switch (state) {
+          case ListenerState.READY:
+            await sender.start(meta).catch(err => {
+              Runtime.frameLogger.error(this.logCategory, err, { event: 'sender-started-failed', error: Logger.errorMessage(err), name: this.name_ });
+            });
+            break;
+          case ListenerState.STOPPING:
+          case ListenerState.STOPPED:
+          case ListenerState.ERROR:
+            this.removeSender(id);
+            break;
+        }
+      });
+      Runtime.discovery.listenerEmitter.on(DiscoveryListenerEvent.ListenerDeleted, async (id) => {
+        this.removeSender(id);
+      });
     });
   }
 
@@ -236,7 +232,7 @@ class Provider<T extends Route> {
   }
 
   get isStarted() {
-    return this.started_;
+    return this.ref_.count > 0;
   }
 
   private get senderList_() {
@@ -280,7 +276,7 @@ class Provider<T extends Route> {
 
     this.senders_.set(endpoint.id, sender);
     if (this.route_)
-      sender.enableResponse(this.route_);
+      await sender.enableResponse(this.route_);
 
     if (endpoint.state === ListenerState.READY)
       sender.start(endpoint).catch(err => {
@@ -307,8 +303,7 @@ class Provider<T extends Route> {
   };
   private filter_: LabelFilter;
   private route_: Route;
-  private started_: boolean;
-  private ref_: number;
+  private ref_: Ref;
 }
 
 export {Provider}
