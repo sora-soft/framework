@@ -15,13 +15,15 @@ import {Utility} from '../../utility/Utility';
 import {TCPErrorCode} from '../../ErrorCode';
 import {TCPError} from './TCPError';
 import {Time} from '../../utility/Time';
-import {IListenerInfo} from '../../interface/rpc';
+import {IListenerInfo, IRawNetPacket} from '../../interface/rpc';
 
 
 class TCPListener extends Listener {
   constructor(options: ITCPListenerOptions, callback: ListenerCallback, executor: Executor) {
     super(callback, executor);
     this.options_ = options;
+
+    this.usePort_ = 0;
 
     this.connectionEmitter_ = new EventEmitter();
     this.server_ = net.createServer();
@@ -148,13 +150,19 @@ class TCPListener extends Listener {
           cache = cache.slice(packetLength);
           packetLength = 0;
 
+          let packet: IRawNetPacket;
           try {
-            const packet = JSON.parse(content.toString());
+            packet = JSON.parse(content.toString());
+          } catch (err) {
+            Runtime.frameLogger.debug('listener.tcp', err, { event: 'parse-body-failed', error: Logger.errorMessage(err) });
+            return;
+          }
 
+          try {
             const response = await listenerDataCallback(packet, session);
             if (response) {
               const resData = TCPUtility.encodeMessage(response);
-              util.promisify<Buffer, void>(socket.write.bind(socket))(resData);
+              await util.promisify<Buffer, void>(socket.write.bind(socket))(resData);
             }
           } catch (err) {
             Runtime.frameLogger.error('listener.tcp', err, { event: 'event-handle-rpc', error: Logger.errorMessage(err)});

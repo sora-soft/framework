@@ -5,6 +5,7 @@ import {IListenerInfo, IRawNetPacket, IRawResPacket} from '../../interface/rpc';
 import {LifeCycle} from '../../utility/LifeCycle'
 import {TimeoutError} from '../../utility/TimeoutError';
 import {Waiter} from '../../utility/Waiter';
+import {ListenerCallback} from './Listener';
 import {Notify} from './Notify';
 import {Request} from './Request';
 import {Route} from './Route';
@@ -76,8 +77,9 @@ abstract class Sender {
     }
   }
 
-  enableResponse(route: Route) {
+  async enableResponse(route: Route) {
     this.route_ = route;
+    this.routeCallback_ = (Object.getPrototypeOf(route).constructor as typeof Route).callback(route);
   }
 
   get state() {
@@ -107,6 +109,7 @@ abstract class Sender {
   protected lifeCycle_: LifeCycle<SenderState>;
   protected listenInfo_: IListenerInfo;
   protected route_: Route;
+  protected routeCallback_: ListenerCallback;
   protected session_: string;
   private waiter_: Waiter<IRawResPacket>;
   private listenerId_: string;

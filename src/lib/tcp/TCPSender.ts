@@ -146,7 +146,7 @@ class TCPSender extends Sender {
             break;
           case OPCode.NOTIFY:
             if (this.route_) {
-              Route.callback(this.route_)(packet, this.session_).catch(err => {
+              this.routeCallback_(packet, this.session_).catch(err => {
                 Runtime.frameLogger.error('sender.tcp', err, { event: 'sender-notify-handler', error: Logger.errorMessage(err) });
               });
             }
