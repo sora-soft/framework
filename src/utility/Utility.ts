@@ -25,6 +25,15 @@ class Utility {
     return array[index];
   }
 
+  static hideKeys<T extends { [key: string] : any }>(obj: T, keys: (keyof T)[]) {
+    const result: Partial<T> = {};
+    Object.entries(obj).forEach(([key, value]: [keyof T, any]) => {
+      if (!keys.includes(key))
+        result[key] = value;
+    });
+    return result;
+  }
+
   static formatLogTimeString(date: Date) {
     const timezoneOffsetMin = new Date().getTimezoneOffset();
     const offsetHrsNum = Math.abs( timezoneOffsetMin / 60 );
