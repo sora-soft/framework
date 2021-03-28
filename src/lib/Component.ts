@@ -54,6 +54,10 @@ abstract class Component {
     return this.init_;
   }
 
+  get options() {
+    return this.options_;
+  }
+
   protected name_: string;
   protected options_: IComponentOptions;
   protected ref_: Ref;
