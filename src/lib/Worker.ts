@@ -34,6 +34,8 @@ abstract class Worker {
     await this.lifeCycle_.setState(WorkerState.STOPPED);
   }
 
+  async runCommand(commands: string[]) { return false; }
+
   protected async doJob<T>(executor: JobExecutor<T>) {
     return this.executor_.doJob<T>(executor);
   }
