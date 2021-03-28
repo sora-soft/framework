@@ -187,8 +187,8 @@ class Runtime {
     this.components_.set(name, component);
   }
 
-  static getComponent(name: string) {
-    return this.components_.get(name);
+  static getComponent<T extends Component>(name: string) {
+    return this.components_.get(name) as T;
   }
 
   static get node() {
