@@ -1,7 +1,8 @@
 import {RPCHeader} from '../../Const';
-import {OPCode} from '../../Enum';
+import {ErrorLevel, OPCode} from '../../Enum';
 import {RPCErrorCode} from '../../ErrorCode';
-import {IRawNetPacket} from '../../interface/rpc';
+import {IRawNetPacket, IResPayloadPacket} from '../../interface/rpc';
+import {ExError} from '../../utility/ExError';
 import {Logger} from '../logger/Logger';
 import {Runtime} from '../Runtime';
 import {Service} from '../Service';
@@ -36,12 +37,17 @@ class Route<T extends Service = Service> {
           if (!route.hasMethod(request.method))
             throw new RPCError(RPCErrorCode.ERR_RPC_METHOD_NOT_FOUND, `ERR_RPC_METHOD_NOT_FOUND, service=${route.service.name}, method=${request.method}`);
 
-          const result = await route.callMethod(request.method, request, response).catch(err => {
+          const result = await route.callMethod(request.method, request, response).catch((err: ExError) => {
             Runtime.frameLogger.error('route', err, { event: 'rpc-handler', error: Logger.errorMessage(err), method: request.method, request: request.payload });
             return {
-              error: err.code || RPCErrorCode.ERR_RPC_UNKNOWN,
-              message: err.message,
-            }
+              error: {
+                code: err.code || RPCErrorCode.ERR_RPC_UNKNOWN,
+                level: err.level || ErrorLevel.UNEXPECTED,
+                name: err.name,
+                message: err.message,
+              },
+              result: null,
+            } as IResPayloadPacket<null>;
           });
           response.setHeader(RPCHeader.RPC_ID_HEADER, rpcId);
           response.setHeader(RPCHeader.RPC_FROM_ID_HEADER, route.service_.id);
@@ -56,7 +62,7 @@ class Route<T extends Service = Service> {
           if (!route.hasNotify(request.method))
             throw new RPCError(RPCErrorCode.ERR_RPC_METHOD_NOT_FOUND, `ERR_RPC_METHOD_NOT_FOUND, service=${route.service.name}, method=${request.method}`);
 
-          await route.callNotify(notify.method, notify).catch(err => {
+            await route.callNotify(notify.method, notify).catch(err => {
             Runtime.frameLogger.error('route', err, { event: 'notify-handler', error: Logger.errorMessage(err), method: notify.method, request: notify.payload })
           });
           Runtime.rpcLogger.debug('route', { method: notify.method, notify: notify.payload, duration: Date.now() - startTime });
@@ -94,7 +100,11 @@ class Route<T extends Service = Service> {
   protected async callMethod(method: string, request: Request, response: Response) {
     if (this.methodMap_.has(method)) {
       try {
-        return (this[method] as RPCHandler)(request.payload, request, response)
+        const result = await (this[method] as RPCHandler)(request.payload, request, response);
+        return {
+          error: null,
+          result,
+        }
       } catch(err) {
         if (err.name === 'TypeGuardError') {
           throw new RPCError(RPCErrorCode.ERR_RPC_PARAMTER_INVALID, `ERR_RPC_PARAMTER_INVALID, ${err.message.split(',').slice(0, 1).join('')}`)

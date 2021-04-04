@@ -1,4 +1,4 @@
-import {OPCode} from '../Enum';
+import {ErrorLevel, OPCode} from '../Enum';
 
 export interface IRawNetPacket<T = unknown> {
   opcode: OPCode,
@@ -25,9 +25,21 @@ export interface IRawReqPacket<T = unknown> {
   payload: T
 }
 
-export interface IRawResPacket<T extends { error?: string, message?: string } = unknown> {
+export interface IRawResPacket<T = unknown> {
   headers: {
     [key: string]: any
   },
-  payload: T
+  payload: IResPayloadPacket<T>
+}
+
+export interface IPayloadError {
+  code: string;
+  message: string;
+  level: ErrorLevel;
+  name: string;
+}
+
+export interface IResPayloadPacket<T> {
+  error?: IPayloadError;
+  result?: T;
 }

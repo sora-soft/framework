@@ -85,7 +85,7 @@ class Provider<T extends Route> {
               const response = new Response(res);
               if (raw)
                 return response;
-              return response.payload;
+              return response.payload.result;
             };
           }
         });

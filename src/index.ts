@@ -1,3 +1,5 @@
+import 'source-map-support/register';
+
 export * from './interface/config';
 export * from './interface/discovery';
 export * from './interface/event';

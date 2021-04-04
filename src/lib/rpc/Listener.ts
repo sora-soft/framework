@@ -3,7 +3,6 @@ import {LifeCycle} from '../../utility/LifeCycle';
 import {v4 as uuid} from 'uuid';
 import {IListenerInfo, IRawNetPacket, IRawResPacket} from '../../interface/rpc';
 import {Executor} from '../../utility/Executor';
-import {Notify} from './Notify';
 import {IEventEmitter} from '../../interface/event';
 import {ListenerEvent} from '../../Event';
 

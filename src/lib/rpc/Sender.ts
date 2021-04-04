@@ -2,6 +2,7 @@ import {RPCHeader} from '../../Const';
 import {SenderState} from '../../Enum';
 import {RPCErrorCode} from '../../ErrorCode';
 import {IListenerInfo, IRawNetPacket, IRawResPacket} from '../../interface/rpc';
+import {ExError} from '../../utility/ExError';
 import {LifeCycle} from '../../utility/LifeCycle'
 import {TimeoutError} from '../../utility/TimeoutError';
 import {Waiter} from '../../utility/Waiter';
@@ -9,7 +10,7 @@ import {ListenerCallback} from './Listener';
 import {Notify} from './Notify';
 import {Request} from './Request';
 import {Route} from './Route';
-import {RPCError} from './RPCError';
+import {RPCError, RPCResponseError} from './RPCError';
 
 abstract class Sender {
   constructor(listenerId: string, targetId: string) {
@@ -60,6 +61,7 @@ abstract class Sender {
       throw err;
     }) as Promise<IRawResPacket<ResponsePayload>>;
   }
+
   public async sendNotify(notify: Notify, fromId?: string): Promise<void> {
     if (fromId)
       notify.setHeader(RPCHeader.RPC_FROM_ID_HEADER, fromId);
@@ -71,7 +73,8 @@ abstract class Sender {
       return;
 
     if (packet.payload.error) {
-      this.waiter_.emitError(packet.headers[RPCHeader.RPC_ID_HEADER], new RPCError(packet.payload.error, packet.payload.message));
+      const error = packet.payload.error;
+      this.waiter_.emitError(packet.headers[RPCHeader.RPC_ID_HEADER], new RPCResponseError(error.code, error.level, error.message));
     } else {
       this.waiter_.emit(packet.headers[RPCHeader.RPC_ID_HEADER], packet);
     }

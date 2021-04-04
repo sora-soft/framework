@@ -2,6 +2,8 @@ import {LoggerOutput} from './LoggerOutput';
 import {parse, StackFrame} from 'error-stack-parser';
 import path = require('path');
 import {Utility} from '../../utility/Utility';
+import {ExError} from '../../utility/ExError';
+import {ErrorLevel} from '../../Enum';
 
 export interface ILoggerOptions {
   identify: string;
@@ -68,8 +70,18 @@ abstract class Logger {
     this.write(LogLevel.success, category, null, ...args);
   }
 
-  error(category: string, error: Error, ...args) {
-    this.write(LogLevel.error, category, error, ...args);
+  error(category: string, error: Error | ExError, ...args) {
+    switch (error['level']) {
+      case ErrorLevel.FATAL:
+        this.fatal(category, error, ...args);
+        return;
+      case ErrorLevel.EXPECTED:
+        this.debug(category, error, ...args);
+        return;
+      default:
+        this.write(LogLevel.error, category, error, ...args);
+        return;
+    }
   }
 
   fatal(category: string, error: Error, ...args) {
