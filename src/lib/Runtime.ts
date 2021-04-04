@@ -13,7 +13,11 @@ import {RPCLogger} from './rpc/RPCLogger';
 import {Service} from './Service';
 import {Worker} from './Worker';
 
+const pkg = require('../../package.json');
+
 class Runtime {
+  static version = pkg.version;
+
   static get frameLogger() {
     return this.frameLogger_;
   }
@@ -66,6 +70,8 @@ class Runtime {
       this.frameLogger_.fatal('runtime', err, { event: 'register-node', error: Logger.errorMessage(err)});
       process.exit(1);
     });
+
+    this.frameLogger_.success('framework', { event: 'start-runtime-success', discovery: discovery.info, node: node.metaData });
   }
 
   static async shutdown() {

@@ -17,7 +17,6 @@ import {TCPError} from './TCPError';
 import {Time} from '../../utility/Time';
 import {IListenerInfo, IRawNetPacket} from '../../interface/rpc';
 
-
 class TCPListener extends Listener {
   constructor(options: ITCPListenerOptions, callback: ListenerCallback, executor: Executor, labels: ILabels = {}) {
     super(callback, executor, labels);
@@ -104,6 +103,10 @@ class TCPListener extends Listener {
 
       this.server_.listen(this.usePort_, this.options_.host);
     })
+  }
+
+  get version() {
+    return Runtime.version;
   }
 
   protected async shutdown() {

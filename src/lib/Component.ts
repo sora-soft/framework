@@ -30,7 +30,7 @@ abstract class Component {
       await this.connect().catch(err => {
         Runtime.frameLogger.error(`component.${this.name_}`, err, { event: 'connect-component', error: Logger.errorMessage(err) });
       });
-      Runtime.frameLogger.success(`component.${this.name_}`, { event: 'success-connect', options: this.options_ });
+      Runtime.frameLogger.success(`component.${this.name_}`, { event: 'success-connect', options: this.logOptions(), version: this.version });
       this.init_ = true;
     });
   }
@@ -50,11 +50,17 @@ abstract class Component {
     });
   }
 
+  abstract get version(): string;
+
   get ready() {
     return this.init_;
   }
 
   get options() {
+    return this.options_;
+  }
+
+  logOptions() {
     return this.options_;
   }
 

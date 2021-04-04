@@ -40,7 +40,7 @@ abstract class Service extends Worker {
 
   public async installListener(listener: Listener) {
 
-    Runtime.frameLogger.info(this.logCategory, { event: 'install-listener', serviceId: this.id, meta: listener.metaData });
+    Runtime.frameLogger.info(this.logCategory, { event: 'install-listener', serviceId: this.id, meta: listener.metaData, version: listener.version });
 
     {
       const labels = {
@@ -79,7 +79,7 @@ abstract class Service extends Worker {
 
     await listener.startListen();
 
-    Runtime.frameLogger.success(this.logCategory, { event: 'listener-started', serviceId: this.id, meta: listener.metaData });
+    Runtime.frameLogger.success(this.logCategory, { event: 'listener-started', serviceId: this.id, meta: listener.metaData, version: listener.version });
 
     this.listenerPool_.set(listener.id, listener);
   }

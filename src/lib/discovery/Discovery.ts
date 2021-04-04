@@ -25,6 +25,11 @@ export interface INodeEvent {
   [DiscoveryNodeEvent.NodeStateUpdate]: (id: string, state: WorkerState, pre: WorkerState, info: INodeMetaData) => void;
 }
 
+export interface IDiscoveryInfo {
+  version: string;
+  type: string;
+}
+
 abstract class Discovery {
   constructor() {
     this.serviceEmitter_ = new EventEmitter();
@@ -66,6 +71,10 @@ abstract class Discovery {
   get listenerEmitter() {
     return this.listenerEmitter_;
   }
+
+  abstract get version(): string;
+
+  abstract get info(): IDiscoveryInfo;
 
   protected serviceEmitter_: IEventEmitter<IServiceEvent>;
   protected listenerEmitter_: IEventEmitter<IDiscoveryListenerEvent>;

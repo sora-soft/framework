@@ -81,6 +81,8 @@ abstract class Listener {
     return this.connectionEmitter_;
   }
 
+  abstract get version (): string;
+
   protected connectionEmitter_: IEventEmitter<IListenerEvent>;
   protected lifeCycle_: LifeCycle<ListenerState>;
   private callback_: ListenerCallback;
