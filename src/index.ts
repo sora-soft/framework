@@ -56,5 +56,3 @@ export * from './Const';
 export * from './Enum';
 export * from './ErrorCode';
 export * from './Event';
-
-export const version = require('../package.json').version;
