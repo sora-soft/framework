@@ -4,7 +4,7 @@ import {ListenerState} from '../../Enum';
 import util = require('util');
 import {TCPUtility} from './TCPUtility';
 import {Executor} from '../../utility/Executor';
-import {ITCPListenerOptions} from '../../interface/config';
+import {ILabels, ITCPListenerOptions} from '../../interface/config';
 import {v4 as uuid} from 'uuid';
 import {ListenerEvent} from '../../Event';
 import EventEmitter = require('events');
@@ -19,8 +19,8 @@ import {IListenerInfo, IRawNetPacket} from '../../interface/rpc';
 
 
 class TCPListener extends Listener {
-  constructor(options: ITCPListenerOptions, callback: ListenerCallback, executor: Executor) {
-    super(callback, executor);
+  constructor(options: ITCPListenerOptions, callback: ListenerCallback, executor: Executor, labels: ILabels = {}) {
+    super(callback, executor, labels);
     this.options_ = options;
 
     this.usePort_ = 0;
@@ -35,7 +35,8 @@ class TCPListener extends Listener {
       id: this.id,
       protocol: 'tcp',
       endpoint: `${this.options_.host}:${this.usePort_}`,
-      state: this.state
+      state: this.state,
+      labels: this.labels
     }
   }
 
@@ -63,7 +64,8 @@ class TCPListener extends Listener {
       id: this.id,
       protocol: 'tcp',
       endpoint: `${this.options_.host}:${this.usePort_}`,
-      state: this.state
+      state: this.state,
+      labels: this.labels,
     }
   }
 
@@ -96,6 +98,7 @@ class TCPListener extends Listener {
           id: this.id,
           protocol: 'tcp',
           endpoint: `${this.options_.host}:${this.usePort_}`,
+          labels: this.labels,
         });
       });
 

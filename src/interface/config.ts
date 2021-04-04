@@ -13,7 +13,7 @@ export interface ILabels {
 }
 
 export interface IServiceOptions {
-  labels: ILabels
+  labels?: ILabels
 }
 
 export interface IWorkerOptions {}

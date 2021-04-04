@@ -12,7 +12,6 @@ import {Retry} from '../../utility/Retry';
 import {AsyncReject} from '../../interface/util';
 import {Runtime} from '../Runtime';
 import {Logger} from '../logger/Logger';
-import {Route} from '../rpc/Route';
 
 class TCPSender extends Sender {
   static register() {
@@ -33,7 +32,8 @@ class TCPSender extends Sender {
       this.listenInfo_ = {
         id: listenerId,
         protocol: 'tcp',
-        endpoint: `${socket.remoteAddress}:${socket.remotePort}`
+        endpoint: `${socket.remoteAddress}:${socket.remotePort}`,
+        labels: {},
       };
       this.connected_ = true;
     }

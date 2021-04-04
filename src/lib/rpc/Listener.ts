@@ -5,6 +5,7 @@ import {IListenerInfo, IRawNetPacket, IRawResPacket} from '../../interface/rpc';
 import {Executor} from '../../utility/Executor';
 import {IEventEmitter} from '../../interface/event';
 import {ListenerEvent} from '../../Event';
+import {ILabels} from '../../interface/config';
 
 export interface IListenerEvent {
   [ListenerEvent.NewConnect]: (session: string, ...args: any[]) => void;
@@ -13,11 +14,12 @@ export interface IListenerEvent {
 export type ListenerCallback = (data: IRawNetPacket, session: string) => Promise<IRawResPacket>;
 
 abstract class Listener {
-  constructor(callback: ListenerCallback, executor: Executor) {
+  constructor(callback: ListenerCallback, executor: Executor, labels: ILabels = {}) {
     this.lifeCycle_ = new LifeCycle(ListenerState.INIT);
     this.callback_ = callback;
     this.executor_ = executor;
     this.id_ = uuid();
+    this.labels_ = labels;
   }
 
   protected abstract listen(): Promise<IListenerInfo>;
@@ -64,6 +66,17 @@ abstract class Listener {
     return this.id_;
   }
 
+  get labels() {
+    const protocol = this.info_ ? this.info_.protocol : null;
+    if (protocol)
+      return {
+        protocol,
+        ...this.labels_
+      };
+    else
+      return this.labels_;
+  }
+
   get connectionEmitter() {
     return this.connectionEmitter_;
   }
@@ -74,6 +87,7 @@ abstract class Listener {
   private info_: IListenerInfo;
   private id_: string;
   private executor_: Executor;
+  private labels_: ILabels;
 }
 
 export {Listener}

@@ -11,6 +11,9 @@ abstract class Service extends Worker {
   constructor(name: string, options: IServiceOptions) {
     super(name);
     this.options_ = options;
+    if (!this.options_.labels)
+      this.options_.labels = {};
+
     this.listenerPool_ = new Map();
 
     this.lifeCycle_.addHandler(WorkerState.STOPPED, async () => {
@@ -39,17 +42,31 @@ abstract class Service extends Worker {
 
     Runtime.frameLogger.info(this.logCategory, { event: 'install-listener', serviceId: this.id, meta: listener.metaData });
 
-    await Runtime.discovery.registerEndpoint({
-      ...listener.metaData,
-      state: listener.state,
-      targetId: this.id,
-    });
+    {
+      const labels = {
+        ...this.metaData.labels,
+        ...listener.labels,
+      }
+
+      await Runtime.discovery.registerEndpoint({
+        ...listener.metaData,
+        state: listener.state,
+        targetId: this.id,
+        labels,
+      });
+    }
 
     listener.stateEventEmitter.on(LifeCycleEvent.StateChange, async (pre, state, err: Error) => {
+      const labels = {
+        ...this.metaData.labels,
+        ...listener.labels,
+      }
+
       Runtime.discovery.registerEndpoint({
         ...listener.metaData,
         state: listener.state,
         targetId: this.id,
+        labels,
       });
 
       switch (state) {

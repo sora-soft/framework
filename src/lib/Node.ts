@@ -45,7 +45,7 @@ class Node extends Service {
 
   async startup() {
     const route = new NodeHandler(this);
-    this.TCPListener_ = new TCPListener(this.nodeOptions_.api, Route.callback(route), this.executor);
+    this.TCPListener_ = new TCPListener(this.nodeOptions_.api, Route.callback(route), this.executor, {});
 
     await this.installListener(this.TCPListener_);
 

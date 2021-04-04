@@ -1,4 +1,5 @@
 import {ErrorLevel, OPCode} from '../Enum';
+import {ILabels} from './config';
 
 export interface IRawNetPacket<T = unknown> {
   opcode: OPCode,
@@ -14,6 +15,7 @@ export interface IListenerInfo {
   id: string;
   protocol: string;
   endpoint: string;
+  labels: ILabels;
 }
 
 export interface IRawReqPacket<T = unknown> {

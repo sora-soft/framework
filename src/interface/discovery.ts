@@ -28,6 +28,7 @@ export interface INodeMetaData {
 export interface IListenerMetaData extends IListenerInfo {
   state: ListenerState;
   targetId?: string;
+  labels: ILabels;
 }
 
 export interface IListenerEventData extends IListenerMetaData {
