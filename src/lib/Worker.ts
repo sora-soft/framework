@@ -6,6 +6,9 @@ import {Executor, JobExecutor} from '../utility/Executor';
 import {IWorkerMetaData} from '../interface/discovery';
 import {Runtime} from './Runtime';
 import {Timer} from '../utility/Timer';
+import {Component} from './Component';
+import {Provider} from './rpc/Provider';
+import {Logger} from './logger/Logger';
 
 abstract class Worker {
   constructor(name: string) {
@@ -14,6 +17,23 @@ abstract class Worker {
     this.executor_ = new Executor();
     this.intervalJobTimer_ = new Timer();
     this.id_ = uuid();
+
+    this.componentPool_ = new Map();
+    this.providerPool_ = new Map();
+
+    this.lifeCycle_.addHandler(WorkerState.STOPPED, async () => {
+      for (const component of this.componentPool_.keys()) {
+        await this.disconnectComponent(component).catch((err: Error) => {
+          Runtime.frameLogger.error(this.logCategory, err, {event: 'disconnect-component', error: Logger.errorMessage(err) });
+        });
+      }
+
+      for (const provider of this.providerPool_.keys()) {
+        await this.unregisterProvider(provider).catch((err: Error) => {
+          Runtime.frameLogger.error(this.logCategory, err, {event: 'unregister-provider', error: Logger.errorMessage(err) });
+        });
+      }
+    })
   }
 
   // 连接component等准备工作
@@ -58,6 +78,63 @@ abstract class Worker {
     }
   }
 
+  public async registerProviders(providers: Provider[]) {
+    for (const provider of providers) {
+      await this.registerProvider(provider);
+    }
+  }
+
+  public async registerProvider(provider: Provider) {
+    Runtime.frameLogger.info(this.logCategory, { event: 'register-provider', id: this.id, name: this.name, provider: provider.name });
+
+    this.providerPool_.set(provider.name, provider);
+
+    await provider.startup();
+
+    Runtime.frameLogger.info(this.logCategory, { event: 'provider-started', id: this.id, name: this.name, provider: provider.name });
+  }
+
+  public async unregisterProvider(name: string) {
+    const provider = this.providerPool_.get(name);
+    if (!provider)
+      return;
+
+    Runtime.frameLogger.info(this.logCategory, { event: 'unregister-provider', id: this.id, name: this.name, provider: name });
+
+    await provider.shutdown();
+
+    Runtime.frameLogger.info(this.logCategory, { event: 'provider-unregistered', id: this.id, name: this.name, provider: name });
+  }
+
+  public async connectComponents(components: Component[]) {
+    for (const component of components) {
+      await this.connectComponent(component);
+    }
+  }
+
+  public async connectComponent(component: Component) {
+    Runtime.frameLogger.info(this.logCategory, { event: 'connect-component', id: this.id, name: this.name, component: component.name, version: component.version });
+
+    this.componentPool_.set(component.name, component);
+
+    await component.start();
+
+    Runtime.frameLogger.info(this.logCategory, { event: 'component-connected', id: this.id, name: this.name, component: component.name, version: component.version });
+  }
+
+  public async disconnectComponent(name: string) {
+    const component = this.componentPool_.get(name);
+    if (!component)
+      return;
+
+    Runtime.frameLogger.info(this.logCategory, { event: 'disconnect-component', id: this.id, name: this.name, component: name });
+
+    this.componentPool_.delete(name);
+    await component.stop();
+
+    Runtime.frameLogger.info(this.logCategory, { event: 'component-disconnected', id: this.id, name: this.name, component: name });
+  }
+
   protected async onError(err: Error) {
     await this.lifeCycle_.setState(WorkerState.ERROR, err);
     throw err;
@@ -96,6 +173,10 @@ abstract class Worker {
     }
   }
 
+  protected get logCategory() {
+    return `worker.${this.name}`
+  }
+
   // get runData() {}
 
   protected lifeCycle_: LifeCycle<WorkerState>;
@@ -103,6 +184,8 @@ abstract class Worker {
   private name_: string;
   private id_: string;
   private intervalJobTimer_: Timer;
+  private componentPool_: Map<string/*name*/, Component>;
+  private providerPool_: Map<string/*name*/, Provider>;
 }
 
 export {Worker}

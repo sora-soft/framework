@@ -34,7 +34,7 @@ export type ConvertRouteMethod<T extends Route> = {
   [K in keyof T]: RouteMethod<T, K>
 }
 
-class Provider<T extends Route> {
+class Provider<T extends Route = any> {
   static registerSender(protocol: string, builder: senderBuilder) {
     this.senderBuilder_.set(protocol, builder);
   }
@@ -221,6 +221,10 @@ class Provider<T extends Route> {
         this.removeSender(id);
       });
     });
+  }
+
+  get name() {
+    return this.name_;
   }
 
   get caller() {
