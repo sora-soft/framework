@@ -36,11 +36,11 @@ class Runtime {
 
   static async startup(node: Node, discovery: Discovery) {
     process.on('uncaughtException', (err) => {
-      this.frameLogger_.error('runtime', err, {event: 'uncaught-exception', error: Logger.errorMessage(err)});
+      this.frameLogger_.error('runtime', err, {event: 'uncaught-exception', error: Logger.errorMessage(err), stack: err.stack});
     });
 
     process.on('unhandledRejection', (err: Error) => {
-      this.frameLogger_.error('runtime', err, {event: 'uncaught-rejection', error: Logger.errorMessage(err)});
+      this.frameLogger_.error('runtime', err, {event: 'uncaught-rejection', error: Logger.errorMessage(err), stack: err.stack});
     });
 
     process.on('SIGINT', async () => {
@@ -129,6 +129,7 @@ class Runtime {
 
     await service.start().catch(err => {
       this.frameLogger_.error('runtime', err, {event: 'install-service-start', error: Logger.errorMessage(err), name: service.name, id: service.id});
+      throw err;
     });
 
     if (service.state === WorkerState.READY)
@@ -144,6 +145,7 @@ class Runtime {
     this.workers_.set(worker.id, worker);
     await worker.start().catch(err => {
       this.frameLogger_.error('runtime', err, {event: 'install-worker-start', error: Logger.errorMessage(err), name: worker.name, id: worker.id});
+      throw err;
     });;
 
     if (worker.state === WorkerState.READY)

@@ -7,10 +7,13 @@ class Ref {
 
   async add(callback: RefCallback) {
     this.count_ ++;
-    if (this.count_ > 1)
+    if (this.count_ > 1) {
+      await this.startPromise_;
       return;
+    }
 
-    await callback();
+    this.startPromise_ = callback();
+    await this.startPromise_;
   }
 
   async minus(callback: RefCallback) {
@@ -18,10 +21,13 @@ class Ref {
     if (this.count_ < 0)
       throw new Error('ERR_REF_NEGATIVE');
 
-    if (this.count_ > 0)
+    if (this.count_ > 0) {
+      await this.stopPromise_;
       return;
+    }
 
-    await callback();
+    this.stopPromise_ = callback();
+    await this.stopPromise_;
   }
 
   get count() {
@@ -29,6 +35,8 @@ class Ref {
   }
 
   private count_: number;
+  private startPromise_: Promise<void>;
+  private stopPromise_: Promise<void>;
 }
 
 export {Ref}

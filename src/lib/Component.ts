@@ -29,6 +29,7 @@ abstract class Component {
     await this.ref_.add(async () => {
       await this.connect().catch(err => {
         Runtime.frameLogger.error(`component.${this.name_}`, err, { event: 'connect-component', error: Logger.errorMessage(err) });
+        throw err;
       });
       Runtime.frameLogger.success(`component.${this.name_}`, { event: 'success-connect', options: this.logOptions(), version: this.version });
       this.init_ = true;
