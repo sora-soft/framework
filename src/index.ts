@@ -33,7 +33,7 @@ export * from './lib/tcp/TCPSender';
 export * from './lib/tcp/TCPUtility';
 
 export * from './lib/Component';
-export * from './lib/FrameWorkError';
+export * from './lib/FrameworkError';
 export * from './lib/FrameworkLogger';
 export * from './lib/Node';
 export * from './lib/Runtime';
