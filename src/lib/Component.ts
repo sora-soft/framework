@@ -53,6 +53,10 @@ abstract class Component {
 
   abstract get version(): string;
 
+  get name() {
+    return this.name_;
+  }
+
   get ready() {
     return this.init_;
   }

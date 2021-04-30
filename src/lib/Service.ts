@@ -2,6 +2,7 @@ import {ListenerState, WorkerState} from '../Enum';
 import {LifeCycleEvent} from '../Event';
 import {IServiceOptions} from '../interface/config';
 import {IServiceMetaData, IServiceRunData} from '../interface/discovery';
+import {Component} from './Component';
 import {Logger} from './logger/Logger';
 import {Listener} from './rpc/Listener';
 import {Runtime} from './Runtime';
@@ -15,11 +16,18 @@ abstract class Service extends Worker {
       this.options_.labels = {};
 
     this.listenerPool_ = new Map();
+    this.componentPool_ = new Map();
 
     this.lifeCycle_.addHandler(WorkerState.STOPPED, async () => {
       for (const id of this.listenerPool_.keys()) {
         await this.uninstallListener(id).catch((err: Error) => {
           Runtime.frameLogger.error(this.logCategory, err, { event: 'service-uninstall-listener', error: Logger.errorMessage(err) });
+        });
+      }
+
+      for (const component of this.componentPool_.keys()) {
+        await this.disconnectComponent(component).catch((err: Error) => {
+          Runtime.frameLogger.error(this.logCategory, err, {event: 'service-disconnect-component', error: Logger.errorMessage(err) });
         });
       }
     });
@@ -36,6 +44,16 @@ abstract class Service extends Worker {
           break;
       }
     });
+  }
+
+  public async connectComponent(component: Component) {
+    Runtime.frameLogger.info(this.logCategory, { event: 'connect-component', serviceId: this.id, name: component.name, version: component.version });
+
+    this.componentPool_.set(component.name, component);
+
+    await component.start();
+
+    Runtime.frameLogger.info(this.logCategory, { event: 'component-connected', serviceId: this.id, name: component.name, version: component.version });
   }
 
   public async installListener(listener: Listener) {
@@ -77,11 +95,12 @@ abstract class Service extends Worker {
       }
     });
 
+    this.listenerPool_.set(listener.id, listener);
+
     await listener.startListen();
 
     Runtime.frameLogger.success(this.logCategory, { event: 'listener-started', serviceId: this.id, meta: listener.metaData, version: listener.version });
 
-    this.listenerPool_.set(listener.id, listener);
   }
 
   public async uninstallListener(id: string) {
@@ -97,6 +116,19 @@ abstract class Service extends Worker {
     Runtime.frameLogger.success(this.logCategory, { event: 'listener-stopped', serviceId: this.id, meta: listener.metaData });
 
     await Runtime.discovery.unregisterEndPoint(id);
+  }
+
+  public async disconnectComponent(name: string) {
+    const component = this.componentPool_.get(name);
+    if (!component)
+      return;
+
+    Runtime.frameLogger.info(this.logCategory, { event: 'disconnect-component', serviceId: this.id, componentName: name });
+
+    this.componentPool_.delete(name);
+    await component.stop();
+
+    Runtime.frameLogger.info(this.logCategory, { event: 'component-disconnected', serviceId: this.id, componentName: name });
   }
 
   get metaData(): IServiceMetaData {
@@ -126,6 +158,7 @@ abstract class Service extends Worker {
   }
 
   private listenerPool_: Map<string/*id*/, Listener>;
+  private componentPool_: Map<string/*name*/, Component>;
   private options_: IServiceOptions;
 }
 
