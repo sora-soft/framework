@@ -24,7 +24,8 @@ class Route<T extends Service = Service> {
     target.registerNotify(key, target[key]);
   }
 
-  protected static makeErrorRPCResponse(response: Response, err: ExError) {
+  protected static makeErrorRPCResponse(request: Request, response: Response, err: ExError) {
+    Runtime.frameLogger.error('route', err, { event: 'rpc-handler', error: Logger.errorMessage(err), method: request.method, request: request.payload });
     response.payload = {
       error: {
           code: err.code || RPCErrorCode.ERR_RPC_UNKNOWN,
@@ -60,7 +61,7 @@ class Route<T extends Service = Service> {
           response.setHeader(RPCHeader.RPC_FROM_ID_HEADER, route.service_.id);
 
           if (!route.hasMethod(request.method))
-            return this.makeErrorRPCResponse(response, new RPCError(RPCErrorCode.ERR_RPC_METHOD_NOT_FOUND, `ERR_RPC_METHOD_NOT_FOUND, service=${route.service.name}, method=${request.method}`));
+            return this.makeErrorRPCResponse(request, response, new RPCError(RPCErrorCode.ERR_RPC_METHOD_NOT_FOUND, `ERR_RPC_METHOD_NOT_FOUND, service=${route.service.name}, method=${request.method}`));
 
           const result = await route.callMethod(request.method, request, response).catch((err: ExError) => {
             Runtime.frameLogger.error('route', err, { event: 'rpc-handler', error: Logger.errorMessage(err), method: request.method, request: request.payload });
