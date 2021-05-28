@@ -62,16 +62,18 @@ abstract class Worker {
 
   protected async doJobInterval(executor: JobExecutor, timeMS: number) {
     while(true) {
+      if (this.state > WorkerState.READY)
+        break;
+
       if (this.state !== WorkerState.READY) {
         await this.intervalJobTimer_.timeout(timeMS);
         continue;
       }
 
-      if (this.state > WorkerState.READY)
-        break;
-
       const startTime = Date.now();
-      await this.doJob(executor);
+      await this.doJob(executor).catch((err: Error) => {
+        Runtime.frameLogger.error(this.logCategory, err, { event: 'do-interval-job-error', error: Logger.errorMessage(err) });
+      });
       const nextExecuteMS = timeMS + startTime - Date.now();
       if (nextExecuteMS > 0)
         await this.intervalJobTimer_.timeout(nextExecuteMS);

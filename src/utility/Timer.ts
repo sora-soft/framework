@@ -3,7 +3,7 @@ class Timer {
     return new Promise<void>((resolve) => {
       const timer = setTimeout(() => {
         const index = this.timers_.indexOf(timer);
-        if (index)
+        if (index > -1)
           this.timers_.splice(index, 1);
         resolve();
       }, timeMS);
