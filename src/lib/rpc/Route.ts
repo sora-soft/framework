@@ -24,6 +24,27 @@ class Route<T extends Service = Service> {
     target.registerNotify(key, target[key]);
   }
 
+  protected static makeErrorRPCResponse(response: Response, err: ExError) {
+    response.payload = {
+      error: {
+          code: err.code || RPCErrorCode.ERR_RPC_UNKNOWN,
+          level: err.level || ErrorLevel.UNEXPECTED,
+          name: err.name,
+          message: err.message,
+        },
+        result: null
+    };
+    return response.toPacket();
+  }
+
+  static hasMethod(route: Route, method: string) {
+    return route.hasMethod(method);
+  }
+
+  static hasNotify(route: Route, notify: string) {
+    return route.hasNotify(notify);
+  }
+
   static callback(route: Route): ListenerCallback {
     return async (packet: IRawNetPacket, session: string) => {
       const startTime = Date.now();
@@ -34,8 +55,12 @@ class Route<T extends Service = Service> {
           const rpcId = request.getHeader(RPCHeader.RPC_ID_HEADER);
           request.setHeader(RPCHeader.RPC_SESSION_HEADER, session);
           Runtime.rpcLogger.debug('route', { method: request.method, request: request.payload });
+
+          response.setHeader(RPCHeader.RPC_ID_HEADER, rpcId);
+          response.setHeader(RPCHeader.RPC_FROM_ID_HEADER, route.service_.id);
+
           if (!route.hasMethod(request.method))
-            throw new RPCError(RPCErrorCode.ERR_RPC_METHOD_NOT_FOUND, `ERR_RPC_METHOD_NOT_FOUND, service=${route.service.name}, method=${request.method}`);
+            return this.makeErrorRPCResponse(response, new RPCError(RPCErrorCode.ERR_RPC_METHOD_NOT_FOUND, `ERR_RPC_METHOD_NOT_FOUND, service=${route.service.name}, method=${request.method}`));
 
           const result = await route.callMethod(request.method, request, response).catch((err: ExError) => {
             Runtime.frameLogger.error('route', err, { event: 'rpc-handler', error: Logger.errorMessage(err), method: request.method, request: request.payload });
@@ -49,8 +74,6 @@ class Route<T extends Service = Service> {
               result: null,
             } as IResPayloadPacket<null>;
           });
-          response.setHeader(RPCHeader.RPC_ID_HEADER, rpcId);
-          response.setHeader(RPCHeader.RPC_FROM_ID_HEADER, route.service_.id);
           response.payload = result;
           Runtime.rpcLogger.debug('route', { method: request.method, request: request.payload, response: response.payload, duration: Date.now() - startTime });
           return response.toPacket();

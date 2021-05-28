@@ -58,6 +58,9 @@ class Provider<T extends Route = any> {
     this.caller_ = {
       rpc: (fromId?: string, toId?: string) => {
         return new Proxy<ConvertRPCRouteMethod<T>>({} as any , {
+          has: (target, prop: string) => {
+            return Route.hasMethod(this.route_, prop);
+          },
           get: (target, prop: string, receiver) => {
             if (!this.isStarted)
               throw new RPCError(RPCErrorCode.ERR_RPC_PROVIDER_NOT_AVAILABLE, `ERR_RPC_PROVIDER_NOT_AVAILABLE`);
@@ -92,6 +95,9 @@ class Provider<T extends Route = any> {
       },
       notify: (fromId?: string, toId?: string) => {
         return new Proxy<ConvertRouteMethod<T>>({} as any, {
+          has: (target, prop: string) => {
+            return Route.hasNotify(this.route_, prop);
+          },
           get: (target, prop: string, receiver) => {
             if (!this.isStarted)
               throw new RPCError(RPCErrorCode.ERR_RPC_PROVIDER_NOT_AVAILABLE, `ERR_RPC_PROVIDER_NOT_AVAILABLE`);

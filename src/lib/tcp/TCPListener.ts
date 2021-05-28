@@ -171,7 +171,7 @@ class TCPListener extends Listener {
               await util.promisify<Buffer, void>(socket.write.bind(socket))(resData);
             }
           } catch (err) {
-            Runtime.frameLogger.error('listener.tcp', err, { event: 'event-handle-rpc', error: Logger.errorMessage(err)});
+            Runtime.frameLogger.error('listener.tcp', err, { event: 'event-handle-data', error: Logger.errorMessage(err)});
           }
         }
       });
