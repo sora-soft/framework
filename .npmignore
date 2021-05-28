@@ -9,3 +9,5 @@ tsconfig.json
 README.MD
 TODO
 package-lock.json
+
+*.tgz

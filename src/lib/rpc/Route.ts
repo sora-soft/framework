@@ -10,7 +10,7 @@ import {ListenerCallback} from './Listener';
 import {Notify} from './Notify';
 import {Request} from './Request';
 import {Response} from './Response';
-import {RPCError} from './RPCError';
+import {RPCError, RPCResponseError} from './RPCError';
 
 export type RPCHandler<Req = unknown, Res = unknown> = (body: Req, req?: Request<Req>, response?: Response<Res>) => Promise<Res>;
 export type NotifyHandler<Req = unknown> = (body: Req, req?: Notify<Req>) => Promise<void>;
@@ -61,7 +61,7 @@ class Route<T extends Service = Service> {
           response.setHeader(RPCHeader.RPC_FROM_ID_HEADER, route.service_.id);
 
           if (!route.hasMethod(request.method))
-            return this.makeErrorRPCResponse(request, response, new RPCError(RPCErrorCode.ERR_RPC_METHOD_NOT_FOUND, `ERR_RPC_METHOD_NOT_FOUND, service=${route.service.name}, method=${request.method}`));
+            return this.makeErrorRPCResponse(request, response, new RPCResponseError(RPCErrorCode.ERR_RPC_METHOD_NOT_FOUND, ErrorLevel.EXPECTED, `ERR_RPC_METHOD_NOT_FOUND, service=${route.service.name}, method=${request.method}`));
 
           const result = await route.callMethod(request.method, request, response).catch((err: ExError) => {
             Runtime.frameLogger.error('route', err, { event: 'rpc-handler', error: Logger.errorMessage(err), method: request.method, request: request.payload });
