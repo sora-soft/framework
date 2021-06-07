@@ -131,7 +131,7 @@ class Route<T extends Service = Service> {
         }
       } catch(err) {
         if (err.name === 'TypeGuardError') {
-          throw new RPCError(RPCErrorCode.ERR_RPC_PARAMTER_INVALID, `ERR_RPC_PARAMTER_INVALID, ${err.message.split(',').slice(0, 1).join('')}`)
+          throw new RPCResponseError(RPCErrorCode.ERR_RPC_PARAMTER_INVALID, ErrorLevel.EXPECTED, `ERR_RPC_PARAMTER_INVALID, ${err.message.split(',').slice(0, 1).join('')}`)
         }
         throw err;
       }
@@ -142,7 +142,7 @@ class Route<T extends Service = Service> {
     if (this.notifyMap_.has(method)) {
       return (this[method] as NotifyHandler)(request.payload, request).catch(err => {
         if (err.name === 'TypeGuardError') {
-          throw new RPCError(RPCErrorCode.ERR_RPC_PARAMTER_INVALID, `ERR_RPC_PARAMTER_INVALID, ${err.message.split(',').slice(0, 1).join('')}`)
+          throw new RPCResponseError(RPCErrorCode.ERR_RPC_PARAMTER_INVALID, ErrorLevel.EXPECTED, `ERR_RPC_PARAMTER_INVALID, ${err.message.split(',').slice(0, 1).join('')}`)
         }
         throw err;
       });
