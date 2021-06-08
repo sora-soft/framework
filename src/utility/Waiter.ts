@@ -8,12 +8,15 @@ class Waiter<T> {
 
   wait(ttlMs = 1000) {
     const id = ++this.id_;
-    const timer = setTimeout(() => {
-      if (this.pool_.has(id)) {
-        const info = this.pool_.get(id);
-        info.reject(new TimeoutError());
-      }
-    }, ttlMs);
+    let timer: NodeJS.Timeout;
+    if (ttlMs) {
+      timer = setTimeout(() => {
+        if (this.pool_.has(id)) {
+          const info = this.pool_.get(id);
+          info.reject(new TimeoutError());
+        }
+      }, ttlMs);
+    }
     return {
       id,
       promise: new Promise<T>((resolve, reject) => {
@@ -25,12 +28,15 @@ class Waiter<T> {
   emit(id: number, result: T) {
     if (this.pool_.has(id)) {
       const info = this.pool_.get(id);
-      clearTimeout(info.timer);
+      if (info.timer)
+        clearTimeout(info.timer);
       this.pool_.delete(id);
       info.resolve(result);
     }
     if (!this.pool_.size && this.allStoppedCallback_) {
-      clearTimeout(this.stopTimeoutTimer_);
+      if (this.stopTimeoutTimer_) {
+        clearTimeout(this.stopTimeoutTimer_);
+      }
       this.allStoppedCallback_();
     }
   }
@@ -44,17 +50,19 @@ class Waiter<T> {
     }
   }
 
-  async waitForAll(ttlMS: number) {
+  async waitForAll(ttlMS?: number) {
     if (!this.pool_.size)
       return;
 
     const promise = new Promise<void>((resolve) => {
       this.allStoppedCallback_ = resolve;
     });
-    this.stopTimeoutTimer_ = setTimeout(() => {
-      if (this.allStoppedCallback_)
-        this.allStoppedCallback_();
-    }, ttlMS);
+    if (ttlMS) {
+      this.stopTimeoutTimer_ = setTimeout(() => {
+        if (this.allStoppedCallback_)
+          this.allStoppedCallback_();
+      }, ttlMS);
+    }
     return promise;
   }
 
