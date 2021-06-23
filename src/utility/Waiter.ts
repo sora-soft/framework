@@ -6,7 +6,7 @@ class Waiter<T> {
     this.id_ = 0;
   }
 
-  wait(ttlMs = 1000) {
+  wait(ttlMs?: number) {
     const id = ++this.id_;
     let timer: NodeJS.Timeout;
     if (ttlMs) {
