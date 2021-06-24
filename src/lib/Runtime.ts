@@ -83,6 +83,8 @@ class Runtime {
     this.shutdownPromise_ = new Promise(async (resolve) => {
       const promises = [];
       for (const [id, service] of [...this.services_]) {
+        if (id === this.node_.id)
+          continue;
         const promise = this.uninstallService(id, 'runtime_shutdown').catch((err: Error) => {
           this.frameLogger_.error('runtime', err, { event: 'uninstall-service', error: Logger.errorMessage(err), id: service.id});
         });
@@ -102,6 +104,10 @@ class Runtime {
       await Promise.all(promises);
 
       this.frameLogger_.info('runtime', { event: 'all-worker-closed'});
+
+      await this.uninstallService(this.node_.id, 'runtime_shutdown').catch((err: Error) => {
+        this.frameLogger_.error('runtime', err, { event: 'uninstall-service', error: Logger.errorMessage(err), id: this.node.id});
+      });
 
       await this.discovery_.disconnect();
 
