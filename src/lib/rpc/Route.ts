@@ -161,8 +161,8 @@ class Route<T extends Service = Service> {
     return this.service_;
   }
 
-  private methodMap_: Map<string, RPCHandler>;
-  private notifyMap_: Map<string, NotifyHandler>;
+  protected methodMap_: Map<string, RPCHandler>;
+  protected notifyMap_: Map<string, NotifyHandler>;
   private service_: T;
 }
 
