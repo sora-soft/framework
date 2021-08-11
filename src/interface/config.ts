@@ -2,6 +2,7 @@ export interface ITCPListenerOptions {
   portRange?: number[];
   port?: number;
   host: string;
+  exposeHost?: string;
 }
 
 export interface INodeOptions extends IServiceOptions {

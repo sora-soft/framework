@@ -29,11 +29,15 @@ class TCPListener extends Listener {
     this.server_.on('connection', this.onSocketConnect.bind(this));
   }
 
+  get exposeHost() {
+    return this.options_.exposeHost || this.options_.host;
+  }
+
   get metaData() {
     return {
       id: this.id,
       protocol: 'tcp',
-      endpoint: `${this.options_.host}:${this.usePort_}`,
+      endpoint: `${this.exposeHost}:${this.usePort_}`,
       state: this.state,
       labels: this.labels
     }
@@ -59,13 +63,7 @@ class TCPListener extends Listener {
 
     this.server_.on('error', this.onServerError.bind(this));
 
-    return {
-      id: this.id,
-      protocol: 'tcp',
-      endpoint: `${this.options_.host}:${this.usePort_}`,
-      state: this.state,
-      labels: this.labels,
-    }
+    return this.metaData;
   }
 
   protected listenRange(min: number, max: number) {
