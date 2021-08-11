@@ -6,6 +6,7 @@ import {Executor} from '../../utility/Executor';
 import {IEventEmitter} from '../../interface/event';
 import {ListenerEvent} from '../../Event';
 import {ILabels} from '../../interface/config';
+import {EventEmitter} from 'events';
 
 export interface IListenerEvent {
   [ListenerEvent.NewConnect]: (session: string, ...args: any[]) => void;
@@ -20,6 +21,7 @@ abstract class Listener {
     this.executor_ = executor;
     this.id_ = uuid();
     this.labels_ = labels;
+    this.connectionEmitter_ = new EventEmitter();
   }
 
   protected abstract listen(): Promise<IListenerInfo>;
