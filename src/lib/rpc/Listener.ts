@@ -13,6 +13,7 @@ import {RPCErrorCode} from '../../ErrorCode';
 import {ExError} from '../../utility/ExError';
 import {RPCResponseError} from './RPCError';
 import {RPCHeader} from '../../Const';
+import {Logger} from '../logger/Logger';
 
 export interface IListenerEvent {
   [ListenerEvent.NewConnect]: (session: string, ...args: any[]) => void;
@@ -78,6 +79,7 @@ abstract class Listener {
             }
 
             return this.callback_(data, session).catch(err => {
+              Runtime.frameLogger.error('listener', err, { event: 'handle-error', error: Logger.errorMessage(err) });
               const exError = ExError.fromError(err);
               return responseError(exError);
             });

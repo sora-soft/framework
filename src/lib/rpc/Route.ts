@@ -25,7 +25,6 @@ class Route<T extends Service = Service> {
   }
 
   protected static makeErrorRPCResponse(request: Request, response: Response, err: ExError) {
-    Runtime.frameLogger.error('route', err, { event: 'rpc-handler', error: Logger.errorMessage(err), method: request.method, request: request.payload });
     response.payload = {
       error: {
           code: err.code || RPCErrorCode.ERR_RPC_UNKNOWN,

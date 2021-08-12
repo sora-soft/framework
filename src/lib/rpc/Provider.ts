@@ -56,7 +56,7 @@ class Provider<T extends Route = any> {
     this.ref_ = new Ref();
 
     this.caller_ = {
-      rpc: (fromId?: string, toId?: string) => {
+      rpc: (fromId?: string | null, toId?: string | null) => {
         return new Proxy<ConvertRPCRouteMethod<T>>({} as any , {
           get: (target, prop: string, receiver) => {
             if (!this.isStarted)
@@ -90,7 +90,7 @@ class Provider<T extends Route = any> {
           }
         });
       },
-      notify: (fromId?: string, toId?: string) => {
+      notify: (fromId?: string | null, toId?: string | null) => {
         return new Proxy<ConvertRouteMethod<T>>({} as any, {
           get: (target, prop: string, receiver) => {
             if (!this.isStarted)
@@ -310,8 +310,8 @@ class Provider<T extends Route = any> {
   private name_: string;
   private senders_: Map<string /*endpoint id*/, Sender>;
   private caller_: {
-    rpc: (fromId?: string, toId?: string) => ConvertRPCRouteMethod<T>,
-    notify: (fromId?: string, toId?: string) => ConvertRouteMethod<T>,
+    rpc: (fromId?: string | null, toId?: string | null) => ConvertRPCRouteMethod<T>,
+    notify: (fromId?: string | null, toId?: string | null) => ConvertRouteMethod<T>,
     broadcast: (fromId?: string) => ConvertRouteMethod<T>,
   };
   private filter_: LabelFilter;

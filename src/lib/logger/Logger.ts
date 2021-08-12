@@ -46,7 +46,10 @@ abstract class Logger {
   }
 
   static errorMessage(e: Error) {
-    return {code: e['code'], name: e.name, message: e.message};
+    const stack = parse(e).map(frame => {
+      return `${frame.functionName}(${frame.fileName ? frame.fileName.replace(/\\/g, '/') : 'anonymous'}:${frame.lineNumber ? frame.lineNumber : 'NA'})`;
+    });
+    return {code: e['code'], name: e.name, message: e.message, stack};
   }
 
   constructor(options: ILoggerOptions) {

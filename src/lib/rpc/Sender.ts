@@ -49,7 +49,7 @@ abstract class Sender {
   }
 
   protected abstract send<RequestPayload>(request: IRawNetPacket<RequestPayload>): Promise<void>;
-  public async sendRpc<ResponsePayload>(request: Request, fromId?: string): Promise<IRawResPacket<ResponsePayload>> {
+  public async sendRpc<ResponsePayload>(request: Request, fromId?: string | null): Promise<IRawResPacket<ResponsePayload>> {
     const wait = this.waiter_.wait(10000);
     request.setHeader(RPCHeader.RPC_ID_HEADER, wait.id);
     if (fromId)
@@ -62,7 +62,7 @@ abstract class Sender {
     }) as Promise<IRawResPacket<ResponsePayload>>;
   }
 
-  public async sendNotify(notify: Notify, fromId?: string): Promise<void> {
+  public async sendNotify(notify: Notify, fromId?: string | null): Promise<void> {
     if (fromId)
       notify.setHeader(RPCHeader.RPC_FROM_ID_HEADER, fromId);
     await this.send(notify.toPacket());
