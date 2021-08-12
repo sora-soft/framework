@@ -1,11 +1,9 @@
 import {ListenerState, WorkerState} from '../Enum';
 import {LifeCycleEvent} from '../Event';
-import {IServiceOptions} from '../interface/config';
+import {ILabels, IServiceOptions} from '../interface/config';
 import {IServiceMetaData, IServiceRunData} from '../interface/discovery';
-import {Component} from './Component';
 import {Logger} from './logger/Logger';
 import {Listener} from './rpc/Listener';
-import {Provider} from './rpc/Provider';
 import {Runtime} from './Runtime';
 import {Worker} from './Worker';
 
@@ -17,14 +15,6 @@ abstract class Service extends Worker {
       this.options_.labels = {};
 
     this.listenerPool_ = new Map();
-
-    this.lifeCycle_.addHandler(WorkerState.STOPPED, async () => {
-      for (const id of this.listenerPool_.keys()) {
-        await this.uninstallListener(id).catch((err: Error) => {
-          Runtime.frameLogger.error(this.logCategory, err, { event: 'service-uninstall-listener', error: Logger.errorMessage(err) });
-        });
-      }
-    });
 
     this.lifeCycle_.emitter.on(LifeCycleEvent.StateChangeTo, (state: WorkerState) => {
 
@@ -38,6 +28,19 @@ abstract class Service extends Worker {
           break;
       }
     });
+  }
+
+  async stop(reason: string) {
+    await this.lifeCycle_.setState(WorkerState.STOPPING);
+    this.intervalJobTimer_.clearAll();
+    await this.executor_.stop();
+    for (const id of this.listenerPool_.keys()) {
+      await this.uninstallListener(id).catch((err: Error) => {
+        Runtime.frameLogger.error(this.logCategory, err, { event: 'service-uninstall-listener', error: Logger.errorMessage(err) });
+      });
+    }
+    await this.shutdown(reason).catch(this.onError.bind(this));
+    await this.lifeCycle_.setState(WorkerState.STOPPED);
   }
 
   public async installListener(listener: Listener) {
@@ -108,7 +111,7 @@ abstract class Service extends Worker {
       id: this.id,
       nodeId: Runtime.node.id,
       state: this.state,
-      labels: this.options_.labels
+      labels: this.options_.labels || [] as unknown as ILabels,
     }
   }
 

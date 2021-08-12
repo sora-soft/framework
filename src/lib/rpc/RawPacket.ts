@@ -1,5 +1,5 @@
 import {OPCode} from '../../Enum';
-import {IRawNetPacket} from '../../interface/rpc';
+import {IRawNetPacket, IResPayloadPacket} from '../../interface/rpc';
 import {Utility} from '../../utility/Utility';
 
 class RawPacket<T> {
@@ -25,11 +25,22 @@ class RawPacket<T> {
   }
 
   toPacket(): IRawNetPacket<T> {
-    return {
-      opcode: this.opCode_,
-      method: this.method_,
-      headers: Utility.mapToJSON(this.headers_),
-      payload: this.payload_,
+    switch (this.opCode_) {
+      case OPCode.REQUEST:
+      case OPCode.NOTIFY:
+        return {
+          opcode: this.opCode_,
+          method: this.method_!,
+          path: this.path_!,
+          headers: Utility.mapToJSON(this.headers_),
+          payload: this.payload_,
+        };
+      case OPCode.RESPONSE:
+        return {
+          opcode: this.opCode_,
+          headers: Utility.mapToJSON(this.headers_),
+          payload: this.payload_ as unknown as IResPayloadPacket<unknown>,
+        };
     }
   }
 
@@ -41,7 +52,7 @@ class RawPacket<T> {
     return this.method_;
   }
 
-  set method(value: string) {
+  set method(value: string | undefined) {
     this.method_ = value;
   }
 
@@ -49,7 +60,7 @@ class RawPacket<T> {
     return this.path_;
   }
 
-  set path(value: string) {
+  set path(value: string | undefined) {
     this.path_ = value;
   }
 
@@ -67,8 +78,8 @@ class RawPacket<T> {
 
   protected headers_: Map<string, any>;
   private opCode_: OPCode;
-  private method_: string;
-  private path_: string;
+  private method_: string | undefined;
+  private path_: string | undefined;
   private payload_: T;
 }
 

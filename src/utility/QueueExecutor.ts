@@ -31,6 +31,9 @@ class QueueExecutor extends Executor {
     this.isDoingJob_ = true;
     while(this.executorQueue_.length) {
       const info = this.executorQueue_.shift();
+      if (!info)
+        break;
+
       let hasError = false;
       const result = await info.executor().catch(err => {
         info.reject(err);

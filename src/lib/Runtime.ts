@@ -81,7 +81,7 @@ class Runtime {
     }
 
     this.shutdownPromise_ = new Promise(async (resolve) => {
-      const promises = [];
+      const promises: Promise<unknown>[] = [];
       for (const [id, service] of [...this.services_]) {
         if (id === this.node_.id)
           continue;
@@ -111,9 +111,10 @@ class Runtime {
 
       await this.discovery_.disconnect();
 
+      await Time.timeout(1000);
+
       this.frameLogger_.info('runtime', { event: 'discovery-disconnected'});
 
-      await Time.timeout(1000);
       resolve();
     });
 
@@ -127,8 +128,8 @@ class Runtime {
 
     this.frameLogger.info('runtime', {event: 'service-starting', name: service.name, id: service.id });
 
-    service.stateEventEmitter.on(LifeCycleEvent.StateChange, (state: WorkerState) => {
-      this.discovery_.registerService(service.metaData);
+    service.lifeCycle.addAllHandler(async (state) => {
+      await this.discovery_.registerService(service.metaData);
     });
 
     await this.discovery_.registerService(service.metaData);

@@ -146,7 +146,7 @@ class Provider<T extends Route = any> {
                   method: prop,
                   payload: body,
                   path: `${this.name_}/${prop}`,
-                  headers: options.headers || {},
+                  headers: options!.headers || {},
                 });
                 return s.sendNotify(notify, fromId);
               }))
@@ -257,11 +257,20 @@ class Provider<T extends Route = any> {
 
   private async createSender(endpoint: IListenerMetaData) {
     if (this.senders_.has(endpoint.id)) {
-      const exited = this.senders_.get(endpoint.id);
-      Runtime.frameLogger.debug(this.logCategory, { event: 'remove-exited-sender', listener: this.formatLogListener(endpoint), targetId: exited.targetId, state: exited.state, name: this.name_ });
+      const existed = this.senders_.get(endpoint.id);
+      Runtime.frameLogger.debug(this.logCategory, {
+        event: 'remove-exited-sender',
+        listener: this.formatLogListener(endpoint),
+        targetId: existed!.targetId,
+        state: existed!.state,
+        name: this.name_
+      });
 
       this.removeSender(endpoint.id);
     }
+
+    if (!endpoint.targetId)
+      return;
 
     const sender = Provider.senderFactory(endpoint.protocol, endpoint.id, endpoint.targetId);
     if (!sender)
@@ -306,7 +315,7 @@ class Provider<T extends Route = any> {
     broadcast: (fromId?: string) => ConvertRouteMethod<T>,
   };
   private filter_: LabelFilter;
-  private route_: Route;
+  private route_: Route | undefined;
   private ref_: Ref;
 }
 

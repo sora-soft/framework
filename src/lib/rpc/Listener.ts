@@ -1,18 +1,24 @@
-import {ListenerState, OPCode} from '../../Enum';
+import {ErrorLevel, ListenerState, OPCode} from '../../Enum';
 import {LifeCycle} from '../../utility/LifeCycle';
 import {v4 as uuid} from 'uuid';
-import {IListenerInfo, IRawNetPacket, IRawResPacket} from '../../interface/rpc';
+import {IListenerInfo, IRawNetPacket, IRawReqPacket, IRawResPacket} from '../../interface/rpc';
 import {Executor} from '../../utility/Executor';
 import {IEventEmitter} from '../../interface/event';
 import {ListenerEvent} from '../../Event';
 import {ILabels} from '../../interface/config';
 import {EventEmitter} from 'events';
+import {is} from 'typescript-is';
+import {Runtime} from '../Runtime';
+import {RPCErrorCode} from '../../ErrorCode';
+import {ExError} from '../../utility/ExError';
+import {RPCResponseError} from './RPCError';
+import {RPCHeader} from '../../Const';
 
 export interface IListenerEvent {
   [ListenerEvent.NewConnect]: (session: string, ...args: any[]) => void;
 }
 
-export type ListenerCallback = (data: IRawNetPacket, session: string) => Promise<IRawResPacket>;
+export type ListenerCallback = (data: IRawNetPacket, session: string) => Promise<IRawResPacket | null>;
 
 abstract class Listener {
   constructor(callback: ListenerCallback, executor: Executor, labels: ILabels = {}) {
@@ -41,7 +47,52 @@ abstract class Listener {
   // 只有通过 handleMessage 才能拿到 callback，保证所有处理都是在 executor 内进行的
   protected async handleMessage(handler: (callback: ListenerCallback) => Promise<void>) {
     return this.executor_.doJob(async () => {
-      await handler(this.callback_);
+      await handler(async (data: IRawNetPacket, session: string) => {
+        if (!is<IRawNetPacket>(data)) {
+          Runtime.frameLogger.warn('listener', { event: 'parse-body-failed', data });
+          return null;
+        }
+
+        switch (data.opcode) {
+          case OPCode.REQUEST: {
+            const responseError = (err: ExError) => {
+              return {
+                opcode: OPCode.RESPONSE,
+                headers: {
+                  [RPCHeader.RPC_ID_HEADER]: data.headers[RPCHeader.RPC_ID_HEADER]
+                },
+                payload: {
+                  error: {
+                    code: err.code || RPCErrorCode.ERR_RPC_UNKNOWN,
+                    level: err.level || ErrorLevel.UNEXPECTED,
+                    name: err.name,
+                    message: err.message,
+                  },
+                  result: null,
+                }
+              } as IRawResPacket;
+            }
+
+            if (!is<IRawReqPacket>(data)) {
+              return responseError(new RPCResponseError(RPCErrorCode.ERR_RPC_BODY_PARSE_FAILED, ErrorLevel.EXPECTED, `ERR_RPC_BODY_PARSE_FAILED`));
+            }
+
+            return this.callback_(data, session).catch(err => {
+              const exError = ExError.fromError(err);
+              return responseError(exError);
+            });
+          }
+          case OPCode.NOTIFY:
+            if (!is<IRawReqPacket>(data)) {
+              Runtime.frameLogger.warn('listener', { event: 'parse-body-failed', data });
+              return null;
+            }
+            await this.callback_(data, session);
+            return null
+          case OPCode.RESPONSE:
+            return null;
+        }
+      });
     });
   }
 

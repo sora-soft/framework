@@ -15,7 +15,7 @@ class ConsoleOutput extends LoggerOutput {
   }
 
   async output(data: ILoggerData) {
-    let wrapper = chalk.white;
+    let wrapper: chalk.Chalk | undefined = chalk.white;
     if (this.consoleOptions_.colors && this.consoleOptions_.colors[data.level]) {
       wrapper = this.consoleOptions_.colors[data.level];
     } else {
@@ -39,6 +39,10 @@ class ConsoleOutput extends LoggerOutput {
           wrapper = chalk.bgRed;
           break;
       }
+    }
+
+    if (!wrapper) {
+      wrapper = chalk.white;
     }
 
     // tslint:disable-next-line: no-console

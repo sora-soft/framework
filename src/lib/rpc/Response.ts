@@ -12,9 +12,9 @@ class Response<T = unknown> extends RawPacket<IResPayloadPacket<T>> {
     }
   }
 
-  toPacket(): IRawNetPacket<IResPayloadPacket<T>> {
+  toPacket(): IRawResPacket<unknown> {
     return {
-      opcode: this.opCode,
+      opcode: OPCode.RESPONSE,
       headers: Utility.mapToJSON(this.headers_),
       payload: this.payload,
     }

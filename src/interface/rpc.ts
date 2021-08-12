@@ -1,15 +1,16 @@
 import {ErrorLevel, OPCode} from '../Enum';
 import {ILabels} from './config';
 
-export interface IRawNetPacket<T = unknown> {
-  opcode: OPCode,
-  method?: string,
-  path?: string,
-  headers: {
-    [key: string]: any
-  },
-  payload: T
-}
+// export interface IRawNetPacket<T = unknown> {
+//   opcode: OPCode,
+//   method: string,
+//   path: string,
+//   headers: {
+//     [key: string]: any
+//   },
+//   payload: T
+// }
+export type IRawNetPacket<T = unknown> = IRawReqPacket<T> | IRawResPacket<unknown>;
 
 export interface IListenerInfo {
   id: string;
@@ -19,19 +20,21 @@ export interface IListenerInfo {
 }
 
 export interface IRawReqPacket<T = unknown> {
-  method: string,
-  path: string,
+  opcode: OPCode.REQUEST | OPCode.NOTIFY;
+  method: string;
+  path: string;
   headers: {
     [key: string]: any
-  },
-  payload: T
+  };
+  payload: T;
 }
 
 export interface IRawResPacket<T = unknown> {
+  opcode: OPCode.RESPONSE;
   headers: {
     [key: string]: any
-  },
-  payload: IResPayloadPacket<T>
+  };
+  payload: IResPayloadPacket<T>;
 }
 
 export interface IPayloadError {
@@ -41,7 +44,7 @@ export interface IPayloadError {
   name: string;
 }
 
-export interface IResPayloadPacket<T> {
-  error?: IPayloadError;
-  result?: T;
+export interface IResPayloadPacket<T = unknown> {
+  error: IPayloadError | null;
+  result: T | null;
 }

@@ -68,7 +68,7 @@ abstract class Sender {
     await this.send(notify.toPacket());
   }
 
-  protected emitRPCResponse<ResponsePayload extends { error?: RPCErrorCode, message?: string }>(packet: IRawResPacket<ResponsePayload>) {
+  protected emitRPCResponse<ResponsePayload>(packet: IRawResPacket<ResponsePayload>) {
     if (!packet.headers[RPCHeader.RPC_ID_HEADER])
       return;
 

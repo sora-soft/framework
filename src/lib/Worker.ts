@@ -49,8 +49,8 @@ abstract class Worker {
   async stop(reason: string) {
     await this.lifeCycle_.setState(WorkerState.STOPPING);
     this.intervalJobTimer_.clearAll();
-    await this.shutdown(reason).catch(this.onError.bind(this));
     await this.executor_.stop();
+    await this.shutdown(reason).catch(this.onError.bind(this));
     await this.lifeCycle_.setState(WorkerState.STOPPED);
   }
 
@@ -158,6 +158,10 @@ abstract class Worker {
     return this.lifeCycle_.emitter;
   }
 
+  get lifeCycle() {
+    return this.lifeCycle_;
+  }
+
   get id() {
     return this.id_;
   }
@@ -182,10 +186,10 @@ abstract class Worker {
   // get runData() {}
 
   protected lifeCycle_: LifeCycle<WorkerState>;
-  private executor_: Executor;
+  protected executor_: Executor;
+  protected intervalJobTimer_: Timer;
   private name_: string;
   private id_: string;
-  private intervalJobTimer_: Timer;
   private componentPool_: Map<string/*name*/, Component>;
   private providerPool_: Map<string/*name*/, Provider>;
 }

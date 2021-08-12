@@ -15,7 +15,7 @@ export interface ILoggerData {
   identify: string;
   category: string;
   level: LogLevel;
-  error?: Error;
+  error?: Error | null;
   content: string;
   position: string;
   stack: StackFrame[];
@@ -93,7 +93,7 @@ abstract class Logger {
     return this;
   }
 
-  private write(level: LogLevel, category: string, error: Error, ...args) {
+  private write(level: LogLevel, category: string, error: Error | null | undefined, ...args) {
     const now = new Date();
     const stack = error ? parse(error)[0] : Logger.getStackPosition(3);
     const timeString = Utility.formatLogTimeString(now);
@@ -108,7 +108,7 @@ abstract class Logger {
         pid: process.pid,
         content: this.generateContent(...args),
         stack: Logger.getStack(),
-        position: `${path.basename(stack.fileName)}:${stack.lineNumber}:${stack.functionName}`,
+        position: `${stack.fileName ? path.basename(stack.fileName) : 'unknown'}:${stack.lineNumber}:${stack.functionName}`,
         raw: args,
       });
     }

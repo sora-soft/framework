@@ -41,8 +41,9 @@ abstract class Component {
     await this.ref_.minus(async () => {
       await this.disconnect().catch(err => {
         Runtime.frameLogger.error(`component.${this.name_}`, err, { event: 'disconnect-component', error: Logger.errorMessage(err) });
+      }).then(() => {
+        Runtime.frameLogger.success(`component.${this.name_}`, { event: 'success-disconnect' });
       });
-      Runtime.frameLogger.success(`component.${this.name_}`, { event: 'success-disconnect' });
     }).catch((err: Error) => {
       if (err.message === 'ERR_REF_NEGATIVE')
         Runtime.frameLogger.warn(`component.${this.name_}`, { event: 'duplicate-stop' });

@@ -13,7 +13,7 @@ class Waiter<T> {
       timer = setTimeout(() => {
         if (this.pool_.has(id)) {
           const info = this.pool_.get(id);
-          info.reject(new TimeoutError());
+          info!.reject(new TimeoutError());
         }
       }, ttlMs);
     }
@@ -28,10 +28,10 @@ class Waiter<T> {
   emit(id: number, result: T) {
     if (this.pool_.has(id)) {
       const info = this.pool_.get(id);
-      if (info.timer)
-        clearTimeout(info.timer);
+      if (info!.timer)
+        clearTimeout(info!.timer);
       this.pool_.delete(id);
-      info.resolve(result);
+      info!.resolve(result);
     }
     if (!this.pool_.size && this.allStoppedCallback_) {
       if (this.stopTimeoutTimer_) {
@@ -44,9 +44,9 @@ class Waiter<T> {
   emitError(id: number, error: Error) {
     if (this.pool_.has(id)) {
       const info = this.pool_.get(id);
-      clearTimeout(info.timer);
+      clearTimeout(info!.timer);
       this.pool_.delete(id);
-      info.reject(error);
+      info!.reject(error);
     }
   }
 

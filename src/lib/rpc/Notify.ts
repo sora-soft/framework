@@ -3,7 +3,7 @@ import {IRawNetPacket, IRawReqPacket} from '../../interface/rpc';
 import {RawPacket} from './RawPacket';
 
 class Notify<T = unknown> extends RawPacket<T> {
-  constructor(packet: IRawNetPacket<T> | IRawReqPacket<T>) {
+  constructor(packet: Omit<IRawReqPacket<T>, 'opcode'>) {
     super(OPCode.NOTIFY);
     this.method = packet.method;
     this.payload = packet.payload;
@@ -13,6 +13,22 @@ class Notify<T = unknown> extends RawPacket<T> {
 
   setHeader(header: string, value: any) {
     this.headers_.set(header, value);
+  }
+
+  get path() {
+    return super.path!;
+  }
+
+  set path(value: string) {
+    super.path = value;
+  }
+
+  get method() {
+    return super.method!;
+  }
+
+  set method(value: string) {
+    super.method = value;
   }
 }
 

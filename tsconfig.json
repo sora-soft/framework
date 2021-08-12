@@ -6,10 +6,14 @@
     "target": "ESNext",
     "outDir": "./dist",
     "sourceMap": true,
+    "strictNullChecks": true,
     "alwaysStrict": true,
     "downlevelIteration": true,
     "experimentalDecorators": true,
-    "emitDecoratorMetadata": true
+    "emitDecoratorMetadata": true,
+    "plugins": [{
+      "transform": "typescript-is/lib/transform-inline/transformer"
+    }]
   },
   "include": [
     "./src/**/*"

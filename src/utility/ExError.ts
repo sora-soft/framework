@@ -1,6 +1,13 @@
 import {ErrorLevel} from '../Enum';
 
 class ExError extends Error {
+  static fromError(err: Error | ExError) {
+    if (err instanceof ExError) {
+      return err;
+    } else {
+      return new ExError('ERR_UNKNOWN', 'ERR_UNKNOWN', err.message, ErrorLevel.UNEXPECTED);
+    }
+  }
 
   constructor(code: string, name: string, message: string, level = ErrorLevel.NORMAL) {
     super(message);
