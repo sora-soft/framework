@@ -27,7 +27,7 @@ type TypeOfClassMethod<T, M extends keyof T> = T[M] extends (...args: any) => an
 type RawRouteRPCMethod<T extends Route, K extends keyof T> = (body: Parameters<TypeOfClassMethod<T, K>>[0], options?: IRequestOptions, raw?: true) => Promise<Response<ThenArg<ReturnType<TypeOfClassMethod<T, K>>>>>;
 type RouteRPCMethod<T extends Route, K extends keyof T> = (body: Parameters<TypeOfClassMethod<T, K>>[0], options?: IRequestOptions, raw?: false) => ReturnType<TypeOfClassMethod<T, K>>;
 type ConvertRPCRouteMethod<T extends Route> = {
-  [K in keyof T]: RawRouteRPCMethod<T, K> & RouteRPCMethod<T, K>;
+  [K in keyof T]: RouteRPCMethod<T, K> & RawRouteRPCMethod<T, K>;
 }
 type RouteMethod<T extends Route, K extends keyof T> = (body: Parameters<TypeOfClassMethod<T, K>>[0], options?: IRequestOptions) => Promise<void>;
 export type ConvertRouteMethod<T extends Route> = {
