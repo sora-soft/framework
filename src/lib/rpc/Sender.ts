@@ -49,8 +49,8 @@ abstract class Sender {
   }
 
   protected abstract send<RequestPayload>(request: IRawNetPacket<RequestPayload>): Promise<void>;
-  public async sendRpc<ResponsePayload>(request: Request, fromId?: string | null): Promise<IRawResPacket<ResponsePayload>> {
-    const wait = this.waiter_.wait(10000);
+  public async sendRpc<ResponsePayload>(request: Request, fromId?: string | null, timeout = 10 * 1000): Promise<IRawResPacket<ResponsePayload>> {
+    const wait = this.waiter_.wait(timeout);
     request.setHeader(RPCHeader.RPC_ID_HEADER, wait.id);
     if (fromId)
       request.setHeader(RPCHeader.RPC_FROM_ID_HEADER, fromId);

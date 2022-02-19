@@ -19,7 +19,8 @@ export type senderBuilder = (listenerId: string, targetId: string) => Sender;
 export interface IRequestOptions {
   headers?: {
     [k: string]: any
-  }
+  },
+  timeout?: number;
 }
 
 type ThenArg<T> = T extends PromiseLike<infer U> ? U : T;
@@ -81,7 +82,7 @@ class Provider<T extends Route = any> {
                 path: `${this.name_}/${prop}`,
                 headers: options.headers || {},
               });
-              const res = await sender.sendRpc(request, fromId);
+              const res = await sender.sendRpc(request, fromId, options.timeout);
               const response = new Response(res);
               if (raw)
                 return response;
