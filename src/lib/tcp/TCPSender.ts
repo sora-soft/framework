@@ -112,7 +112,7 @@ class TCPSender extends Sender {
   }
 
   async send(request: IRawNetPacket) {
-    const data = TCPUtility.encodeMessage(request);
+    const data = await TCPUtility.encodeMessage(request);
     if (!this.isAvailable())
       throw new RPCError(RPCErrorCode.ERR_RPC_TUNNEL_NOT_AVAILABLE, `ERR_RPC_TUNNEL_NOT_AVAILABLE, endpoint=${this.listenInfo_.endpoint}`);
     await util.promisify<Buffer, void>(this.socket_!.write.bind(this.socket_))(data).catch((err: Error) => {
@@ -124,7 +124,7 @@ class TCPSender extends Sender {
     let packetLength = 0;
     let cache = Buffer.alloc(0);
 
-    return (data: Buffer) => {
+    return async (data: Buffer) => {
       cache = Buffer.concat([cache, data]);
 
       while (cache.length >= packetLength && cache.length) {
@@ -138,7 +138,7 @@ class TCPSender extends Sender {
 
         const content = cache.slice(0, packetLength);
         cache = cache.slice(packetLength);
-        const packet: IRawNetPacket = JSON.parse(content.toString());
+        const packet: IRawNetPacket = await TCPUtility.decodeMessage(content);
 
         switch (packet.opcode) {
           case OPCode.RESPONSE:

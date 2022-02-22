@@ -156,7 +156,7 @@ class TCPListener extends Listener {
 
           let packet: IRawNetPacket;
           try {
-            packet = JSON.parse(content.toString());
+            packet = await TCPUtility.decodeMessage(content);
           } catch (err) {
             Runtime.frameLogger.debug('listener.tcp', err, { event: 'parse-body-failed', error: Logger.errorMessage(err) });
             return;
@@ -165,7 +165,7 @@ class TCPListener extends Listener {
           try {
             const response = await listenerDataCallback(packet, session);
             if (response) {
-              const resData = TCPUtility.encodeMessage(response);
+              const resData = await TCPUtility.encodeMessage(response);
               await util.promisify<Buffer, void>(socket.write.bind(socket))(resData);
             }
           } catch (err) {
