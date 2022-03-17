@@ -130,7 +130,7 @@ class TCPSender extends Sender {
       while (cache.length >= packetLength && cache.length) {
         if (!packetLength) {
           packetLength = cache.readUInt32BE();
-          cache = cache.slice(16);
+          cache = cache.slice(4);
         }
 
         if (cache.length < packetLength)
