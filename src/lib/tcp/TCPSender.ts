@@ -129,8 +129,8 @@ class TCPSender extends Sender {
 
       while (cache.length >= packetLength && cache.length) {
         if (!packetLength) {
-          packetLength = cache.readInt32BE();
-          cache = cache.slice(4);
+          packetLength = cache.readUInt32BE();
+          cache = cache.slice(16);
         }
 
         if (cache.length < packetLength)
@@ -138,7 +138,14 @@ class TCPSender extends Sender {
 
         const content = cache.slice(0, packetLength);
         cache = cache.slice(packetLength);
-        const packet: IRawNetPacket = await TCPUtility.decodeMessage(content);
+        const packet: IRawNetPacket = await TCPUtility.decodeMessage(content).catch(err => {
+          Runtime.frameLogger.error('sender.tcp', err, {event: 'sender-decode-message', error: Logger.errorMessage(err)});
+          return null;
+        });
+
+        if (!packet) {
+          return;
+        }
 
         switch (packet.opcode) {
           case OPCode.RESPONSE:

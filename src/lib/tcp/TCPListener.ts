@@ -143,7 +143,7 @@ class TCPListener extends Listener {
 
         while (cache.length >= packetLength && cache.length) {
           if (!packetLength) {
-            packetLength = cache.readInt32BE();
+            packetLength = cache.readUInt32BE();
             cache = cache.slice(4);
           }
 
