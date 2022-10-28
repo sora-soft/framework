@@ -177,6 +177,7 @@ class Provider<T extends Route = any> {
       }
 
       Runtime.discovery.serviceEmitter.on(DiscoveryServiceEvent.ServiceStateUpdate, async (id, state, pre, meta) => {
+        Runtime.frameLogger.info(this.logCategory, { event: 'discovery-service-state-update', id, state});
         switch (state) {
           case WorkerState.ERROR:
           case WorkerState.STOPPING:
@@ -191,10 +192,12 @@ class Provider<T extends Route = any> {
       });
 
       Runtime.discovery.listenerEmitter.on(DiscoveryListenerEvent.ListenerCreated, async (info) => {
+        Runtime.frameLogger.info(this.logCategory, {event: 'discovery-listener-created', info});
         if (info.service === this.name_ && this.filter_.isSatisfy(info.labels))
           this.createSender(info);
       });
       Runtime.discovery.listenerEmitter.on(DiscoveryListenerEvent.ListenerStateUpdate, async (id, state, pre, meta) => {
+        Runtime.frameLogger.info(this.logCategory, { event: 'discovery-listener-state-update', id, state});
         let sender = this.senders_.get(id);
         if (!sender && state === ListenerState.READY) {
           if (meta.service === this.name_ && this.filter_.isSatisfy(meta.labels))
@@ -219,6 +222,7 @@ class Provider<T extends Route = any> {
         }
       });
       Runtime.discovery.listenerEmitter.on(DiscoveryListenerEvent.ListenerDeleted, async (id) => {
+        Runtime.frameLogger.info(this.logCategory, { event: 'discovery-listener-deleted', id})
         this.removeSender(id);
       });
     });
@@ -278,6 +282,7 @@ class Provider<T extends Route = any> {
       return;
 
     sender.stateEmitter.on(LifeCycleEvent.StateChangeTo, (state) => {
+      Runtime.frameLogger.info(this.logCategory, {event: 'sender-state-change', id: sender.listenerId, state});
       switch(state) {
         case SenderState.ERROR:
         case SenderState.STOPPED:
