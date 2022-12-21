@@ -1,6 +1,6 @@
 import {WorkerState} from '../Enum';
 import {FrameworkErrorCode} from '../ErrorCode';
-import {LifeCycleEvent} from '../Event';
+import {DiscoveryEvent, LifeCycleEvent} from '../Event';
 import {IRuntimeOptions} from '../interface/config';
 import {Time} from '../utility/Time';
 import {Component} from './Component';
@@ -69,6 +69,23 @@ class Runtime {
     await this.discovery_.registerNode(this.node_.nodeStateData).catch(err => {
       this.frameLogger_.fatal('runtime', err, { event: 'register-node', error: Logger.errorMessage(err)});
       process.exit(1);
+    });
+
+    this.discovery_.discoveryEmitter.on(DiscoveryEvent.DiscoveryReconnect, async () => {
+      this.frameLogger_.info('runtime', {event: 'discovery-reconnect'});
+      this.discovery_.registerNode(this.node.nodeStateData).catch(err => {
+        this.frameLogger_.error('runtime', err, { event: 'register-node', error: Logger.errorMessage(err) });
+      });
+
+      for(const service of this.services) {
+        await this.discovery_.registerService(service.metaData).catch(err => {
+          this.frameLogger_.error('runtime', err, { event: 'register-service', error: Logger.errorMessage(err) });
+        });
+
+        await service.registerEndpoints().catch(err => {
+          this.frameLogger_.error('runtime', err, { event: 'register-listener', error: Logger.errorMessage(err) });
+        });
+      }
     });
 
     this.frameLogger_.success('framework', { event: 'start-runtime-success', discovery: discovery.info, node: node.metaData });

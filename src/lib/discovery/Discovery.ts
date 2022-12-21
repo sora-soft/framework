@@ -1,5 +1,5 @@
 import EventEmitter = require('events');
-import {DiscoveryListenerEvent, DiscoveryNodeEvent, DiscoveryServiceEvent} from '../../Event';
+import {DiscoveryEvent, DiscoveryListenerEvent, DiscoveryNodeEvent, DiscoveryServiceEvent} from '../../Event';
 import {IEventEmitter} from '../../interface/event';
 import {IListenerEventData, IListenerMetaData, INodeMetaData, IServiceMetaData} from '../../interface/discovery';
 import {ListenerState, WorkerState} from '../../Enum';
@@ -25,6 +25,10 @@ export interface INodeEvent {
   [DiscoveryNodeEvent.NodeStateUpdate]: (id: string, state: WorkerState, pre: WorkerState, info: INodeMetaData) => void;
 }
 
+export interface IDiscoveryEvent {
+  [DiscoveryEvent.DiscoveryReconnect]: () => void;
+}
+
 export interface IDiscoveryInfo {
   version: string;
   type: string;
@@ -35,6 +39,7 @@ abstract class Discovery {
     this.serviceEmitter_ = new EventEmitter();
     this.listenerEmitter_ = new EventEmitter();
     this.nodeEmitter_ = new EventEmitter();
+    this.discoveryEmitter_ = new EventEmitter();
   }
 
   // 获取所有节点信息（本地与远端）
@@ -72,6 +77,14 @@ abstract class Discovery {
     return this.listenerEmitter_;
   }
 
+  get discoveryEmitter() {
+    return this.discoveryEmitter_;
+  }
+
+  get nodeEmitter() {
+    return this.nodeEmitter_;
+  }
+
   abstract get version(): string;
 
   abstract get info(): IDiscoveryInfo;
@@ -79,6 +92,7 @@ abstract class Discovery {
   protected serviceEmitter_: IEventEmitter<IServiceEvent>;
   protected listenerEmitter_: IEventEmitter<IDiscoveryListenerEvent>;
   protected nodeEmitter_: IEventEmitter<INodeEvent>;
+  protected discoveryEmitter_: IEventEmitter<IDiscoveryEvent>;
 }
 
 export {Discovery}

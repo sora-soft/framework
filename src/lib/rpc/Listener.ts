@@ -79,8 +79,10 @@ abstract class Listener {
             }
 
             return this.callback_(data, session).catch(err => {
-              Runtime.frameLogger.error('listener', err, { event: 'handle-error', error: Logger.errorMessage(err) });
               const exError = ExError.fromError(err);
+              if (exError.name !== 'RPCResponseError') {
+                Runtime.frameLogger.error('listener', err, { event: 'handle-error', error: Logger.errorMessage(err) });
+              }
               return responseError(exError);
             });
           }

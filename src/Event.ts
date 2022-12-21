@@ -32,3 +32,7 @@ export enum RetryEvent {
   Error = 'retry-error',
   MaxRetryTime = 'max-retry-time',
 }
+
+export enum DiscoveryEvent {
+  DiscoveryReconnect = 'discovery-reconnect',
+}

@@ -90,6 +90,22 @@ abstract class Service extends Worker {
 
   }
 
+  public async registerEndpoints() {
+    for (const [_, listener] of this.listenerPool_.entries()) {
+      const labels = {
+        ...this.metaData.labels,
+        ...listener.labels,
+      }
+
+      await Runtime.discovery.registerEndpoint({
+        ...listener.metaData,
+        state: listener.state,
+        targetId: this.id,
+        labels,
+      });
+    }
+  }
+
   public async uninstallListener(id: string) {
     const listener = this.listenerPool_.get(id);
     if (!listener)
