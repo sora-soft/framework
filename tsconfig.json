@@ -13,6 +13,8 @@
     "emitDecoratorMetadata": true,
     "plugins": [{
       "transform": "typescript-is/lib/transform-inline/transformer"
+    }, {
+      "name": "typescript-tslint-plugin"
     }]
   },
   "include": [

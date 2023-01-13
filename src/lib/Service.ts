@@ -147,6 +147,10 @@ abstract class Service extends Worker {
     return `service.${this.name}`
   }
 
+  protected get listenerPool() {
+    return this.listenerPool_;
+  }
+
   private listenerPool_: Map<string/*id*/, Listener>;
   private options_: IServiceOptions;
 }

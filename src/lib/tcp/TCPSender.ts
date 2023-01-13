@@ -1,17 +1,20 @@
 import net = require('net');
 import util = require('util');
-import {IListenerInfo, IRawNetPacket, IRawResPacket} from '../../interface/rpc';
+import {IListenerInfo, IRawNetPacket, IRawReqPacket, IRawResPacket} from '../../interface/rpc';
 import {Sender} from '../rpc/Sender';
 import {Utility} from '../../utility/Utility';
 import {TCPUtility} from './TCPUtility';
-import {RPCError} from '../rpc/RPCError';
+import {RPCError, RPCResponseError} from '../rpc/RPCError';
 import {RPCErrorCode} from '../../ErrorCode';
 import {Provider} from '../rpc/Provider';
-import {OPCode, SenderState} from '../../Enum';
+import {ErrorLevel, OPCode, SenderState} from '../../Enum';
 import {Retry} from '../../utility/Retry';
 import {AsyncReject} from '../../interface/util';
 import {Runtime} from '../Runtime';
 import {Logger} from '../logger/Logger';
+import {ExError} from '../../utility/ExError';
+import {RPCHeader} from '../../Const';
+import {is} from 'typescript-is';
 
 class TCPSender extends Sender {
   static register() {
@@ -158,7 +161,47 @@ class TCPSender extends Sender {
               });
             }
           case OPCode.REQUEST:
-            // 这里不应该接收到请求
+            if (this.route_) {
+              try {
+                let response: IRawResPacket<unknown> | null = null;
+                const responseError = (err: ExError) => {
+                  return {
+                    opcode: OPCode.RESPONSE,
+                    headers: {
+                      [RPCHeader.RPC_ID_HEADER]: packet.headers[RPCHeader.RPC_ID_HEADER]
+                    },
+                    payload: {
+                      error: {
+                        code: err.code || RPCErrorCode.ERR_RPC_UNKNOWN,
+                        level: err.level || ErrorLevel.UNEXPECTED,
+                        name: err.name,
+                        message: err.message,
+                      },
+                      result: null,
+                    }
+                  } as IRawResPacket;
+                }
+
+                if (!is<IRawReqPacket>(packet)) {
+                  response = responseError(new RPCResponseError(RPCErrorCode.ERR_RPC_BODY_PARSE_FAILED, ErrorLevel.EXPECTED, `ERR_RPC_BODY_PARSE_FAILED`));
+                }
+
+                response = await this.routeCallback_(packet, this.session_).catch(err => {
+                  const exError = ExError.fromError(err);
+                  if (exError.name !== 'RPCResponseError') {
+                    Runtime.frameLogger.error('sender.tcp', err, { event: 'handle-error', error: Logger.errorMessage(err) });
+                  }
+                  return responseError(exError);
+                });
+
+                if (response) {
+                  const resData = await TCPUtility.encodeMessage(response);
+                  await util.promisify<Buffer, void>(socket.write.bind(socket))(resData);
+                }
+              } catch (err) {
+                Runtime.frameLogger.error('sender.tcp', err, { event: 'event-handle-data', error: Logger.errorMessage(err)});
+              }
+            }
             break;
         }
         packetLength = 0;
