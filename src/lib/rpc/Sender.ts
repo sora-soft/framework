@@ -2,7 +2,6 @@ import {RPCHeader} from '../../Const';
 import {SenderState} from '../../Enum';
 import {RPCErrorCode} from '../../ErrorCode';
 import {IListenerInfo, IRawNetPacket, IRawResPacket} from '../../interface/rpc';
-import {ExError} from '../../utility/ExError';
 import {LifeCycle} from '../../utility/LifeCycle'
 import {TimeoutError} from '../../utility/TimeoutError';
 import {Waiter} from '../../utility/Waiter';
@@ -85,6 +84,14 @@ abstract class Sender {
     this.routeCallback_ = (Object.getPrototypeOf(route).constructor as typeof Route).callback(route);
   }
 
+  get isBussy() {
+    return this.isBussy_;
+  }
+
+  set isBussy(value: boolean) {
+    this.isBussy_ = value;
+  }
+
   get state() {
     return this.lifeCycle_.state;
   }
@@ -117,6 +124,7 @@ abstract class Sender {
   private waiter_: Waiter<IRawResPacket>;
   private listenerId_: string;
   private targetId_: string;
+  private isBussy_: boolean;
 }
 
 export {Sender}

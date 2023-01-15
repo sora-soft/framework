@@ -9,6 +9,8 @@ import {Timer} from '../utility/Timer';
 import {Component} from './Component';
 import {Provider} from './rpc/Provider';
 import {Logger} from './logger/Logger';
+import {FrameworkError} from './FrameworkError';
+import {FrameworkErrorCode} from '../ErrorCode';
 
 abstract class Worker {
   constructor(name: string) {
@@ -135,6 +137,18 @@ abstract class Worker {
     await component.stop();
 
     Runtime.frameLogger.info(this.logCategory, { event: 'component-disconnected', id: this.id, name: this.name, component: name });
+  }
+
+  public async setBussy() {
+    if (this.state !== WorkerState.READY)
+      throw new FrameworkError(FrameworkErrorCode.ERR_WORKER_STATE, `ERR_WORKER_STATE, state=${this.state}`);
+    await this.lifeCycle_.setState(WorkerState.BUSSY);
+  }
+
+  public async cancelBussy() {
+    if (this.state !== WorkerState.BUSSY)
+      throw new FrameworkError(FrameworkErrorCode.ERR_WORKER_STATE, `ERR_WORKER_STATE, state=${this.state}`);
+    await this.lifeCycle_.setState(WorkerState.READY);
   }
 
   protected async onError(err: Error) {

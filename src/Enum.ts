@@ -2,6 +2,7 @@ export enum WorkerState {
   INIT = 1,
   PENDING,
   READY,
+  BUSSY,
   STOPPING,
   STOPPED,
   ERROR = 100,

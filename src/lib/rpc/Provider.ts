@@ -67,7 +67,7 @@ class Provider<T extends Route = any> {
               const sender = Utility.randomOne([...this.senders_].map(([id, s]) => {
                 return s;
               }).filter((s) => {
-                return s.state === SenderState.READY && (!toId || s.targetId === toId) && s.isAvailable();
+                return s.state === SenderState.READY && (!toId || s.targetId === toId) && s.isAvailable() && !s.isBussy;
               }));
 
               if (!sender)
@@ -178,6 +178,20 @@ class Provider<T extends Route = any> {
 
       Runtime.discovery.serviceEmitter.on(DiscoveryServiceEvent.ServiceStateUpdate, async (id, state, pre, meta) => {
         switch (state) {
+          case WorkerState.BUSSY:
+            for (const sender of this.senderList_) {
+              if (sender.targetId === id) {
+                sender.isBussy = true;
+              }
+            }
+            break;
+          case WorkerState.READY:
+            for (const sender of this.senderList_) {
+              if (sender.targetId === id) {
+                sender.isBussy = false;
+              }
+            }
+            break;
           case WorkerState.ERROR:
           case WorkerState.STOPPING:
           case WorkerState.STOPPED:
