@@ -84,12 +84,12 @@ abstract class Sender {
     this.routeCallback_ = (Object.getPrototypeOf(route).constructor as typeof Route).callback(route);
   }
 
-  get isBussy() {
-    return this.isBussy_;
+  get isBusy() {
+    return this.isBusy_;
   }
 
-  set isBussy(value: boolean) {
-    this.isBussy_ = value;
+  set isBusy(value: boolean) {
+    this.isBusy_ = value;
   }
 
   get state() {
@@ -124,7 +124,7 @@ abstract class Sender {
   private waiter_: Waiter<IRawResPacket>;
   private listenerId_: string;
   private targetId_: string;
-  private isBussy_: boolean;
+  private isBusy_: boolean;
 }
 
 export {Sender}

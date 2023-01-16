@@ -139,14 +139,14 @@ abstract class Worker {
     Runtime.frameLogger.info(this.logCategory, { event: 'component-disconnected', id: this.id, name: this.name, component: name });
   }
 
-  public async setBussy() {
+  public async setBusy() {
     if (this.state !== WorkerState.READY)
       throw new FrameworkError(FrameworkErrorCode.ERR_WORKER_STATE, `ERR_WORKER_STATE, state=${this.state}`);
-    await this.lifeCycle_.setState(WorkerState.BUSSY);
+    await this.lifeCycle_.setState(WorkerState.BUSY);
   }
 
-  public async cancelBussy() {
-    if (this.state !== WorkerState.BUSSY)
+  public async cancelBusy() {
+    if (this.state !== WorkerState.BUSY)
       throw new FrameworkError(FrameworkErrorCode.ERR_WORKER_STATE, `ERR_WORKER_STATE, state=${this.state}`);
     await this.lifeCycle_.setState(WorkerState.READY);
   }
