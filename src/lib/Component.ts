@@ -7,12 +7,9 @@ import {Runtime} from './Runtime';
 export interface IComponentOptions {}
 
 abstract class Component {
-  constructor(name: string) {
-    this.name_ = name;
+  constructor() {
     this.init_ = false;
     this.ref_ = new Ref();
-
-    Runtime.registerComponent(this.name_, this);
   }
 
   protected abstract setOptions(options: IComponentOptions): void;
@@ -56,6 +53,10 @@ abstract class Component {
 
   get name() {
     return this.name_;
+  }
+
+  set name(value: string) {
+    this.name_ = value;
   }
 
   get ready() {

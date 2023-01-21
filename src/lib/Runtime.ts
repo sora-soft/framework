@@ -217,6 +217,7 @@ class Runtime {
       this.frameLogger.error('runtime', new FrameworkError(FrameworkErrorCode.ERR_DUPLICATED_COMPONENT, `ERR_DUPLICATED_COMPONENT, name=${name}`));
 
     this.components_.set(name, component);
+    component.name = name;
   }
 
   static getComponent<T extends Component>(name: string) {
