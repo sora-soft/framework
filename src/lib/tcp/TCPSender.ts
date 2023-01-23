@@ -141,6 +141,7 @@ class TCPSender extends Sender {
 
         const content = cache.slice(0, packetLength);
         cache = cache.slice(packetLength);
+        packetLength = 0;
         const packet: IRawNetPacket = await TCPUtility.decodeMessage(content).catch(err => {
           Runtime.frameLogger.error('sender.tcp', err, {event: 'sender-decode-message', error: Logger.errorMessage(err)});
           return null;
@@ -204,7 +205,6 @@ class TCPSender extends Sender {
             }
             break;
         }
-        packetLength = 0;
       }
     }
   }
