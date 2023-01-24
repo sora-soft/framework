@@ -143,14 +143,14 @@ abstract class Worker {
     if (this.state !== WorkerState.READY)
       return;
     await this.lifeCycle_.setState(WorkerState.BUSY);
-    Runtime.frameLogger.info(this.logCategory, { event: 'set-bussy' });
+    Runtime.frameLogger.info(this.logCategory, { event: 'set-busy' });
   }
 
   public async cancelBusy() {
     if (this.state !== WorkerState.BUSY)
       return;
     await this.lifeCycle_.setState(WorkerState.READY);
-    Runtime.frameLogger.info(this.logCategory, { event: 'cancel-bussy' });
+    Runtime.frameLogger.info(this.logCategory, { event: 'cancel-busy' });
   }
 
   protected async onError(err: Error) {
