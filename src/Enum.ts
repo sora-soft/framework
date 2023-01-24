@@ -23,6 +23,7 @@ export enum OPCode {
   REQUEST = 1,
   RESPONSE = 2,
   NOTIFY = 3,
+  OPERATION = 4,
 }
 
 export enum SenderState {
@@ -31,6 +32,7 @@ export enum SenderState {
   STOPPING,
   STOPPED,
   ERROR = 100,
+  RECONNECTING,
 }
 
 export enum ErrorLevel {
@@ -39,3 +41,10 @@ export enum ErrorLevel {
   NORMAL = 1,
   EXPECTED = 2,
 }
+
+export enum SenderCommand {
+  off = 'off',
+  error = 'error',
+  restart = 'restart',
+}
+

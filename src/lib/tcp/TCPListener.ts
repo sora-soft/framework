@@ -1,6 +1,6 @@
 import {Listener, ListenerCallback} from '../rpc/Listener';
 import net =  require('net');
-import {ListenerState} from '../../Enum';
+import {ListenerState, OPCode} from '../../Enum';
 import util = require('util');
 import {TCPUtility} from './TCPUtility';
 import {Executor} from '../../utility/Executor';
@@ -108,6 +108,16 @@ class TCPListener extends Listener {
   }
 
   protected async shutdown() {
+    for (const [_, socket] of this.sockets_.entries()) {
+      const resData = await TCPUtility.encodeMessage({
+        opcode: OPCode.OPERATION,
+        command: 'off',
+        args: {
+          reason: 'listener-shutdown',
+        },
+      });
+      await util.promisify<Buffer, void>(socket.write.bind(socket))(resData);
+    }
     // 要等所有 socket 由对方关闭
     await util.promisify(this.server_.close.bind(this.server_))();
   }

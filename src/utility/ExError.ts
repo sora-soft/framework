@@ -30,6 +30,15 @@ class ExError extends Error {
     return this.level_;
   }
 
+  toJson() {
+    return {
+      code: this.code,
+      name: this.name,
+      level: this.level,
+      message: this.message,
+    };
+  }
+
   private code_: string;
   private name_: string;
   private level_: ErrorLevel;

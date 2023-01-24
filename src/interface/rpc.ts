@@ -10,7 +10,7 @@ import {ILabels} from './config';
 //   },
 //   payload: T
 // }
-export type IRawNetPacket<T = unknown> = IRawReqPacket<T> | IRawResPacket<unknown>;
+export type IRawNetPacket<T = unknown> = IRawReqPacket<T> | IRawResPacket<unknown> | IRawOperationPacket;
 
 export interface IListenerInfo {
   id: string;
@@ -27,6 +27,12 @@ export interface IRawReqPacket<T = unknown> {
     [key: string]: any
   };
   payload: T;
+}
+
+export interface IRawOperationPacket {
+  opcode: OPCode.OPERATION;
+  command: string;
+  args: any;
 }
 
 export interface IRawResPacket<T = unknown> {

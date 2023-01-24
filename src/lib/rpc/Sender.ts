@@ -1,10 +1,12 @@
 import {RPCHeader} from '../../Const';
-import {SenderState} from '../../Enum';
+import {OPCode, SenderCommand, SenderState} from '../../Enum';
 import {RPCErrorCode} from '../../ErrorCode';
 import {IListenerInfo, IRawNetPacket, IRawResPacket} from '../../interface/rpc';
+import {ExError} from '../../utility/ExError';
 import {LifeCycle} from '../../utility/LifeCycle'
 import {TimeoutError} from '../../utility/TimeoutError';
 import {Waiter} from '../../utility/Waiter';
+import {Runtime} from '../Runtime';
 import {ListenerCallback} from './Listener';
 import {Notify} from './Notify';
 import {Request} from './Request';
@@ -47,7 +49,14 @@ abstract class Sender {
     throw err;
   }
 
+  public async restart() {
+    await this.off();
+    this.lifeCycle_.setState(SenderState.INIT);
+    await this.start(this.listenInfo_);
+  }
+
   protected abstract send<RequestPayload>(request: IRawNetPacket<RequestPayload>): Promise<void>;
+
   public async sendRpc<ResponsePayload>(request: Request, fromId?: string | null, timeout = 10 * 1000): Promise<IRawResPacket<ResponsePayload>> {
     const wait = this.waiter_.wait(timeout);
     request.setHeader(RPCHeader.RPC_ID_HEADER, wait.id);
@@ -67,6 +76,14 @@ abstract class Sender {
     await this.send(notify.toPacket());
   }
 
+  public async sendCommand(command: SenderCommand, args: any) {
+    await this.send({
+      opcode: OPCode.OPERATION,
+      command,
+      args
+    });
+  }
+
   protected emitRPCResponse<ResponsePayload>(packet: IRawResPacket<ResponsePayload>) {
     if (!packet.headers[RPCHeader.RPC_ID_HEADER])
       return;
@@ -82,6 +99,23 @@ abstract class Sender {
   async enableResponse(route: Route) {
     this.route_ = route;
     this.routeCallback_ = (Object.getPrototypeOf(route).constructor as typeof Route).callback(route);
+  }
+
+  protected async handleCommand(command: SenderCommand, args: any) {
+    Runtime.frameLogger.info('sender', {event: 'sender-command', command, args});
+    switch(command) {
+      case SenderCommand.error:
+        this.lifeCycle_.setState(SenderState.ERROR, new ExError(args.code, args.name, args.message, args.level));
+        break;
+      case SenderCommand.off:
+        this.off();
+        break;
+      case SenderCommand.restart:
+        this.restart();
+        break;
+      default:
+        break;
+    }
   }
 
   get isBusy() {

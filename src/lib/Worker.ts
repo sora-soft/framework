@@ -141,14 +141,16 @@ abstract class Worker {
 
   public async setBusy() {
     if (this.state !== WorkerState.READY)
-      throw new FrameworkError(FrameworkErrorCode.ERR_WORKER_STATE, `ERR_WORKER_STATE, state=${this.state}`);
+      return;
     await this.lifeCycle_.setState(WorkerState.BUSY);
+    Runtime.frameLogger.info(this.logCategory, { event: 'set-bussy' });
   }
 
   public async cancelBusy() {
     if (this.state !== WorkerState.BUSY)
-      throw new FrameworkError(FrameworkErrorCode.ERR_WORKER_STATE, `ERR_WORKER_STATE, state=${this.state}`);
+      return;
     await this.lifeCycle_.setState(WorkerState.READY);
+    Runtime.frameLogger.info(this.logCategory, { event: 'cancel-bussy' });
   }
 
   protected async onError(err: Error) {

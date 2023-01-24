@@ -1,6 +1,8 @@
 import {OPCode} from '../../Enum';
+import {FrameworkErrorCode, RPCErrorCode} from '../../ErrorCode';
 import {IRawNetPacket, IResPayloadPacket} from '../../interface/rpc';
 import {Utility} from '../../utility/Utility';
+import {RPCError} from './RPCError';
 
 class RawPacket<T> {
   constructor(opCode: OPCode) {
@@ -41,6 +43,8 @@ class RawPacket<T> {
           headers: Utility.mapToJSON(this.headers_),
           payload: this.payload_ as unknown as IResPayloadPacket<unknown>,
         };
+      case OPCode.OPERATION:
+        throw new RPCError(RPCErrorCode.ERR_NOT_SUPPORT_OPCODE, `ERR_NOT_SUPPORT_OPCODE`)
     }
   }
 

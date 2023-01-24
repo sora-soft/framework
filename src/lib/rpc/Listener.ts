@@ -94,6 +94,8 @@ abstract class Listener {
             await this.callback_(data, session);
             return null
           case OPCode.RESPONSE:
+          case OPCode.OPERATION:
+          default:
             return null;
         }
       });
