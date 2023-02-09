@@ -175,9 +175,6 @@ abstract class Connector {
   }
 
   protected async handleIncomeMessage(data: IRawNetPacket, session: string, connector: Connector) {
-    console.log('handleIncomeMessage');
-    console.log(data);
-    console.log(this.executor_);
     return this.executor_.doJob(async () => {
       switch (data.opcode) {
         case OPCode.REQUEST:
