@@ -5,7 +5,7 @@ import {TCPListener} from './tcp/TCPListener';
 import {Route} from './rpc/Route';
 import {NodeHandler} from './handler/NodeHandler';
 import {INodeMetaData} from '../interface/discovery';
-import {TCPSender} from './tcp/TCPSender';
+import {TCPConnector} from './tcp/TCPConnector';
 import {Broadcaster} from './rpc/Broadcaster';
 import {INodeNotifyHandler} from './handler/NodeNotifyHandler';
 import {Runtime} from './Runtime';
@@ -45,7 +45,7 @@ class Node extends Service {
 
   async startup() {
     const route = new NodeHandler(this);
-    this.TCPListener_ = new TCPListener(this.nodeOptions_.api, Route.callback(route), this.executor, {});
+    this.TCPListener_ = new TCPListener(this.nodeOptions_.api, Route.callback(route), {});
 
     await this.installListener(this.TCPListener_);
 
@@ -57,11 +57,10 @@ class Node extends Service {
   async shutdown() {}
 
   registerBroadcaster(method: keyof INodeNotifyHandler, session: string) {
-    const socket = this.TCPListener_.getSocket(session);
+    const socket = this.TCPListener_.getConnector(session);
     if (!socket)
       return;
-    const sender = new TCPSender(this.TCPListener_.id, this.id, socket);
-    this.broadcaster_.registerSender(method, sender);
+    this.broadcaster_.registerConnector(method, socket);
   }
 
   get nodeRunData(): INodeRunData {

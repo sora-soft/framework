@@ -1,49 +1,49 @@
-import {Sender} from './Sender'
+import {Connector} from './Connector'
 import {Route} from './Route';
 import {ConvertRouteMethod, IRequestOptions} from './Provider';
 import {Notify} from './Notify';
 import {LifeCycleEvent} from '../../Event';
-import {SenderState} from '../../Enum';
+import {ConnectorState} from '../../Enum';
 import {Runtime} from '../Runtime';
 import {Logger} from '../logger/Logger';
 
 class Broadcaster<T extends Route> {
   constructor() {
-    this.senders_ = new Map();
+    this.connectors_ = new Map();
   }
 
-  registerSender(method: keyof T, sender: Sender) {
-    let handler = this.senders_.get(sender.session);
+  registerConnector(method: keyof T, connector: Connector) {
+    let handler = this.connectors_.get(connector.session);
     if (!handler) {
       handler = {
-        sender,
+        connector: connector,
         methods: new Set()
       };
     }
 
     handler.methods.add(method as string);
-    this.senders_.set(sender.session, handler);
+    this.connectors_.set(connector.session, handler);
 
-    sender.stateEmitter.on(LifeCycleEvent.StateChangeTo, (state) => {
+    connector.stateEmitter.on(LifeCycleEvent.StateChangeTo, (state) => {
       switch (state) {
-        case SenderState.ERROR:
-        case SenderState.STOPPING:
-        case SenderState.STOPPED:
-          this.unregisterSender(sender.session);
+        case ConnectorState.ERROR:
+        case ConnectorState.STOPPING:
+        case ConnectorState.STOPPED:
+          this.unregisterConnector(connector.session);
           break;
       }
     });
   }
 
-  unregisterSender(session: string) {
-    this.senders_.delete(session);
+  unregisterConnector(session: string) {
+    this.connectors_.delete(session);
   }
 
   notify(fromId?: string, toSession?: string[]): ConvertRouteMethod<T> {
     return new Proxy<ConvertRouteMethod<T>>({} as any, {
       get: (target, prop: string, receiver) => {
         return async (body: unknown, options: IRequestOptions = {}) => {
-          for (const [session, handler] of this.senders_) {
+          for (const [session, handler] of this.connectors_) {
             if (toSession && !toSession.includes(session))
               continue;
 
@@ -59,7 +59,7 @@ class Broadcaster<T extends Route> {
               path: '',
               headers: options.headers || {},
             });
-            await handler.sender.sendNotify(notify, fromId).catch(err => {
+            await handler.connector.sendNotify(notify, fromId).catch(err => {
               Runtime.frameLogger.error('broadcaster', err, {event: 'broadcast-sender-notify', error: Logger.errorMessage(err)});
             });
           }
@@ -69,8 +69,8 @@ class Broadcaster<T extends Route> {
   }
 
 
-  private senders_: Map<string, {
-    sender: Sender,
+  private connectors_: Map<string, {
+    connector: Connector,
     methods: Set<string>;
   }>;
 }

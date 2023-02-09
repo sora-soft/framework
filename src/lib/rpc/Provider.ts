@@ -1,4 +1,4 @@
-import {ListenerState, SenderState, WorkerState} from '../../Enum';
+import {ListenerState, ConnectorState, WorkerState} from '../../Enum';
 import {RPCErrorCode} from '../../ErrorCode';
 import {DiscoveryListenerEvent, DiscoveryServiceEvent, LifeCycleEvent} from '../../Event';
 import {IListenerMetaData} from '../../interface/discovery';
@@ -8,14 +8,15 @@ import {Ref} from '../../utility/Ref';
 import {Utility} from '../../utility/Utility';
 import {Logger} from '../logger/Logger';
 import {Runtime} from '../Runtime';
+import {ListenerCallback} from './Listener';
 import {Notify} from './Notify';
 import {Request} from './Request';
 import {Response} from './Response';
 import {Route} from './Route';
 import {RPCError} from './RPCError';
-import {Sender} from './Sender';
+import {RPCSender} from './RPCSender';
 
-export type senderBuilder = (listenerId: string, targetId: string) => Sender;
+export type senderBuilder = (listenerId: string, targetId: string) => RPCSender;
 export interface IRequestOptions {
   headers?: {
     [k: string]: any
@@ -49,11 +50,11 @@ class Provider<T extends Route = any> {
 
   private static senderBuilder_: Map<string, senderBuilder> = new Map();
 
-  constructor(name: string, filter: LabelFilter = new LabelFilter([]), route?: Route) {
+  constructor(name: string, filter: LabelFilter = new LabelFilter([]), callback?: ListenerCallback) {
     this.name_ = name;
     this.senders_ = new Map();
     this.filter_ = filter;
-    this.route_ = route;
+    this.routeCallback_ = callback;
     this.ref_ = new Ref();
 
     this.caller_ = {
@@ -67,7 +68,7 @@ class Provider<T extends Route = any> {
               const sender = Utility.randomOne([...this.senders_].map(([id, s]) => {
                 return s;
               }).filter((s) => {
-                return s.state === SenderState.READY && (!toId || s.targetId === toId) && s.isAvailable() && !s.isBusy;
+                return s.connector.state === ConnectorState.READY && (!toId || s.targetId === toId) && s.connector.isAvailable() && !s.isBusy;
               }));
 
               if (!sender)
@@ -82,7 +83,7 @@ class Provider<T extends Route = any> {
                 path: `${this.name_}/${prop}`,
                 headers: options.headers || {},
               });
-              const res = await sender.sendRpc(request, fromId, options.timeout);
+              const res = await sender.connector.sendRpc(request, fromId, options.timeout);
               const response = new Response(res);
               if (raw)
                 return response;
@@ -101,8 +102,8 @@ class Provider<T extends Route = any> {
               const sender = Utility.randomOne([...this.senders_].map(([id, s]) => {
                 return s;
               }).filter(s => {
-                return s.state === SenderState.READY && (!toId || s.listenerId === toId) && s.isAvailable();
-              }))
+                return s.connector.state === ConnectorState.READY && (!toId || s.listenerId === toId) && s.connector.isAvailable();
+              }));
 
               if (!sender)
                 throw new RPCError(RPCErrorCode.ERR_RPC_SENDER_NOT_FOUND, `ERR_RPC_SENDER_NOT_FOUND, method=${prop}`);
@@ -116,7 +117,7 @@ class Provider<T extends Route = any> {
                 path: `${this.name_}/${prop}`,
                 headers: options.headers || {},
               });
-              await sender.sendNotify(notify, fromId);
+              await sender.connector.sendNotify(notify, fromId);
             };
           }
         })
@@ -132,7 +133,7 @@ class Provider<T extends Route = any> {
               const senders = [...this.senders_].map(([id, s]) => {
                 return s;
               }).filter(s => {
-                const available = s.state === SenderState.READY && !targetSet.has(s.listenerId) && s.isAvailable();
+                const available = s.connector.state === ConnectorState.READY && !targetSet.has(s.listenerId) && s.connector.isAvailable();
                 if (available) {
                   targetSet.add(s.listenerId);
                 }
@@ -149,7 +150,7 @@ class Provider<T extends Route = any> {
                   path: `${this.name_}/${prop}`,
                   headers: options!.headers || {},
                 });
-                return s.sendNotify(notify, fromId);
+                return s.connector.sendNotify(notify, fromId);
               }))
             };
           }
@@ -161,7 +162,7 @@ class Provider<T extends Route = any> {
   async shutdown() {
     await this.ref_.minus(async () => {
       await Promise.all([...this.senders_].map(async ([id, sender]) => {
-        await sender.off();
+        await sender.connector.off();
       }));
     }).catch((err: Error) => {
       if (err.message === 'ERR_REF_NEGATIVE')
@@ -221,7 +222,7 @@ class Provider<T extends Route = any> {
 
         switch (state) {
           case ListenerState.READY:
-            await sender.start(meta).catch(err => {
+            await sender.connector.start(meta).catch(err => {
               Runtime.frameLogger.error(this.logCategory, err, { event: 'sender-started-failed', error: Logger.errorMessage(err), name: this.name_ });
             });
             break;
@@ -265,7 +266,7 @@ class Provider<T extends Route = any> {
 
     Runtime.frameLogger.info(this.logCategory, { event: 'remove-sender', name: this.name_, id });
     this.senders_.delete(id);
-    await sender.off().catch(err => {
+    await sender.connector.off().catch(err => {
       Runtime.frameLogger.error(this.logCategory, err, { event: 'sender-stop-failed', error: Logger.errorMessage(err), name: this.name_ });
     });;
   }
@@ -277,7 +278,7 @@ class Provider<T extends Route = any> {
         event: 'remove-exited-sender',
         listener: this.formatLogListener(endpoint),
         targetId: existed!.targetId,
-        state: existed!.state,
+        state: existed!.connector.state,
         name: this.name_
       });
 
@@ -291,11 +292,11 @@ class Provider<T extends Route = any> {
     if (!sender)
       return;
 
-    sender.stateEmitter.on(LifeCycleEvent.StateChangeTo, (state) => {
+    sender.connector.stateEmitter.on(LifeCycleEvent.StateChangeTo, (state) => {
       Runtime.frameLogger.info(this.logCategory, {event: 'sender-state-change', id: sender.listenerId, state});
       switch(state) {
-        case SenderState.ERROR:
-        case SenderState.STOPPED:
+        case ConnectorState.ERROR:
+        case ConnectorState.STOPPED:
           this.removeSender(sender.listenerId);
           break;
       }
@@ -304,11 +305,11 @@ class Provider<T extends Route = any> {
     Runtime.frameLogger.success(this.logCategory, { event: 'sender-created', listener: this.formatLogListener(endpoint), targetId: sender.targetId, name: this.name_ });
 
     this.senders_.set(endpoint.id, sender);
-    if (this.route_)
-      await sender.enableResponse(this.route_);
+    if (this.routeCallback_)
+      await sender.connector.enableResponse(this.routeCallback_);
 
     if (endpoint.state === ListenerState.READY)
-      sender.start(endpoint).catch(err => {
+      sender.connector.start(endpoint).catch(err => {
         Runtime.frameLogger.error(this.logCategory, err, { event: 'sender-started-failed', error: Logger.errorMessage(err), name: this.name_ });
       });
 
@@ -320,18 +321,18 @@ class Provider<T extends Route = any> {
   }
 
   private formatLogListener(listener: IListenerInfo) {
-    return { id: listener.id, protocol: listener.protocol, endpoint: listener.endpoint };
+    return { protocol: listener.protocol, endpoint: listener.endpoint };
   }
 
   private name_: string;
-  private senders_: Map<string /*endpoint id*/, Sender>;
+  private senders_: Map<string /*endpoint id*/, RPCSender>;
   private caller_: {
     rpc: (fromId?: string | null, toId?: string | null) => ConvertRPCRouteMethod<T>,
     notify: (fromId?: string | null, toId?: string | null) => ConvertRouteMethod<T>,
     broadcast: (fromId?: string) => ConvertRouteMethod<T>,
   };
   private filter_: LabelFilter;
-  private route_: Route | undefined;
+  private routeCallback_: ListenerCallback | undefined;
   private ref_: Ref;
 }
 

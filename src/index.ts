@@ -1,4 +1,5 @@
 import 'source-map-support/register';
+import 'reflect-metadata';
 
 export * from './interface/config';
 export * from './interface/discovery';
@@ -25,11 +26,12 @@ export * from './lib/rpc/RawPacket';
 export * from './lib/rpc/Request';
 export * from './lib/rpc/Response';
 export * from './lib/rpc/Route';
-export * from './lib/rpc/Sender';
+export * from './lib/rpc/Connector';
+export * from './lib/rpc/RPCSender';
 
 export * from './lib/tcp/TCPError';
 export * from './lib/tcp/TCPListener';
-export * from './lib/tcp/TCPSender';
+export * from './lib/tcp/TCPConnector';
 export * from './lib/tcp/TCPUtility';
 
 export * from './lib/Component';

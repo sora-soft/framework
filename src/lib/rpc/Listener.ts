@@ -1,34 +1,28 @@
-import {ErrorLevel, ListenerState, OPCode} from '../../Enum';
+import {ConnectorState, ListenerState} from '../../Enum';
 import {LifeCycle} from '../../utility/LifeCycle';
 import {v4 as uuid} from 'uuid';
-import {IListenerInfo, IRawNetPacket, IRawReqPacket, IRawResPacket} from '../../interface/rpc';
-import {Executor} from '../../utility/Executor';
+import {IListenerInfo, IRawNetPacket, IRawResPacket} from '../../interface/rpc';
 import {IEventEmitter} from '../../interface/event';
-import {ListenerEvent} from '../../Event';
+import {LifeCycleEvent, ListenerEvent} from '../../Event';
 import {ILabels} from '../../interface/config';
 import {EventEmitter} from 'events';
-import {is} from 'typescript-is';
-import {Runtime} from '../Runtime';
-import {RPCErrorCode} from '../../ErrorCode';
-import {ExError} from '../../utility/ExError';
-import {RPCResponseError} from './RPCError';
-import {RPCHeader} from '../../Const';
-import {Logger} from '../logger/Logger';
+import {Connector} from './Connector';
 
 export interface IListenerEvent {
-  [ListenerEvent.NewConnect]: (session: string, ...args: any[]) => void;
+  [ListenerEvent.NewConnect]: (session: string, connector: Connector, ...args: any[]) => void;
+  [ListenerEvent.LostConnect]: (session: string, connector: Connector, ...args: any[]) => void;
 }
 
-export type ListenerCallback = (data: IRawNetPacket, session: string) => Promise<IRawResPacket | null>;
+export type ListenerCallback = (data: IRawNetPacket, session: string, connector: Connector) => Promise<IRawResPacket | null>;
 
 abstract class Listener {
-  constructor(callback: ListenerCallback, executor: Executor, labels: ILabels = {}) {
+  constructor(callback: ListenerCallback, labels: ILabels = {}) {
     this.lifeCycle_ = new LifeCycle(ListenerState.INIT);
     this.callback_ = callback;
-    this.executor_ = executor;
     this.id_ = uuid();
     this.labels_ = labels;
     this.connectionEmitter_ = new EventEmitter();
+    this.connectors_ = new Map();
   }
 
   protected abstract listen(): Promise<IListenerInfo>;
@@ -45,64 +39,30 @@ abstract class Listener {
     await this.lifeCycle_.setState(ListenerState.STOPPED);
   }
 
-  // 只有通过 handleMessage 才能拿到 callback，保证所有处理都是在 executor 内进行的
-  protected async handleMessage(handler: (callback: ListenerCallback) => Promise<void>) {
-    return this.executor_.doJob(async () => {
-      await handler(async (data: IRawNetPacket, session: string) => {
-        if (!is<IRawNetPacket>(data)) {
-          Runtime.frameLogger.warn('listener', { event: 'parse-body-failed', data });
-          return null;
-        }
+  abstract get metaData(): IListenerInfo;
+  protected async newConnector(session:string, connector: Connector) {
+    connector.session = session;
+    this.connectors_.set(session, connector);
 
-        switch (data.opcode) {
-          case OPCode.REQUEST: {
-            const responseError = (err: ExError) => {
-              return {
-                opcode: OPCode.RESPONSE,
-                headers: {
-                  [RPCHeader.RPC_ID_HEADER]: data.headers[RPCHeader.RPC_ID_HEADER]
-                },
-                payload: {
-                  error: {
-                    code: err.code || RPCErrorCode.ERR_RPC_UNKNOWN,
-                    level: err.level || ErrorLevel.UNEXPECTED,
-                    name: err.name,
-                    message: err.message,
-                  },
-                  result: null,
-                }
-              } as IRawResPacket;
-            }
+    connector.enableResponse(this.callback_.bind(this));
 
-            if (!is<IRawReqPacket>(data)) {
-              return responseError(new RPCResponseError(RPCErrorCode.ERR_RPC_BODY_PARSE_FAILED, ErrorLevel.EXPECTED, `ERR_RPC_BODY_PARSE_FAILED`));
-            }
-
-            return this.callback_(data, session).catch(err => {
-              const exError = ExError.fromError(err);
-              if (exError.name !== 'RPCResponseError') {
-                Runtime.frameLogger.error('listener', err, { event: 'handle-error', error: Logger.errorMessage(err) });
-              }
-              return responseError(exError);
-            });
+    connector.stateEmitter.on(LifeCycleEvent.StateChangeTo, (state) => {
+      switch (state) {
+        case ConnectorState.ERROR:
+        case ConnectorState.STOPPED:
+          if (this.connectors_.delete(connector.session)) {
+            connector.destory();
+            this.connectionEmitter_.emit(ListenerEvent.LostConnect, session, connector);
           }
-          case OPCode.NOTIFY:
-            if (!is<IRawReqPacket>(data)) {
-              Runtime.frameLogger.warn('listener', { event: 'parse-body-failed', data });
-              return null;
-            }
-            await this.callback_(data, session);
-            return null
-          case OPCode.RESPONSE:
-          case OPCode.OPERATION:
-          default:
-            return null;
-        }
-      });
+          break;
+      }
     });
+    this.connectionEmitter_.emit(ListenerEvent.NewConnect, session, connector);
   }
 
-  abstract get metaData(): IListenerInfo;
+  public getConnector(session: string) {
+    return this.connectors_.get(session);
+  }
 
   private async onError(err: Error) {
     await this.lifeCycle_.setState(ListenerState.ERROR, err);
@@ -143,11 +103,11 @@ abstract class Listener {
   abstract get version (): string;
 
   protected connectionEmitter_: IEventEmitter<IListenerEvent>;
+  protected connectors_: Map<string, Connector>;
   protected lifeCycle_: LifeCycle<ListenerState>;
-  private callback_: ListenerCallback;
+  protected callback_: ListenerCallback;
   private info_: IListenerInfo;
   private id_: string;
-  private executor_: Executor;
   private labels_: ILabels;
 }
 

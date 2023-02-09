@@ -10,7 +10,7 @@ class RawPacket<T> {
     this.opCode_ = opCode;
   }
 
-  getHeader(header: string) {
+  getHeader<H>(header: string): H {
     return this.headers_.get(header);
   }
 
@@ -44,7 +44,7 @@ class RawPacket<T> {
           payload: this.payload_ as unknown as IResPayloadPacket<unknown>,
         };
       case OPCode.OPERATION:
-        throw new RPCError(RPCErrorCode.ERR_NOT_SUPPORT_OPCODE, `ERR_NOT_SUPPORT_OPCODE`)
+        throw new RPCError(RPCErrorCode.ERR_RPC_NOT_SUPPORT_OPCODE, `ERR_NOT_SUPPORT_OPCODE`)
     }
   }
 

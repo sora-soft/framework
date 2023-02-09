@@ -5,7 +5,7 @@ import {RPCError} from '../rpc/RPCError';
 import {RPCErrorCode} from '../../ErrorCode';
 
 class TCPUtility {
-  static async encodeMessage(packet: IRawNetPacket | IRawReqPacket | IRawResPacket) {
+  static async encodeMessage(packet: IRawNetPacket | IRawReqPacket | IRawResPacket | Object) {
     const data = Buffer.from(JSON.stringify(packet));
     const deflated = await util.promisify(zlib.deflate)(data);
     if (deflated.length >= Number.MAX_SAFE_INTEGER) {

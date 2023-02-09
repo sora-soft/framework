@@ -22,7 +22,12 @@ export interface IReqRemoveWorker {
   reason: string;
 }
 
-class NodeHandler extends Route<Node> {
+class NodeHandler extends Route {
+  constructor(node: Node) {
+    super();
+    this.node_ = node;
+  }
+
   @Route.method
   async createService(body: IReqCreateService) {
     if (body.name === 'node')
@@ -46,7 +51,7 @@ class NodeHandler extends Route<Node> {
 
   @Route.method
   async removeService(body: IReqRemoveWorker) {
-    if (body.id === this.service.id)
+    if (body.id === this.node_.id)
       throw new FrameworkError(FrameworkErrorCode.ERR_NODE_SERVICE_CANNOT_BE_CLOSED, `ERR_NODE_SERVICE_CANNOT_BE_CLOSED`);
     Runtime.uninstallService(body.id, body.reason);
     return {};
@@ -66,15 +71,17 @@ class NodeHandler extends Route<Node> {
 
   @Route.method
   async registerRunningDataNotify(body: void, request: Request<{}>) {
-    const session = request.getHeader(RPCHeader.RPC_SESSION_HEADER);
-    this.service.registerBroadcaster('notifyNodeState', session);
+    const session = request.getHeader<string>(RPCHeader.RPC_SESSION_HEADER);
+    this.node_.registerBroadcaster('notifyNodeState', session);
     return {};
   }
 
   @Route.method
   async fetchRunningData() {
-    return this.service.nodeRunData;
+    return this.node_.nodeRunData;
   }
+
+  private node_: Node;
 }
 
 export {NodeHandler}

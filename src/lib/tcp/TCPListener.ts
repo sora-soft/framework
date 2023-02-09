@@ -1,12 +1,10 @@
 import {Listener, ListenerCallback} from '../rpc/Listener';
 import net =  require('net');
-import {ListenerState, OPCode} from '../../Enum';
+import {ConnectorCommand, ConnectorState, ListenerState, OPCode} from '../../Enum';
 import util = require('util');
-import {TCPUtility} from './TCPUtility';
 import {Executor} from '../../utility/Executor';
 import {ILabels, ITCPListenerOptions} from '../../interface/config';
 import {v4 as uuid} from 'uuid';
-import {ListenerEvent} from '../../Event';
 import EventEmitter = require('events');
 import {Runtime} from '../Runtime';
 import {Logger} from '../logger/Logger';
@@ -15,11 +13,12 @@ import {Utility} from '../../utility/Utility';
 import {TCPErrorCode} from '../../ErrorCode';
 import {TCPError} from './TCPError';
 import {Time} from '../../utility/Time';
-import {IListenerInfo, IRawNetPacket} from '../../interface/rpc';
+import {IListenerInfo} from '../../interface/rpc';
+import {TCPConnector} from './TCPConnector';
 
 class TCPListener extends Listener {
-  constructor(options: ITCPListenerOptions, callback: ListenerCallback, executor: Executor, labels: ILabels = {}) {
-    super(callback, executor, labels);
+  constructor(options: ITCPListenerOptions, callback: ListenerCallback, labels: ILabels = {}) {
+    super(callback, labels);
     this.options_ = options;
 
     this.usePort_ = 0;
@@ -41,10 +40,6 @@ class TCPListener extends Listener {
       state: this.state,
       labels: this.labels
     }
-  }
-
-  getSocket(session: string) {
-    return this.sockets_.get(session);
   }
 
   private onServerError(err: Error) {
@@ -92,7 +87,6 @@ class TCPListener extends Listener {
 
         this.server_.on('error', this.onServerError.bind(this));
         resolve({
-          id: this.id,
           protocol: 'tcp',
           endpoint: `${this.options_.host}:${this.usePort_}`,
           labels: this.labels,
@@ -108,24 +102,11 @@ class TCPListener extends Listener {
   }
 
   protected async shutdown() {
-    for (const [_, socket] of this.sockets_.entries()) {
-      const resData = await TCPUtility.encodeMessage({
-        opcode: OPCode.OPERATION,
-        command: 'off',
-        args: {
-          reason: 'listener-shutdown',
-        },
-      });
-      await util.promisify<Buffer, void>(socket.write.bind(socket))(resData);
+    for (const [_, connector] of this.connectors_.entries()) {
+      await connector.sendCommand(ConnectorCommand.off, {reason: 'listener-shutdown'});
     }
     // 要等所有 socket 由对方关闭
     await util.promisify(this.server_.close.bind(this.server_))();
-  }
-
-  private onSocketDisconnect(session: string) {
-    return () => {
-      this.sockets_.delete(session);
-    }
   }
 
   private onSocketConnect(socket: net.Socket) {
@@ -135,61 +116,13 @@ class TCPListener extends Listener {
     }
 
     const session = uuid();
-    this.sockets_.set(session, socket);
-    socket.on('data', this.onSocketData(session, socket).bind(this));
-    socket.on('close', this.onSocketDisconnect(session).bind(this));
-    socket.on('error', this.onSocketDisconnect(session).bind(this));
-
-    this.connectionEmitter_.emit(ListenerEvent.NewConnect, session, socket);
-  }
-
-  private onSocketData(session: string, socket: net.Socket) {
-    let packetLength = 0;
-    let cache = Buffer.alloc(0);
-
-    return (data: Buffer) => {
-      this.handleMessage(async (listenerDataCallback) => {
-        cache = Buffer.concat([cache, data]);
-
-        while (cache.length >= packetLength && cache.length) {
-          if (!packetLength) {
-            packetLength = cache.readUInt32BE();
-            cache = cache.slice(4);
-          }
-
-          if (cache.length < packetLength)
-            break;
-
-          const content = cache.slice(0, packetLength);
-          cache = cache.slice(packetLength);
-          packetLength = 0;
-
-          let packet: IRawNetPacket;
-          try {
-            packet = await TCPUtility.decodeMessage(content);
-          } catch (err) {
-            Runtime.frameLogger.debug('listener.tcp', err, { event: 'parse-body-failed', error: Logger.errorMessage(err) });
-            return;
-          }
-
-          try {
-            const response = await listenerDataCallback(packet, session);
-            if (response) {
-              const resData = await TCPUtility.encodeMessage(response);
-              await util.promisify<Buffer, void>(socket.write.bind(socket))(resData);
-            }
-          } catch (err) {
-            Runtime.frameLogger.error('listener.tcp', err, { event: 'event-handle-data', error: Logger.errorMessage(err)});
-          }
-        }
-      });
-    }
+    const connector = new TCPConnector(socket);
+    this.newConnector(session, connector);
   }
 
   private usePort_: number;
   private server_: net.Server;
   private options_: ITCPListenerOptions;
-  private sockets_: Map<string, net.Socket> = new Map();
 }
 
 export {TCPListener};

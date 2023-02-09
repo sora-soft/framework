@@ -26,6 +26,7 @@ export enum DiscoveryNodeEvent {
 
 export enum ListenerEvent {
   NewConnect = 'new-connection',
+  LostConnect = 'lost-connection',
 }
 
 export enum RetryEvent {

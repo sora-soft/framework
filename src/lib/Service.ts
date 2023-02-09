@@ -33,12 +33,12 @@ abstract class Service extends Worker {
   async stop(reason: string) {
     await this.lifeCycle_.setState(WorkerState.STOPPING);
     this.intervalJobTimer_.clearAll();
-    await this.executor_.stop();
     for (const id of this.listenerPool_.keys()) {
       await this.uninstallListener(id).catch((err: Error) => {
         Runtime.frameLogger.error(this.logCategory, err, { event: 'service-uninstall-listener', error: Logger.errorMessage(err) });
       });
     }
+    await this.executor_.stop();
     await this.shutdown(reason).catch(this.onError.bind(this));
     await this.lifeCycle_.setState(WorkerState.STOPPED);
   }
@@ -55,6 +55,7 @@ abstract class Service extends Worker {
 
       await Runtime.discovery.registerEndpoint({
         ...listener.metaData,
+        id: listener.id,
         state: listener.state,
         targetId: this.id,
         labels,
@@ -69,6 +70,7 @@ abstract class Service extends Worker {
 
       Runtime.discovery.registerEndpoint({
         ...listener.metaData,
+        id: listener.id,
         state: listener.state,
         targetId: this.id,
         labels,
@@ -99,6 +101,7 @@ abstract class Service extends Worker {
 
       await Runtime.discovery.registerEndpoint({
         ...listener.metaData,
+        id: listener.id,
         state: listener.state,
         targetId: this.id,
         labels,
@@ -137,6 +140,7 @@ abstract class Service extends Worker {
       listeners: [...this.listenerPool_].map(([id, listener]) => {
         return {
           ...listener.metaData,
+          id: listener.id,
           state: listener.state,
         };
       })

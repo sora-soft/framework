@@ -26,7 +26,7 @@ export enum OPCode {
   OPERATION = 4,
 }
 
-export enum SenderState {
+export enum ConnectorState {
   INIT = 1,
   READY,
   STOPPING,
@@ -42,9 +42,11 @@ export enum ErrorLevel {
   EXPECTED = 2,
 }
 
-export enum SenderCommand {
+export enum ConnectorCommand {
   off = 'off',
   error = 'error',
   restart = 'restart',
+  ping = 'ping',
+  pong = 'pong',
 }
 

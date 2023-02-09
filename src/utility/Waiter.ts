@@ -7,6 +7,9 @@ class Waiter<T> {
   }
 
   wait(ttlMs?: number) {
+    if (this.id_ >= Number.MAX_SAFE_INTEGER) {
+      this.id_ = 0;
+    }
     const id = ++this.id_;
     let timer: NodeJS.Timeout;
     if (ttlMs) {
@@ -48,6 +51,15 @@ class Waiter<T> {
       this.pool_.delete(id);
       info!.reject(error);
     }
+  }
+
+  clear() {
+    for (const [id, info] of this.pool_.entries()) {
+      if (info.timer) {
+        clearTimeout(info.timer);
+      }
+    }
+    this.pool_.clear();
   }
 
   async waitForAll(ttlMS?: number) {

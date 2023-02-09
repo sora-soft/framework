@@ -21,9 +21,9 @@ class Executor {
   }
 
   public async stop() {
-    this.isStopped_ = true;
     if (this.workingPromises_.length)
       await Promise.all(this.workingPromises_);
+    this.isStopped_ = true;
   }
 
   get isIdle() {

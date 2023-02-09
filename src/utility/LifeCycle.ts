@@ -1,6 +1,8 @@
 import EventEmitter = require('events');
+import {FrameworkErrorCode} from '../ErrorCode';
 import {LifeCycleEvent} from '../Event';
 import {IEventEmitter} from '../interface/event';
+import {FrameworkError} from '../lib/FrameworkError';
 
 export type LifeCycleHandler = (...args: any) => Promise<void>;
 export type LifeCycleAllHandler<T> = (state: T, ...args: any) => Promise<void>;
@@ -21,7 +23,7 @@ class LifeCycle<T> {
   }
 
   async setState(state: T, ...args: any[]) {
-    const preState = this.state_;
+    const preState = this.state;
     this.state_ = state;
     this.emitter_.emit(LifeCycleEvent.StateChange, preState, state, ...args);
     this.emitter_.emit(LifeCycleEvent.StateChangeTo, state, ...args);
@@ -45,15 +47,24 @@ class LifeCycle<T> {
     handlers.push(handler);
   }
 
+  destory() {
+    this.handlers_.clear();
+    this.allHandlers_.clear();
+    this.emitter_.removeAllListeners();
+  }
+
   get state() {
-    return this.state_;
+    if (this.state_ === null) {
+      throw new FrameworkError(FrameworkErrorCode.ERR_LIFECYCLE_IS_DESTORYED, `ERR_LIFECYCLE_IS_DESTORYED`);
+    }
+    return this.state_ as T;
   }
 
   get emitter() {
     return this.emitter_;
   }
 
-  private state_: T;
+  private state_: T | null;
   private handlers_: Map<T, LifeCycleHandler[]> = new Map();
   private allHandlers_: Set<LifeCycleAllHandler<T>> = new Set();
   private emitter_: IEventEmitter<ILifeCycleEvent<T>>;
