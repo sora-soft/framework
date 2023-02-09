@@ -3,6 +3,7 @@ import {ErrorLevel, OPCode} from '../../Enum';
 import {RPCErrorCode} from '../../ErrorCode';
 import {IRawResPacket, IResPayloadPacket} from '../../interface/rpc';
 import {ExError} from '../../utility/ExError';
+import {ArrayMap} from '../../utility/Utility';
 import {Logger} from '../logger/Logger';
 import {Runtime} from '../Runtime';
 import {Connector} from './Connector';
@@ -12,12 +13,23 @@ import {Request} from './Request';
 import {Response} from './Response';
 import {RPCError, RPCResponseError} from './RPCError';
 
-export type RPCHandler<Req = unknown, Res = unknown> = (body: Req, req?: Request<Req>, response?: Response<Res>) => Promise<Res>;
-export type NotifyHandler<Req = unknown> = (body: Req, req?: Notify<Req>) => Promise<void>;
-export type MethodPramBuilder<T = unknown, Req = unknown, Res = unknown> = (body: Req, req: Request<Req>, response: Response<Res>, connector: Connector) => Promise<T>;
-export interface IMethodParamProvider<T = unknown, Req = unknown, Res = unknown> {
+export type RPCHandler<Req = unknown, Res = unknown> = (body: Req, ...args) => Promise<Res>;
+export type MethodPramBuilder<T = unknown, Req = unknown, Res = unknown> = (body: Req, req: Request<Req>, response: Response<Res> | null, connector: Connector) => Promise<T>;
+export interface IRPCHandlerParam<T=unknown, Req=unknown, Res=unknown> {
   type: any;
-  builder: MethodPramBuilder<T, Req, Res>;
+  provider: MethodPramBuilder<T, Req, Res>
+}
+export type IRPCMiddlewares<Req = unknown, Res = unknown> = (body: Req, req: Request<Req>, response: Response<Res> | null, connector: Connector) => Promise<boolean>;
+export interface IRPCHandler<Req=unknown, Res=unknown> {
+  params: any[];
+  handler: RPCHandler<Req, Res>;
+}
+
+
+export type NotifyHandler<Req = unknown> = (body: Req, ...args) => Promise<void>;
+export interface INotifyHandler<Req=unknown> {
+  params: any[];
+  handler: NotifyHandler<Req>;
 }
 
 class Route {
@@ -34,7 +46,9 @@ class Route {
   }
 
   protected static notify(target: Route, key: string) {
-    target.registerNotify(key, target[key]);
+    const types = Reflect.getMetadata('design:paramtypes', target, key);
+
+    target.registerNotify(key, target[key], types);
   }
 
   protected static makeErrorRPCResponse(request: Request, response: Response, err: ExError) {
@@ -110,7 +124,7 @@ class Route {
           if (!route.hasNotify(notify.method))
             throw new RPCError(RPCErrorCode.ERR_RPC_METHOD_NOT_FOUND, `ERR_RPC_METHOD_NOT_FOUND, method=${notify.method}`);
 
-            await route.callNotify(notify.method, notify).catch(err => {
+            await route.callNotify(notify.method, notify, connector).catch(err => {
             Runtime.frameLogger.error('route', err, { event: 'notify-handler', error: Logger.errorMessage(err), method: notify.method, request: notify.payload })
           });
           Runtime.rpcLogger.debug('route', { method: notify.method, notify: notify.payload, duration: Date.now() - startTime });
@@ -132,23 +146,21 @@ class Route {
     if (!this.hookedMethod_)
       this.hookedMethod_ = new Set();
 
-    if (!this.methodParamsMap_)
-      this.methodParamsMap_ = new Map();
+    if (!this.middlewareMap_)
+      this.middlewareMap_ = new ArrayMap();
 
-    if (!this.methodParamsProviderMap_)
-      this.methodParamsProviderMap_ = new Map();
+    if (!this.providerMap_)
+      this.providerMap_ = new ArrayMap();
   }
 
   protected registerMethod(method: string, callback: RPCHandler, types: any[]) {
     if (!this.methodMap_)
       this.methodMap_ = new Map();
 
-    this.methodMap_.set(method, callback);
-
-    if (!this.methodParamsMap_)
-      this.methodParamsMap_ = new Map();
-
-    this.methodParamsMap_.set(method, types);
+    this.methodMap_.set(method, {
+      params: types,
+      handler: callback,
+    });
   }
 
   protected registerHookedMethod(method: string, callback: RPCHandler, types: any[]) {
@@ -159,63 +171,77 @@ class Route {
     this.hookedMethod_.add(method);
   }
 
-  protected registerNotify(method: string, callback: NotifyHandler) {
+  protected registerNotify(method: string, callback: NotifyHandler, types: any[]) {
     if (!this.notifyMap_)
       this.notifyMap_ = new Map();
 
-    this.notifyMap_.set(method, callback);
+    this.notifyMap_.set(method, {
+      params: types,
+      handler: callback,
+    });
   }
 
-  registerProvider(method: string, provider: IMethodParamProvider) {
-    if (!this.methodParamsProviderMap_)
-      this.methodParamsProviderMap_ = new Map();
+  protected registerProvider(method: string, type: any, provider: MethodPramBuilder) {
+    if (!this.providerMap_)
+      this.providerMap_ = new ArrayMap();
 
-    let pre = this.methodParamsProviderMap_.get(method);
-    if (!pre)
-      pre = [];
-    pre.push(provider);
-
-    this.methodParamsProviderMap_.set(method, pre);
+    this.providerMap_.append(method, {
+      type,
+      provider,
+    });
   }
 
-  protected findProvider(method: string, target: any): null | MethodPramBuilder {
-    const providers = this.methodParamsProviderMap_.get(method);
-    if (!providers)
-      return null;
-    for (const provider of providers) {
-      if (provider.type === target)
-        return provider.builder;
-    }
-    return null;
+  protected registerMiddleware(method: string, middleware: IRPCMiddlewares) {
+    if (!this.middlewareMap_)
+      this.middlewareMap_ = new ArrayMap();
+    this.middlewareMap_.append(method, middleware);
+  }
+
+  protected async buildCallParams(method: string, paramTypes: any[], request: Request, response: Response | null, connector: Connector) {
+    const params: any[] = await Promise.all(paramTypes.slice(1).map(async (type) => {
+      switch(type) {
+        case Connector:
+          return connector;
+        case Request:
+          return request;
+        case Response:
+          return response;
+        default:
+          const providers = this.providerMap_.get(method);
+          if (!providers)
+            return null;
+
+          const provider = providers.find(p => p.type === type);
+          if (!provider)
+            return null;
+
+          return provider.provider;
+      }
+    }));
+
+    params.unshift(request.payload);
+
+    return params
   }
 
   protected async callMethod(method: string, request: Request, response: Response, connector: Connector) {
     if (this.methodMap_.has(method)) {
       try {
-        const paramsTypes = this.methodParamsMap_.get(method);
-        if (!paramsTypes) {
+        const handler = this.methodMap_.get(method);
+        if (!handler) {
           throw new RPCResponseError(RPCErrorCode.ERR_RPC_METHOD_NOT_FOUND, ErrorLevel.EXPECTED, `ERR_RPC_METHOD_NOT_FOUND`)
         }
 
-        const params: any[] = await Promise.all(paramsTypes.slice(1).map(async (type) => {
-          switch(type) {
-            case Connector:
-              return connector;
-            case Request:
-              return request;
-            case Response:
-              return response;
-            default:
-              const builder = this.findProvider(method, type);
-              if (builder) {
-                return builder(request.payload, request, response, connector);
-              }
-              return null;
+        const middlewares = this.middlewareMap_.get(method);
+        if (middlewares) {
+          for (const middleware of middlewares) {
+            const next = await middleware(request.payload, request, response, connector);
+            if (!next)
+              break;
           }
-        }));
+        }
 
-        params.unshift(request.payload);
-
+        const params = await this.buildCallParams(method, handler.params, request, response, connector);
         const result = await (this[method] as RPCHandler).apply(this, params);
         return {
           error: null,
@@ -232,14 +258,31 @@ class Route {
     }
   }
 
-  protected async callNotify(method: string, request: Notify) {
+  protected async callNotify(method: string, request: Notify, connector: Connector) {
     if (this.notifyMap_.has(method)) {
-      return (this[method] as NotifyHandler)(request.payload, request).catch(err => {
+      try {
+        const handler = this.notifyMap_.get(method);
+        if (!handler) {
+          throw new RPCResponseError(RPCErrorCode.ERR_RPC_METHOD_NOT_FOUND, ErrorLevel.EXPECTED, `ERR_RPC_METHOD_NOT_FOUND`)
+        }
+
+        const middlewares = this.middlewareMap_.get(method);
+        if (middlewares) {
+          for (const middleware of middlewares) {
+            const next = await middleware(request.payload, request, null, connector);
+            if (!next)
+              break;
+          }
+        }
+
+        const params = await this.buildCallParams(method, handler.params, request, null, connector);
+        await (this[method] as NotifyHandler).apply(this, params);
+      } catch (err) {
         if (err.name === 'TypeGuardError') {
           throw new RPCResponseError(RPCErrorCode.ERR_RPC_PARAMETER_INVALID, ErrorLevel.EXPECTED, `ERR_RPC_PARAMETER_INVALID, ${err.message.split(',').slice(0, 1).join('')}`)
         }
         throw err;
-      });
+      }
     }
   }
 
@@ -255,11 +298,11 @@ class Route {
     return this.notifyMap_.has(method);
   }
 
-  protected methodMap_: Map<string, RPCHandler>;
-  protected methodParamsMap_: Map<string, any[]>;
-  protected methodParamsProviderMap_: Map<string, IMethodParamProvider[]>;
-  protected notifyMap_: Map<string, NotifyHandler>;
+  protected methodMap_: Map<string, IRPCHandler>;
+  protected notifyMap_: Map<string, INotifyHandler>;
   protected hookedMethod_: Set<string>;
+  protected middlewareMap_: ArrayMap<string, IRPCMiddlewares>;
+  protected providerMap_: ArrayMap<string, IRPCHandlerParam>;
 }
 
 export {Route}

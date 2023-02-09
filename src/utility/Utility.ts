@@ -143,4 +143,19 @@ class NodeTime {
   }
 }
 
-export {Utility, NodeTime, UnixTime}
+class ArrayMap<K, T> extends Map<K, T[]> {
+  constructor() {
+    super();
+  }
+
+  append(k: K, value: T) {
+    let pre = this.get(k);
+    if (!pre) {
+      pre = [];
+      this.set(k, pre);
+    }
+    pre.push(value);
+  }
+}
+
+export {Utility, NodeTime, UnixTime, ArrayMap}

@@ -56,7 +56,7 @@ class TCPConnector extends Connector {
 
     const retry = new Retry(async () => {
       return new Promise<void>((resolve, reject) => {
-        Runtime.frameLogger.info('connector.tcp', {event: reconnect ? 'connector-reconnect' : 'connector-connect', endpoint: listenInfo.endpoint});
+        Runtime.frameLogger.info('connector.tcp', {event: reconnect ? 'reconnect' : 'start-connect', endpoint: listenInfo.endpoint});
         const [ip, portStr] = listenInfo.endpoint.split(':');
         const port = Utility.parseInt(portStr);
         this.socket_ = new net.Socket();
