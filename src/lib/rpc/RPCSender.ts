@@ -5,6 +5,7 @@ class RPCSender {
     this.listenerId_ = listenerId;
     this.targetId_ = targetId;
     this.isBusy_ = true;
+    this.connector_ = connector;
   }
 
   get listenerId() {
