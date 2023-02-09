@@ -85,13 +85,14 @@ class Route {
             Runtime.rpcLogger.debug('route', { method: request.method, request: request.payload });
 
             response.setHeader(RPCHeader.RPC_ID_HEADER, rpcId);
-            // response.setHeader(RPCHeader.RPC_FROM_ID_HEADER, route.service_.id);
 
             if (!route.hasMethod(request.method))
               throw new RPCResponseError(RPCErrorCode.ERR_RPC_METHOD_NOT_FOUND, ErrorLevel.EXPECTED, `ERR_RPC_METHOD_NOT_FOUND, method=${request.method}`);
 
             const result = await route.callMethod(request.method, request, response, connector).catch((err: ExError) => {
-              Runtime.frameLogger.error('route', err, { event: 'rpc-handler', error: Logger.errorMessage(err), method: request.method, request: request.payload });
+              if (err.level !== ErrorLevel.EXPECTED) {
+                Runtime.rpcLogger.error('route', err, { event: 'rpc-handler-error', error: Logger.errorMessage(err), method: request.method, request: request.payload });
+              }
               return {
                 error: {
                   code: err.code || RPCErrorCode.ERR_RPC_UNKNOWN,
