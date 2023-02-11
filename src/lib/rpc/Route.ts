@@ -13,13 +13,13 @@ import {Request} from './Request';
 import {Response} from './Response';
 import {RPCError, RPCResponseError} from './RPCError';
 
-export type RPCHandler<Req = unknown, Res = unknown> = (body: Req, ...args) => Promise<Res>;
-export type MethodPramBuilder<T = unknown, Req = unknown, Res = unknown> = (body: Req, req: Request<Req>, response: Response<Res> | null, connector: Connector) => Promise<T>;
-export interface IRPCHandlerParam<T=unknown, Req=unknown, Res=unknown> {
+export type RPCHandler<Req=unknown, Res=unknown> = (body: Req, ...args) => Promise<Res>;
+export type MethodPramBuilder<T=unknown, R extends Route = Route, Req=unknown, Res=unknown> = (route: R, body: Req, req: Request<Req>, response: Response<Res> | null, connector: Connector) => Promise<T>;
+export interface IRPCHandlerParam<T=unknown, R extends Route = Route, Req=unknown, Res=unknown> {
   type: any;
-  provider: MethodPramBuilder<T, Req, Res>
+  provider: MethodPramBuilder<T, R, Req, Res>
 }
-export type IRPCMiddlewares<Req = unknown, Res = unknown> = (body: Req, req: Request<Req>, response: Response<Res> | null, connector: Connector) => Promise<boolean>;
+export type IRPCMiddlewares<T extends Route = Route, Req = unknown, Res = unknown> = (route: T, body: Req, req: Request<Req>, response: Response<Res> | null, connector: Connector) => Promise<boolean>;
 export interface IRPCHandler<Req=unknown, Res=unknown> {
   params: any[];
   handler: RPCHandler<Req, Res>;
@@ -182,7 +182,7 @@ class Route {
     });
   }
 
-  protected registerProvider(method: string, type: any, provider: MethodPramBuilder) {
+  protected registerProvider<T=unknown, R extends Route = Route>(method: string, type: any, provider: MethodPramBuilder<T, R>) {
     if (!this.providerMap_)
       this.providerMap_ = new ArrayMap();
 
@@ -192,13 +192,13 @@ class Route {
     });
   }
 
-  protected registerMiddleware(method: string, middleware: IRPCMiddlewares) {
+  protected registerMiddleware<T extends Route = Route>(method: string, middleware: IRPCMiddlewares<T>) {
     if (!this.middlewareMap_)
       this.middlewareMap_ = new ArrayMap();
     this.middlewareMap_.append(method, middleware);
   }
 
-  protected async buildCallParams(method: string, paramTypes: any[], request: Request, response: Response | null, connector: Connector) {
+  protected async buildCallParams<T extends Route>(route: T, method: string, paramTypes: any[], request: Request, response: Response | null, connector: Connector) {
     const params: any[] = await Promise.all(paramTypes.slice(1).map(async (type) => {
       switch(type) {
         case Connector:
@@ -216,7 +216,7 @@ class Route {
           if (!provider)
             return null;
 
-          return provider.provider;
+          return provider.provider(route, request.payload, request, response, connector);
       }
     }));
 
@@ -235,14 +235,14 @@ class Route {
 
         const middlewares = this.middlewareMap_.get(method);
         if (middlewares) {
-          for (const middleware of middlewares) {
-            const next = await middleware(request.payload, request, response, connector);
+          for (const middleware of middlewares.reverse()) {
+            const next = await middleware(this, request.payload, request, response, connector);
             if (!next)
               break;
           }
         }
 
-        const params = await this.buildCallParams(method, handler.params, request, response, connector);
+        const params = await this.buildCallParams(this, method, handler.params, request, response, connector);
         const result = await (this[method] as RPCHandler).apply(this, params);
         return {
           error: null,
@@ -270,13 +270,13 @@ class Route {
         const middlewares = this.middlewareMap_.get(method);
         if (middlewares) {
           for (const middleware of middlewares) {
-            const next = await middleware(request.payload, request, null, connector);
+            const next = await middleware(this, request.payload, request, null, connector);
             if (!next)
               break;
           }
         }
 
-        const params = await this.buildCallParams(method, handler.params, request, null, connector);
+        const params = await this.buildCallParams(this, method, handler.params, request, null, connector);
         await (this[method] as NotifyHandler).apply(this, params);
       } catch (err) {
         if (err.name === 'TypeGuardError') {

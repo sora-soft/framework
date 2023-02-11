@@ -1,7 +1,7 @@
 import {ConnectorState, ListenerState} from '../../Enum';
 import {LifeCycle} from '../../utility/LifeCycle';
 import {v4 as uuid} from 'uuid';
-import {IListenerInfo, IRawNetPacket, IRawResPacket} from '../../interface/rpc';
+import {IListenerInfo, IRawNetPacket, IRawReqPacket, IRawResPacket} from '../../interface/rpc';
 import {IEventEmitter} from '../../interface/event';
 import {LifeCycleEvent, ListenerEvent} from '../../Event';
 import {ILabels} from '../../interface/config';
@@ -13,7 +13,7 @@ export interface IListenerEvent {
   [ListenerEvent.LostConnect]: (session: string, connector: Connector, ...args: any[]) => void;
 }
 
-export type ListenerCallback = (data: IRawNetPacket, session: string, connector: Connector) => Promise<IRawResPacket | null>;
+export type ListenerCallback<Req=unknown, Res=unknown> = (data: IRawReqPacket<Req>, session: string, connector: Connector) => Promise<IRawResPacket<Res> | null>;
 
 abstract class Listener {
   constructor(callback: ListenerCallback, labels: ILabels = {}) {
