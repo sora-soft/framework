@@ -185,6 +185,7 @@ class Provider<T extends Route = any> {
         this.serviceMataData_.set(info.id, info);
       }
 
+      // TODO: 这里应该由一个统一中心负责监听，而不是每个provider各自监听
       Runtime.discovery.serviceEmitter.on(DiscoveryServiceEvent.ServiceStateUpdate, async (id, state, pre, meta) => {
         this.serviceMataData_.set(id, meta);
         switch (state) {
