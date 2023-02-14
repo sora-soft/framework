@@ -32,7 +32,6 @@ export enum ConnectorState {
   STOPPING,
   STOPPED,
   ERROR = 100,
-  RECONNECTING,
 }
 
 export enum ErrorLevel {
@@ -43,10 +42,9 @@ export enum ErrorLevel {
 }
 
 export enum ConnectorCommand {
-  off = 'off',
-  error = 'error',
-  restart = 'restart',
-  ping = 'ping',
-  pong = 'pong',
+  OFF = 'off',
+  ERROR = 'error',
+  PING = 'ping',
+  PONG = 'pong',
 }
 

@@ -26,11 +26,10 @@ class TCPConnector extends Connector {
     super({
       ping: {
         enabled: true,
-      }
+      },
     });
     if (socket) {
       this.socket_ = socket;
-      this.initiative_ = false;
       this.bindSocketEvent(socket);
       this.lifeCycle_.setState(ConnectorState.READY);
       this.target_ = {
@@ -39,6 +38,8 @@ class TCPConnector extends Connector {
         labels: {},
       };
       this.connected_ = true;
+      this.socket_.on('error', this.onSocketError(socket).bind(this));
+      this.socket_.on('close', this.onSocketError(this.socket_));
     }
   }
 
@@ -46,17 +47,13 @@ class TCPConnector extends Connector {
     return !!(this.socket_ && !this.socket_.destroyed && this.connected_);
   }
 
-  protected async connect(listenInfo: IListenerInfo, reconnect = false) {
+  protected async connect(listenInfo: IListenerInfo) {
     if (this.socket_ && !this.socket_.destroyed)
-      return;
-
-    if (!this.initiative_) {
-      this.off();
-    }
+      return false;
 
     const retry = new Retry(async () => {
       return new Promise<void>((resolve, reject) => {
-        Runtime.frameLogger.info('connector.tcp', {event: reconnect ? 'reconnect' : 'start-connect', endpoint: listenInfo.endpoint});
+        Runtime.frameLogger.info('connector.tcp', {event: 'start-connect', endpoint: listenInfo.endpoint});
         const [ip, portStr] = listenInfo.endpoint.split(':');
         const port = Utility.parseInt(portStr);
         this.socket_ = new net.Socket();
@@ -78,7 +75,7 @@ class TCPConnector extends Connector {
         });
       });
     }, {
-      maxRetryTimes: 0,
+      maxRetryTimes: 50,
       incrementInterval: true,
       maxRetryIntervalMS: 5000,
       minIntervalMS: 500,
@@ -91,6 +88,7 @@ class TCPConnector extends Connector {
     this.reconnectJob_ = retry;
     await retry.doJob();
     this.reconnectJob_ = null;
+    return true;
   }
 
   private bindSocketEvent(socket: net.Socket) {
@@ -98,24 +96,16 @@ class TCPConnector extends Connector {
   }
 
   private onSocketError(socket: net.Socket) {
-    return (err: Error) => {
+    return async (err: Error) => {
       if (this.socket_ !== socket)
         return;
 
       if (this.socket_) {
         this.socket_.removeAllListeners();
-
-        if (!this.initiative_) {
-          this.destory();
-          return;
-        }
       }
 
       this.socket_ = null;
-      if (this.lifeCycle_.state === ConnectorState.READY) {
-        this.lifeCycle_.setState(ConnectorState.RECONNECTING, err);
-        this.reconnect_();
-      }
+      this.off();
       return;
     }
   }
@@ -129,15 +119,6 @@ class TCPConnector extends Connector {
       this.socket_.destroy();
     }
     this.socket_ = null;
-  }
-
-  private async reconnect_() {
-    this.connected_ = false;
-    await this.connect(this.target_, true).then(() => {
-      this.lifeCycle_.setState(ConnectorState.READY);
-    }).catch((err: Error) => {
-      this.lifeCycle_.setState(ConnectorState.ERROR, err);
-    });
   }
 
   protected async send(request: IRawNetPacket) {
@@ -193,7 +174,6 @@ class TCPConnector extends Connector {
 
   private socket_: net.Socket | null;
   private connected_ = false;
-  private initiative_ = true;
   private reconnectJob_: Retry<void> | null;
 }
 

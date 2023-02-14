@@ -20,7 +20,7 @@ import {RPCError, RPCResponseError} from './RPCError';
 abstract class Connector {
   constructor(options: IConnectorOptions) {
     this.options_ = options;
-    this.lifeCycle_ = new LifeCycle(ConnectorState.INIT);
+    this.lifeCycle_ = new LifeCycle(ConnectorState.INIT, false);
     this.resWaiter_ = new Waiter();
     this.pongWaiter_ = new Waiter();
     this.executor_ = new Executor();
@@ -40,42 +40,37 @@ abstract class Connector {
 
   abstract isAvailable(): boolean;
 
-  public async destory() {
-    await this.off();
-    this.lifeCycle_.destory();
-  }
-
-  protected abstract connect(target: IListenerInfo): Promise<void>;
+  protected abstract connect(target: IListenerInfo): Promise<boolean>;
   public async start(target: IListenerInfo) {
     if (this.lifeCycle_.state > ConnectorState.INIT)
       return;
 
     this.target_ = target;
-    await this.connect(target).catch(this.onError.bind(this));
-    this.lifeCycle_.setState(ConnectorState.READY);
+    const success = await this.connect(target).catch(this.onError.bind(this));
+    if (success)
+      await this.lifeCycle_.setState(ConnectorState.READY);
   }
 
   protected abstract disconnect(): Promise<void>;
   public async off() {
-    if (this.lifeCycle_.state >= ConnectorState.STOPPING)
+    const invalidState = [ConnectorState.STOPPING, ConnectorState.STOPPED];
+    if (invalidState.includes(this.state))
       return;
 
-    this.lifeCycle_.setState(ConnectorState.STOPPING);
+    if (this.state < ConnectorState.STOPPING)
+      await this.lifeCycle_.setState(ConnectorState.STOPPING);
     await this.resWaiter_.waitForAll(10000);
     await this.executor_.stop();
     await this.disconnect().catch(this.onError.bind(this));
-    this.lifeCycle_.setState(ConnectorState.STOPPED);
+    if (this.state < ConnectorState.STOPPED)
+      await this.lifeCycle_.setState(ConnectorState.STOPPED);
+
+    this.lifeCycle_.destory();
   }
 
   private onError(err: Error) {
     this.lifeCycle_.setState(ConnectorState.ERROR, err);
     throw err;
-  }
-
-  public async restart() {
-    await this.off();
-    this.lifeCycle_.setState(ConnectorState.INIT);
-    await this.start(this.target_);
   }
 
   protected abstract send<RequestPayload>(request: IRawNetPacket<RequestPayload>): Promise<void>;
@@ -109,11 +104,11 @@ abstract class Connector {
   }
 
   protected async sendPing(id: number) {
-    await this.sendCommand(ConnectorCommand.ping, {id});
+    await this.sendCommand(ConnectorCommand.PING, {id});
   }
 
   protected async sendPong(id) {
-    await this.sendCommand(ConnectorCommand.pong, {id});
+    await this.sendCommand(ConnectorCommand.PONG, {id});
   }
 
   protected emitRPCResponse<ResponsePayload>(packet: IRawResPacket<ResponsePayload>) {
@@ -151,6 +146,9 @@ abstract class Connector {
       if (!this.options_.ping.enabled)
         return;
 
+      if (this.state !== ConnectorState.READY)
+        return;
+
       const {id, promise} = this.pongWaiter_.wait(this.options_.ping.timeout || NodeTime.second(5));
       await this.sendPing(id).catch(err => {
         this.pongWaiter_.emitError(id, err);
@@ -161,9 +159,16 @@ abstract class Connector {
         } else {
           Runtime.frameLogger.error('connector', err, {event: 'connector-ping-error', error: Logger.errorMessage(err)});
         }
-        this.restart();
+        this.onPingError(err);
       });
     }, this.options_.ping.interval || NodeTime.second(10));
+  }
+
+  protected async onPingError(err: ExError) {
+    if (this.state !== ConnectorState.READY)
+      return;
+
+    this.lifeCycle_.setState(ConnectorState.ERROR, new ExError('ERR_CONNECTOR_PING', err.name, err.message, err.level));
   }
 
   protected async disablePingPong() {
@@ -262,23 +267,20 @@ abstract class Connector {
   }
 
   protected async handleCommand(command: ConnectorCommand, args: any) {
-    const logBlackList = [ConnectorCommand.ping, ConnectorCommand.pong];
+    const logBlackList = [ConnectorCommand.PING, ConnectorCommand.PONG];
     if (!logBlackList.includes(command))
       Runtime.frameLogger.info('connector', {event: 'connector-command', command, args});
     switch(command) {
-      case ConnectorCommand.error:
+      case ConnectorCommand.ERROR:
         this.lifeCycle_.setState(ConnectorState.ERROR, new ExError(args.code, args.name, args.message, args.level));
         break;
-      case ConnectorCommand.off:
+      case ConnectorCommand.OFF:
         this.off();
         break;
-      case ConnectorCommand.restart:
-        this.restart();
-        break;
-      case ConnectorCommand.ping:
+      case ConnectorCommand.PING:
         this.sendPong(args.id);
         break;
-      case ConnectorCommand.pong:
+      case ConnectorCommand.PONG:
         if (this.pongWaiter_)
           this.pongWaiter_.emit(args.id);
         break;

@@ -3,6 +3,7 @@ import {FrameworkErrorCode} from '../ErrorCode';
 import {LifeCycleEvent} from '../Event';
 import {IEventEmitter} from '../interface/event';
 import {FrameworkError} from '../lib/FrameworkError';
+import {ExError} from './ExError';
 
 export type LifeCycleHandler = (...args: any) => Promise<void>;
 export type LifeCycleAllHandler<T> = (state: T, ...args: any) => Promise<void>;
@@ -12,22 +13,21 @@ export interface ILifeCycleEvent<T> {
   [LifeCycleEvent.StateChangeTo]: (state: T, ...args) => void;
 }
 
-class LifeCycle<T> {
-  // static stateChangeEvent(state: number) {
-  //   return `state-change:${state}`;
-  // }
-
-  constructor(state: T) {
+class LifeCycle<T extends number> {
+  constructor(state: T, backtrackable = false) {
     this.state_ = state;
+    this.backtrackable_ = backtrackable;
     this.emitter_ = new EventEmitter();
   }
 
   async setState(state: T, ...args: any[]) {
     const preState = this.state;
+    if (preState > state && !this.backtrackable_) {
+      throw new ExError('ERR_LIFE_CYCLE_CAN_NOT_BACKTACK', 'LifeCycleError', `ERR_LIFE_CYCLE_CAN_NOT_BACKTACK,pre=${preState},new=${state}`);
+    }
+    if (preState === state)
+      return;
     this.state_ = state;
-    this.emitter_.emit(LifeCycleEvent.StateChange, preState, state, ...args);
-    this.emitter_.emit(LifeCycleEvent.StateChangeTo, state, ...args);
-    // this.emitter_.emit(LifeCycle.stateChangeEvent(state as any), ...args);
     for (const handler of this.allHandlers_) {
       await handler(state, ...args);
     }
@@ -35,6 +35,8 @@ class LifeCycle<T> {
     for (const handler of handlers) {
       await handler(...args);
     }
+    this.emitter_.emit(LifeCycleEvent.StateChange, preState, state, ...args);
+    this.emitter_.emit(LifeCycleEvent.StateChangeTo, state, ...args);
   }
 
   addAllHandler(handler: LifeCycleAllHandler<T>) {
@@ -68,6 +70,7 @@ class LifeCycle<T> {
   private handlers_: Map<T, LifeCycleHandler[]> = new Map();
   private allHandlers_: Set<LifeCycleAllHandler<T>> = new Set();
   private emitter_: IEventEmitter<ILifeCycleEvent<T>>;
+  private backtrackable_: boolean;
 }
 
 export {LifeCycle}

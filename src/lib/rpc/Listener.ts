@@ -51,7 +51,7 @@ abstract class Listener {
         case ConnectorState.ERROR:
         case ConnectorState.STOPPED:
           if (this.connectors_.delete(connector.session)) {
-            connector.destory();
+            connector.off();
             this.connectionEmitter_.emit(ListenerEvent.LostConnect, session, connector);
           }
           break;

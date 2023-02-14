@@ -1,7 +1,7 @@
 import {ListenerState, ConnectorState, WorkerState} from '../../Enum';
 import {RPCErrorCode} from '../../ErrorCode';
 import {DiscoveryListenerEvent, DiscoveryServiceEvent, LifeCycleEvent} from '../../Event';
-import {IListenerMetaData} from '../../interface/discovery';
+import {IListenerMetaData, IServiceMetaData} from '../../interface/discovery';
 import {IListenerInfo} from '../../interface/rpc';
 import {LabelFilter} from '../../utility/LabelFilter';
 import {Ref} from '../../utility/Ref';
@@ -56,6 +56,8 @@ class Provider<T extends Route = any> {
     this.filter_ = filter;
     this.routeCallback_ = callback;
     this.ref_ = new Ref();
+    this.listenerMetaData_ = new Map();
+    this.serviceMataData_ = new Map();
 
     this.caller_ = {
       rpc: (fromId?: string | null, toId?: string | null) => {
@@ -174,10 +176,17 @@ class Provider<T extends Route = any> {
     await this.ref_.add(async () => {
       const endpoints = await Runtime.discovery.getEndpointList(this.name_);
       for (const info of endpoints) {
+        this.listenerMetaData_.set(info.id, info);
         this.createSender(info);
       }
 
+      const services = await Runtime.discovery.getServiceList(this.name_);
+      for (const info of services) {
+        this.serviceMataData_.set(info.id, info);
+      }
+
       Runtime.discovery.serviceEmitter.on(DiscoveryServiceEvent.ServiceStateUpdate, async (id, state, pre, meta) => {
+        this.serviceMataData_.set(id, meta);
         switch (state) {
           case WorkerState.BUSY:
             for (const sender of this.senderList_) {
@@ -195,21 +204,27 @@ class Provider<T extends Route = any> {
             break;
           case WorkerState.ERROR:
           case WorkerState.STOPPING:
-          case WorkerState.STOPPED:
+          case WorkerState.STOPPED: {
             for (const sender of this.senderList_) {
               if (sender.targetId === id) {
                 this.removeSender(sender.listenerId);
               }
             }
             break;
+          }
         }
+      });
+      Runtime.discovery.serviceEmitter.on(DiscoveryServiceEvent.ServiceDeleted, async (id) => {
+        this.serviceMataData_.delete(id);
       });
 
       Runtime.discovery.listenerEmitter.on(DiscoveryListenerEvent.ListenerCreated, async (info) => {
+        this.listenerMetaData_.set(info.id, info);
         if (info.service === this.name_ && this.filter_.isSatisfy(info.labels))
           this.createSender(info);
       });
       Runtime.discovery.listenerEmitter.on(DiscoveryListenerEvent.ListenerStateUpdate, async (id, state, pre, meta) => {
+        this.listenerMetaData_.set(id, meta);
         let sender = this.senders_.get(id);
         if (!sender && state === ListenerState.READY) {
           if (meta.service === this.name_ && this.filter_.isSatisfy(meta.labels))
@@ -234,6 +249,7 @@ class Provider<T extends Route = any> {
         }
       });
       Runtime.discovery.listenerEmitter.on(DiscoveryListenerEvent.ListenerDeleted, async (id) => {
+        this.listenerMetaData_.delete(id);
         this.removeSender(id);
       });
     });
@@ -271,6 +287,11 @@ class Provider<T extends Route = any> {
     });;
   }
 
+  private async reconnect(meta: IListenerMetaData) {
+    Runtime.frameLogger.info(this.logCategory, {event: 'reconnect-sender', name: this.name, id: meta.id});
+    this.createSender(meta);
+  }
+
   private async createSender(endpoint: IListenerMetaData) {
     if (this.senders_.has(endpoint.id)) {
       const existed = this.senders_.get(endpoint.id);
@@ -292,12 +313,21 @@ class Provider<T extends Route = any> {
     if (!sender)
       return;
 
+    const serviceMeta = this.serviceMataData_.get(endpoint.targetId);
+    if (serviceMeta && serviceMeta.state === WorkerState.BUSY)
+      sender.isBusy = true;
+
     sender.connector.stateEmitter.on(LifeCycleEvent.StateChangeTo, (state) => {
       Runtime.frameLogger.info(this.logCategory, {event: 'sender-state-change', id: sender.listenerId, state});
       switch(state) {
-        case ConnectorState.ERROR:
         case ConnectorState.STOPPED:
+        case ConnectorState.ERROR:
           this.removeSender(sender.listenerId);
+          const listenerMeta = this.listenerMetaData_.get(sender.listenerId);
+          if (listenerMeta && listenerMeta.state === ListenerState.READY) {
+            // 这个sender意外停止
+            this.reconnect(listenerMeta);
+          }
           break;
       }
     });
@@ -308,10 +338,11 @@ class Provider<T extends Route = any> {
     if (this.routeCallback_)
       await sender.connector.enableResponse(this.routeCallback_);
 
-    if (endpoint.state === ListenerState.READY)
+    if (endpoint.state === ListenerState.READY) {
       sender.connector.start(endpoint).catch(err => {
         Runtime.frameLogger.error(this.logCategory, err, { event: 'sender-started-failed', error: Logger.errorMessage(err), name: this.name_ });
       });
+    }
 
     return sender;
   }
@@ -334,6 +365,8 @@ class Provider<T extends Route = any> {
   private filter_: LabelFilter;
   private routeCallback_: ListenerCallback | undefined;
   private ref_: Ref;
+  private listenerMetaData_: Map<string /*endpoint id*/, IListenerMetaData>;
+  private serviceMataData_: Map<string /*service id*/, IServiceMetaData>;
 }
 
 export {Provider}

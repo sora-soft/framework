@@ -72,7 +72,8 @@ class TCPListener extends Listener {
           }
 
           this.usePort_ = this.usePort_ + Utility.randomInt(0, 5);
-          await Time.timeout(100);
+          const {promise} = Time.timeout(100);
+          await promise;
 
           this.server_.listen(this.usePort_, this.options_.host);
         } else {
@@ -103,7 +104,9 @@ class TCPListener extends Listener {
 
   protected async shutdown() {
     for (const [_, connector] of this.connectors_.entries()) {
-      await connector.sendCommand(ConnectorCommand.off, {reason: 'listener-shutdown'});
+      if (connector.isAvailable()) {
+        await connector.sendCommand(ConnectorCommand.OFF, {reason: 'listener-shutdown'});
+      }
     }
     // 要等所有 socket 由对方关闭
     await util.promisify(this.server_.close.bind(this.server_))();

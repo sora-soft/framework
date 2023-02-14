@@ -16,7 +16,7 @@ class Broadcaster<T extends Route> {
     let handler = this.connectors_.get(connector.session);
     if (!handler) {
       handler = {
-        connector: connector,
+        connector,
         methods: new Set()
       };
     }
