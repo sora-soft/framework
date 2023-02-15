@@ -72,8 +72,7 @@ class TCPListener extends Listener {
           }
 
           this.usePort_ = this.usePort_ + Utility.randomInt(0, 5);
-          const {promise} = Time.timeout(100);
-          await promise;
+          await Time.timeout(100);
 
           this.server_.listen(this.usePort_, this.options_.host);
         } else {

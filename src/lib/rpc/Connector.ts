@@ -49,6 +49,8 @@ abstract class Connector {
     const success = await this.connect(target).catch(this.onError.bind(this));
     if (success)
       await this.lifeCycle_.setState(ConnectorState.READY);
+    else
+      throw new FrameworkError(FrameworkErrorCode.ERR_CONNECTOR_CONNECT_FAILED, `ERR_CONNECTOR_CONNECT_FAILED`);
   }
 
   protected abstract disconnect(): Promise<void>;

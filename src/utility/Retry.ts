@@ -69,9 +69,7 @@ class Retry<T> {
       this.count_++;
       this.errorEmitter_.emit(RetryEvent.Error, err, this.currentInterval_);
       if (this.count_ < this.maxRetryTimes_ || !this.maxRetryTimes_) {
-        const {promise, timer} = Time.timeout(this.currentInterval_);
-        this.retryTimer_ = timer;
-        await promise;
+        await Time.timeout(this.currentInterval_);
         if (this.incrementInterval_) {
           this.currentInterval_ = Math.min(this.maxRetryIntervalMS_, this.currentInterval_ * 2);
         }
@@ -93,8 +91,6 @@ class Retry<T> {
 
   async cancel() {
     this.running_ = false;
-    if (this.retryTimer_)
-      clearTimeout(this.retryTimer_);
   }
 
   get errorEmitter() {
@@ -106,7 +102,6 @@ class Retry<T> {
   private intervalMS_: number;
   private maxRetryIntervalMS_: number;
   private currentInterval_: number;
-  private retryTimer_: NodeJS.Timeout;
 
   private count_: number;
   private errorEmitter_: IEventEmitter<IErrorEvent>;

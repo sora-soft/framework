@@ -52,7 +52,7 @@ class TCPConnector extends Connector {
       return false;
 
     const retry = new Retry(async () => {
-      return new Promise<void>((resolve, reject) => {
+      return new Promise<boolean>((resolve, reject) => {
         Runtime.frameLogger.info('connector.tcp', {event: 'start-connect', endpoint: listenInfo.endpoint});
         const [ip, portStr] = listenInfo.endpoint.split(':');
         const port = Utility.parseInt(portStr);
@@ -71,11 +71,11 @@ class TCPConnector extends Connector {
             this.socket_.on('close', this.onSocketError(this.socket_));
           }
           Runtime.frameLogger.success('connector.tcp', {event: 'connect-success', endpoint: listenInfo.endpoint});
-          resolve();
+          resolve(true);
         });
       });
     }, {
-      maxRetryTimes: 50,
+      maxRetryTimes: 0,
       incrementInterval: true,
       maxRetryIntervalMS: 5000,
       minIntervalMS: 500,
@@ -86,9 +86,9 @@ class TCPConnector extends Connector {
     });
 
     this.reconnectJob_ = retry;
-    await retry.doJob();
+    const success = await retry.doJob();
     this.reconnectJob_ = null;
-    return true;
+    return success;
   }
 
   private bindSocketEvent(socket: net.Socket) {
@@ -174,7 +174,7 @@ class TCPConnector extends Connector {
 
   private socket_: net.Socket | null;
   private connected_ = false;
-  private reconnectJob_: Retry<void> | null;
+  private reconnectJob_: Retry<boolean> | null;
 }
 
 export {TCPConnector}

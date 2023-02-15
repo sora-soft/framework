@@ -1,7 +1,7 @@
 import {ListenerState, ConnectorState, WorkerState} from '../../Enum';
 import {RPCErrorCode} from '../../ErrorCode';
 import {DiscoveryListenerEvent, DiscoveryServiceEvent, LifeCycleEvent} from '../../Event';
-import {IListenerMetaData, IServiceMetaData} from '../../interface/discovery';
+import {IListenerEventData, IListenerMetaData, IServiceMetaData} from '../../interface/discovery';
 import {IListenerInfo} from '../../interface/rpc';
 import {LabelFilter} from '../../utility/LabelFilter';
 import {Ref} from '../../utility/Ref';
@@ -161,9 +161,16 @@ class Provider<T extends Route = any> {
     }
   }
 
+  async ensureSender(info: IListenerMetaData, serviceName: string) {
+    const sender = this.senders_.get(info.id);
+    if (!sender && serviceName === this.name_ && this.filter_.isSatisfy(info.labels)) {
+        await this.createSender(info);
+    }
+  }
+
   async shutdown() {
     await this.ref_.minus(async () => {
-      await Promise.all([...this.senders_].map(async ([id, sender]) => {
+      await Promise.all([...this.senders_].map(async ([_, sender]) => {
         await sender.connector.off();
       }));
     }).catch((err: Error) => {
@@ -174,15 +181,20 @@ class Provider<T extends Route = any> {
 
   async startup() {
     await this.ref_.add(async () => {
-      const endpoints = await Runtime.discovery.getEndpointList(this.name_);
-      for (const info of endpoints) {
-        this.listenerMetaData_.set(info.id, info);
-        this.createSender(info);
-      }
-
       const services = await Runtime.discovery.getServiceList(this.name_);
       for (const info of services) {
         this.serviceMataData_.set(info.id, info);
+      }
+
+      const endpoints = await Runtime.discovery.getEndpointList(this.name_);
+      for (const info of endpoints) {
+        this.listenerMetaData_.set(info.id, info);
+        if (!info.targetId)
+          continue;
+        const service = this.serviceMataData_.get(info.targetId);
+        if (!service)
+          continue;
+        await this.ensureSender(info, service.name);
       }
 
       // TODO: 这里应该由一个统一中心负责监听，而不是每个provider各自监听
