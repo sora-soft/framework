@@ -9,13 +9,11 @@ import {Timer} from '../utility/Timer';
 import {Component} from './Component';
 import {Provider} from './rpc/Provider';
 import {Logger} from './logger/Logger';
-import {FrameworkError} from './FrameworkError';
-import {FrameworkErrorCode} from '../ErrorCode';
 
 abstract class Worker {
   constructor(name: string) {
     this.name_ = name;
-    this.lifeCycle_ = new LifeCycle(WorkerState.INIT);
+    this.lifeCycle_ = new LifeCycle(WorkerState.INIT, true);
     this.executor_ = new Executor();
     this.intervalJobTimer_ = new Timer();
     this.id_ = uuid();
