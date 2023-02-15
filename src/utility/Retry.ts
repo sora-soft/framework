@@ -69,7 +69,7 @@ class Retry<T> {
       this.count_++;
       this.errorEmitter_.emit(RetryEvent.Error, err, this.currentInterval_);
       if (this.count_ < this.maxRetryTimes_ || !this.maxRetryTimes_) {
-        const {promise, timer} = Time.timeout(Math.min(Math.pow(4, this.count_), this.currentInterval_));
+        const {promise, timer} = Time.timeout(this.currentInterval_);
         this.retryTimer_ = timer;
         await promise;
         if (this.incrementInterval_) {
