@@ -66,7 +66,7 @@ abstract class Service extends Worker {
       const labels = {
         ...this.metaData.labels,
         ...listener.labels,
-      }
+      };
 
       Runtime.discovery.registerEndpoint({
         ...listener.metaData,

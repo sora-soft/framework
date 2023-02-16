@@ -218,11 +218,7 @@ class Provider<T extends Route = any> {
           case WorkerState.ERROR:
           case WorkerState.STOPPING:
           case WorkerState.STOPPED: {
-            for (const sender of this.senderList_) {
-              if (sender.targetId === id) {
-                this.removeSender(sender.listenerId);
-              }
-            }
+            // 由listener触发删除Sender
             break;
           }
         }

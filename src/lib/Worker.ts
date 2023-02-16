@@ -22,15 +22,14 @@ abstract class Worker {
     this.providerPool_ = new Map();
 
     this.lifeCycle_.addHandler(WorkerState.STOPPED, async () => {
-      for (const component of this.componentPool_.keys()) {
-        await this.disconnectComponent(component).catch((err: Error) => {
-          Runtime.frameLogger.error(this.logCategory, err, {event: 'disconnect-component', error: Logger.errorMessage(err) });
-        });
-      }
-
       for (const provider of this.providerPool_.keys()) {
         await this.unregisterProvider(provider).catch((err: Error) => {
           Runtime.frameLogger.error(this.logCategory, err, {event: 'unregister-provider', error: Logger.errorMessage(err) });
+        });
+      }
+      for (const component of this.componentPool_.keys()) {
+        await this.disconnectComponent(component).catch((err: Error) => {
+          Runtime.frameLogger.error(this.logCategory, err, {event: 'disconnect-component', error: Logger.errorMessage(err) });
         });
       }
     })

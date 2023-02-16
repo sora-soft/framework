@@ -102,11 +102,6 @@ class TCPListener extends Listener {
   }
 
   protected async shutdown() {
-    for (const [_, connector] of this.connectors_.entries()) {
-      if (connector.isAvailable()) {
-        await connector.sendCommand(ConnectorCommand.OFF, {reason: 'listener-shutdown'});
-      }
-    }
     // 要等所有 socket 由对方关闭
     await util.promisify(this.server_.close.bind(this.server_))();
   }
