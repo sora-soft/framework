@@ -76,7 +76,7 @@ abstract class Connector {
   }
 
   protected abstract send<RequestPayload>(request: IRawNetPacket<RequestPayload>): Promise<void>;
-  protected abstract sendRaw(request: Object): Promise<void>;
+  abstract sendRaw(request: Object): Promise<void>;
 
   public async sendRpc<ResponsePayload>(request: Request, fromId?: string | null, timeout = 10 * 1000): Promise<IRawResPacket<ResponsePayload>> {
     const wait = this.resWaiter_.wait(timeout);

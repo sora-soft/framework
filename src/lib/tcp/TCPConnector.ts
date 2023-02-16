@@ -125,7 +125,7 @@ class TCPConnector extends Connector {
     return this.sendRaw(request);
   }
 
-  protected async sendRaw(request: Object) {
+  async sendRaw(request: Object) {
     const data = await TCPUtility.encodeMessage(request);
     if (!this.isAvailable())
       throw new RPCError(RPCErrorCode.ERR_RPC_TUNNEL_NOT_AVAILABLE, `ERR_RPC_TUNNEL_NOT_AVAILABLE, endpoint=${this.target_.endpoint}`);
