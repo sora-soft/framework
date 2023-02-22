@@ -7,6 +7,7 @@ import {LifeCycleEvent, ListenerEvent} from '../../Event';
 import {ILabels} from '../../interface/config';
 import {EventEmitter} from 'events';
 import {Connector} from './Connector';
+import {Context} from '../Context';
 
 export interface IListenerEvent {
   [ListenerEvent.NewConnect]: (session: string, connector: Connector, ...args: any[]) => void;
@@ -25,15 +26,19 @@ abstract class Listener {
     this.connectors_ = new Map();
   }
 
-  protected abstract listen(): Promise<IListenerInfo>;
-  public async startListen() {
-    await this.lifeCycle_.setState(ListenerState.PENDING);
-    this.info_ = await this.listen().catch(this.onError.bind(this)) as IListenerInfo;
-    await this.lifeCycle_.setState(ListenerState.READY);
+  protected abstract listen(context: Context): Promise<IListenerInfo>;
+  public async startListen(context?: Context) {
+    this.startContext_ = new Context(context);
+    await this.startContext_.await(this.lifeCycle_.setState(ListenerState.PENDING));
+    this.info_ = await this.listen(this.startContext_).catch(this.onError.bind(this)) as IListenerInfo;
+    await this.startContext_.await(this.lifeCycle_.setState(ListenerState.READY));
+    this.startContext_ = null;
   }
 
   protected abstract shutdown(): Promise<void>;
   public async stopListen() {
+    this.startContext_?.abort();
+    this.startContext_ = null;
     await this.lifeCycle_.setState(ListenerState.STOPPING);
     await this.shutdown();
     await this.lifeCycle_.setState(ListenerState.STOPPED);
@@ -109,6 +114,7 @@ abstract class Listener {
   private info_: IListenerInfo;
   private id_: string;
   private labels_: ILabels;
+  private startContext_: Context | null;
 }
 
 export {Listener}

@@ -4,7 +4,7 @@ class RPCSender {
   constructor(listenerId: string, targetId: string, connector: Connector) {
     this.listenerId_ = listenerId;
     this.targetId_ = targetId;
-    this.isBusy_ = true;
+    this.isBusy_ = false;
     this.connector_ = connector;
   }
 

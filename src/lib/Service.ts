@@ -2,6 +2,7 @@ import {ListenerState, WorkerState} from '../Enum';
 import {LifeCycleEvent} from '../Event';
 import {ILabels, IServiceOptions} from '../interface/config';
 import {IServiceMetaData, IServiceRunData} from '../interface/discovery';
+import {Context} from './Context';
 import {Logger} from './logger/Logger';
 import {Listener} from './rpc/Listener';
 import {Runtime} from './Runtime';
@@ -31,6 +32,7 @@ abstract class Service extends Worker {
   }
 
   async stop(reason: string) {
+    this.abortStartup();
     await this.lifeCycle_.setState(WorkerState.STOPPING);
     this.intervalJobTimer_.clearAll();
     for (const id of this.listenerPool_.keys()) {
@@ -43,7 +45,9 @@ abstract class Service extends Worker {
     await this.lifeCycle_.setState(WorkerState.STOPPED);
   }
 
-  public async installListener(listener: Listener) {
+  public async installListener(listener: Listener, ctx?: Context) {
+    if (!ctx)
+      ctx = new Context();
 
     Runtime.frameLogger.info(this.logCategory, { event: 'install-listener', name: this.name, id: this.id, meta: listener.metaData, version: listener.version });
 
@@ -53,13 +57,13 @@ abstract class Service extends Worker {
         ...listener.labels,
       }
 
-      await Runtime.discovery.registerEndpoint({
+      await ctx.await(Runtime.discovery.registerEndpoint({
         ...listener.metaData,
         id: listener.id,
         state: listener.state,
         targetId: this.id,
         labels,
-      });
+      }));
     }
 
     listener.stateEventEmitter.on(LifeCycleEvent.StateChange, async (pre, state, err: Error) => {

@@ -1,5 +1,6 @@
 import {FrameworkErrorCode} from '../ErrorCode';
 import {Ref} from '../utility/Ref';
+import {Context} from './Context';
 import {FrameworkError} from './FrameworkError';
 import {Logger} from './logger/Logger';
 import {Runtime} from './Runtime';
@@ -18,13 +19,14 @@ abstract class Component {
     this.setOptions(options);
   }
 
-  protected abstract connect(): Promise<void>;
-  async start() {
+  protected abstract connect(context: Context): Promise<void>;
+  async start(context?: Context) {
     if (!this.options_)
       throw new FrameworkError(FrameworkErrorCode.ERR_COMPONENT_OPTIONS_NOT_SET, `ERR_COMPONENT_OPTIONS_NOT_SET, name=${this.name_}`);
 
     await this.ref_.add(async () => {
-      await this.connect().catch(err => {
+      this.startContext_ = new Context(context);
+      await this.connect(this.startContext_).catch(err => {
         Runtime.frameLogger.error(`component.${this.name_}`, err, { event: 'connect-component', error: Logger.errorMessage(err) });
         throw err;
       });
@@ -36,6 +38,8 @@ abstract class Component {
   protected abstract disconnect(): Promise<void>;
   async stop() {
     await this.ref_.minus(async () => {
+      this.startContext_?.abort();
+      this.startContext_ = null;
       await this.disconnect().catch(err => {
         Runtime.frameLogger.error(`component.${this.name_}`, err, { event: 'disconnect-component', error: Logger.errorMessage(err) });
       }).then(() => {
@@ -73,8 +77,9 @@ abstract class Component {
 
   protected name_: string;
   protected options_: IComponentOptions;
-  protected ref_: Ref;
+  protected ref_: Ref<void>;
   private init_: boolean;
+  private startContext_: Context | null;
   // private ref_: number;
 }
 

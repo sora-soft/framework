@@ -3,9 +3,11 @@ import {RPCErrorCode} from '../../ErrorCode';
 import {DiscoveryListenerEvent, DiscoveryServiceEvent, LifeCycleEvent} from '../../Event';
 import {IListenerEventData, IListenerMetaData, IServiceMetaData} from '../../interface/discovery';
 import {IListenerInfo} from '../../interface/rpc';
+import {AbortError} from '../../utility/AbortError';
 import {LabelFilter} from '../../utility/LabelFilter';
 import {Ref} from '../../utility/Ref';
 import {Utility} from '../../utility/Utility';
+import {Context} from '../Context';
 import {Logger} from '../logger/Logger';
 import {Runtime} from '../Runtime';
 import {ListenerCallback} from './Listener';
@@ -161,15 +163,11 @@ class Provider<T extends Route = any> {
     }
   }
 
-  async ensureSender(info: IListenerMetaData, serviceName: string) {
-    const sender = this.senders_.get(info.id);
-    if (!sender && serviceName === this.name_ && this.filter_.isSatisfy(info.labels)) {
-        await this.createSender(info);
-    }
-  }
-
   async shutdown() {
     await this.ref_.minus(async () => {
+      this.startCtx_?.abort();
+      this.startCtx_ = null;
+
       await Promise.all([...this.senders_].map(async ([_, sender]) => {
         await sender.connector.off();
       }));
@@ -179,8 +177,10 @@ class Provider<T extends Route = any> {
     });
   }
 
-  async startup() {
+  async startup(ctx?: Context) {
     await this.ref_.add(async () => {
+      this.startCtx_ = new Context(ctx);
+
       const services = await Runtime.discovery.getServiceList(this.name_);
       for (const info of services) {
         this.serviceMataData_.set(info.id, info);
@@ -193,8 +193,11 @@ class Provider<T extends Route = any> {
           continue;
         const service = this.serviceMataData_.get(info.targetId);
         if (!service)
-          continue;
-        await this.ensureSender(info, service.name);
+          continue;;
+        const sender = this.senders_.get(info.id);
+        if (!sender && service.name === this.name_ && this.filter_.isSatisfy(info.labels)) {
+          this.createSender(info);
+        }
       }
 
       // TODO: 这里应该由一个统一中心负责监听，而不是每个provider各自监听
@@ -237,7 +240,7 @@ class Provider<T extends Route = any> {
         let sender = this.senders_.get(id);
         if (!sender && state === ListenerState.READY) {
           if (meta.service === this.name_ && this.filter_.isSatisfy(meta.labels))
-            sender = await this.createSender(meta);
+            sender = this.createSender(meta);
           return;
         }
 
@@ -247,6 +250,8 @@ class Provider<T extends Route = any> {
         switch (state) {
           case ListenerState.READY:
             await sender.connector.start(meta).catch(err => {
+              if (err instanceof AbortError)
+                return;
               Runtime.frameLogger.error(this.logCategory, err, { event: 'sender-started-failed', error: Logger.errorMessage(err), name: this.name_ });
             });
             break;
@@ -261,6 +266,8 @@ class Provider<T extends Route = any> {
         this.listenerMetaData_.delete(id);
         this.removeSender(id);
       });
+
+      this.startCtx_ = null;
     });
   }
 
@@ -301,7 +308,7 @@ class Provider<T extends Route = any> {
     this.createSender(meta);
   }
 
-  private async createSender(endpoint: IListenerMetaData) {
+  private createSender(endpoint: IListenerMetaData) {
     if (this.senders_.has(endpoint.id)) {
       const existed = this.senders_.get(endpoint.id);
       Runtime.frameLogger.debug(this.logCategory, {
@@ -345,10 +352,12 @@ class Provider<T extends Route = any> {
 
     this.senders_.set(endpoint.id, sender);
     if (this.routeCallback_)
-      await sender.connector.enableResponse(this.routeCallback_);
+      sender.connector.enableResponse(this.routeCallback_);
 
     if (endpoint.state === ListenerState.READY) {
       sender.connector.start(endpoint).catch(err => {
+        if (err instanceof AbortError)
+          return;
         Runtime.frameLogger.error(this.logCategory, err, { event: 'sender-started-failed', error: Logger.errorMessage(err), name: this.name_ });
       });
     }
@@ -373,9 +382,10 @@ class Provider<T extends Route = any> {
   };
   private filter_: LabelFilter;
   private routeCallback_: ListenerCallback | undefined;
-  private ref_: Ref;
+  private ref_: Ref<void>;
   private listenerMetaData_: Map<string /*endpoint id*/, IListenerMetaData>;
   private serviceMataData_: Map<string /*service id*/, IServiceMetaData>;
+  private startCtx_: Context | null;
 }
 
 export {Provider}

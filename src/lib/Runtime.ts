@@ -1,9 +1,11 @@
 import {WorkerState} from '../Enum';
-import {FrameworkErrorCode} from '../ErrorCode';
+import {AbortErrorCode, FrameworkErrorCode} from '../ErrorCode';
 import {DiscoveryEvent, LifeCycleEvent} from '../Event';
 import {IRuntimeOptions} from '../interface/config';
+import {AbortError} from '../utility/AbortError';
 import {Time} from '../utility/Time';
 import {Component} from './Component';
+import {Context} from './Context';
 import {Discovery} from './discovery/Discovery';
 import {FrameworkError} from './FrameworkError';
 import {FrameworkLogger} from './FrameworkLogger';
@@ -13,6 +15,7 @@ import {RPCLogger} from './rpc/RPCLogger';
 import {Service} from './Service';
 import {Worker} from './Worker';
 
+// tslint:disable-next-line: no-var-requires
 const pkg = require('../../package.json');
 
 class Runtime {
@@ -34,12 +37,17 @@ class Runtime {
     this.frameLogger.success('runtime', {event: 'load-config', config: options});
   }
 
-  static async startup(node: Node, discovery: Discovery) {
+  static async startup(node: Node, discovery: Discovery, ctx?: Context) {
+    const context = this.startCtx_ = new Context(ctx);
     process.on('uncaughtException', (err) => {
+      if (err instanceof AbortError)
+        return;
       this.frameLogger_.error('runtime', err, {event: 'uncaught-exception', error: Logger.errorMessage(err), stack: err.stack});
     });
 
     process.on('unhandledRejection', (err: Error) => {
+      if (err instanceof AbortError)
+        return;
       this.frameLogger_.error('runtime', err, {event: 'uncaught-rejection', error: Logger.errorMessage(err), stack: err.stack});
     });
 
@@ -56,17 +64,23 @@ class Runtime {
     });
 
     this.discovery_ = discovery;
-    await this.discovery_.connect().catch(err => {
+    await this.discovery_.connect(context).catch(err => {
+      if (err instanceof AbortError)
+        throw err;
       this.frameLogger_.fatal('runtime', err, { event: 'connect-discovery', error: Logger.errorMessage(err)});
       process.exit(1);
     });
     this.node_ = node;
-    await this.installService(node).catch(err => {
+    await this.installService(node, context).catch(err => {
+      if (err instanceof AbortError)
+        throw err;
       this.frameLogger_.fatal('runtime', err, { event: 'install-node', error: Logger.errorMessage(err)});
       process.exit(1);
     });
 
-    await this.discovery_.registerNode(this.node_.nodeStateData).catch(err => {
+    await context.await(this.discovery_.registerNode(this.node_.nodeStateData)).catch(err => {
+      if (err instanceof AbortError)
+        throw err;
       this.frameLogger_.fatal('runtime', err, { event: 'register-node', error: Logger.errorMessage(err)});
       process.exit(1);
     });
@@ -89,14 +103,16 @@ class Runtime {
     });
 
     this.frameLogger_.success('framework', { event: 'start-runtime-success', discovery: discovery.info, node: node.metaData });
+    this.startCtx_ = null;
   }
 
   static async shutdown() {
     if (this.shutdownPromise_) {
-      await this.shutdownPromise_;
-      return;
+      return this.shutdownPromise_;
     }
 
+    this.startCtx_?.abort();
+    this.startCtx_ = null;
     this.shutdownPromise_ = new Promise(async (resolve) => {
       const promises: Promise<unknown>[] = [];
       for (const [id, service] of [...this.services_]) {
@@ -135,10 +151,10 @@ class Runtime {
       resolve();
     });
 
-    await this.shutdownPromise_;
+    return this.shutdownPromise_;
   }
 
-  static async installService(service: Service) {
+  static async installService(service: Service, context?: Context) {
     if (this.services_.has(service.id))
       return;
     this.services_.set(service.id, service);
@@ -150,31 +166,36 @@ class Runtime {
     });
 
     await this.discovery_.registerService(service.metaData);
+    if (context?.signal.aborted)
+      throw new AbortError(AbortErrorCode.ERR_ABORT);
 
-    await service.start().catch(err => {
+    await service.start(context).catch(err => {
+      console.log(err);
+      console.trace();
+      if (err instanceof AbortError)
+        throw err;
       this.frameLogger_.error('runtime', err, {event: 'install-service-start', error: Logger.errorMessage(err), name: service.name, id: service.id});
       throw err;
     });
 
-    if (service.state === WorkerState.READY)
-      this.frameLogger.success('runtime', {event: 'service-started', name: service.name, id: service.id});
+    this.frameLogger.success('runtime', {event: 'service-started', name: service.name, id: service.id});
   }
 
-  static async installWorker(worker: Worker) {
+  static async installWorker(worker: Worker, context?: Context) {
     if (this.workers_.has(worker.id))
       return;
 
     this.frameLogger.info('runtime', {event: 'worker-starting', name: worker.name, id: worker.id });
 
     this.workers_.set(worker.id, worker);
-    await worker.start().catch(err => {
+    await worker.start(context).catch(err => {
+      if (err instanceof AbortError)
+        throw err;
       this.frameLogger_.error('runtime', err, {event: 'install-worker-start', error: Logger.errorMessage(err), name: worker.name, id: worker.id});
       throw err;
     });;
 
-    if (worker.state === WorkerState.READY)
-      this.frameLogger.success('runtime', {event: 'worker-started', name: worker.name, id: worker.id});
-
+    this.frameLogger.success('runtime', {event: 'worker-started', name: worker.name, id: worker.id});
   }
 
   static async uninstallWorker(id: string, reason: string) {
@@ -251,6 +272,7 @@ class Runtime {
   private static workers_: Map<string, Worker> = new Map();
   private static components_: Map<string, Component> = new Map();
   private static shutdownPromise_: Promise<void>;
+  private static startCtx_: Context | null;
 }
 
 export {Runtime}

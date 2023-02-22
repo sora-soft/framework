@@ -9,6 +9,7 @@ import {Timer} from '../utility/Timer';
 import {Component} from './Component';
 import {Provider} from './rpc/Provider';
 import {Logger} from './logger/Logger';
+import {Context} from './Context';
 
 abstract class Worker {
   constructor(name: string) {
@@ -36,16 +37,19 @@ abstract class Worker {
   }
 
   // 连接component等准备工作
-  protected abstract startup(): Promise<void>;
-  async start() {
-    await this.lifeCycle_.setState(WorkerState.PENDING);
+  protected abstract startup(context: Context): Promise<void>;
+  async start(context?: Context) {
+    context = this.startupContext_ = new Context(context);
+    await context.await(this.lifeCycle_.setState(WorkerState.PENDING));
     this.executor_.start();
-    await this.startup().catch(this.onError.bind(this));
-    await this.lifeCycle_.setState(WorkerState.READY);
+    await context.await(this.startup(context).catch(this.onError.bind(this)));
+    await context.await(this.lifeCycle_.setState(WorkerState.READY));
+    this.startupContext_ = null;
   }
 
   protected abstract shutdown(reason: string): Promise<void>;
   async stop(reason: string) {
+    this.abortStartup();
     await this.lifeCycle_.setState(WorkerState.STOPPING);
     this.intervalJobTimer_.clearAll();
     await this.executor_.stop();
@@ -57,6 +61,11 @@ abstract class Worker {
 
   protected async doJob<T>(executor: JobExecutor<T>) {
     return this.executor_.doJob<T>(executor);
+  }
+
+  protected abortStartup() {
+    this.startupContext_?.abort();
+    this.startupContext_ = null;
   }
 
   protected async doJobInterval(executor: JobExecutor, timeMS: number) {
@@ -79,18 +88,18 @@ abstract class Worker {
     }
   }
 
-  public async registerProviders(providers: Provider[]) {
+  public async registerProviders(providers: Provider[], ctx?: Context) {
     for (const provider of providers) {
-      await this.registerProvider(provider);
+      await this.registerProvider(provider, ctx);
     }
   }
 
-  public async registerProvider(provider: Provider) {
+  public async registerProvider(provider: Provider, ctx?: Context) {
     Runtime.frameLogger.info(this.logCategory, { event: 'register-provider', id: this.id, name: this.name, provider: provider.name });
 
     this.providerPool_.set(provider.name, provider);
 
-    await provider.startup();
+    await provider.startup(ctx);
 
     Runtime.frameLogger.info(this.logCategory, { event: 'provider-started', id: this.id, name: this.name, provider: provider.name });
   }
@@ -107,18 +116,18 @@ abstract class Worker {
     Runtime.frameLogger.info(this.logCategory, { event: 'provider-unregistered', id: this.id, name: this.name, provider: name });
   }
 
-  public async connectComponents(components: Component[]) {
+  public async connectComponents(components: Component[], ctx?: Context) {
     for (const component of components) {
-      await this.connectComponent(component);
+      await this.connectComponent(component, ctx);
     }
   }
 
-  public async connectComponent(component: Component) {
+  public async connectComponent(component: Component, ctx?: Context) {
     Runtime.frameLogger.info(this.logCategory, { event: 'connect-component', id: this.id, name: this.name, component: component.name, version: component.version });
 
     this.componentPool_.set(component.name, component);
 
-    await component.start();
+    await component.start(ctx);
 
     Runtime.frameLogger.info(this.logCategory, { event: 'component-connected', id: this.id, name: this.name, component: component.name, version: component.version });
   }
@@ -205,6 +214,7 @@ abstract class Worker {
   private id_: string;
   private componentPool_: Map<string/*name*/, Component>;
   private providerPool_: Map<string/*name*/, Provider>;
+  private startupContext_: Context | null;
 }
 
 export {Worker}

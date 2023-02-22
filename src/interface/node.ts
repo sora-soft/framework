@@ -1,4 +1,3 @@
-import {Component, IComponentOptions} from '../lib/Component';
 import {Service} from '../lib/Service';
 import {Worker} from '../lib/Worker';
 import {IServiceOptions, IWorkerOptions} from './config';

@@ -1,6 +1,7 @@
 import {RPCHeader} from '../../Const';
 import {FrameworkErrorCode} from '../../ErrorCode';
 import {IServiceOptions, IWorkerOptions} from '../../interface/config';
+import {Context} from '../Context';
 import {FrameworkError} from '../FrameworkError';
 import {Node} from '../Node';
 import {Request} from '../rpc/Request';
@@ -36,7 +37,7 @@ class NodeHandler extends Route {
     const service = Node.serviceFactory(body.name, body.options);
     if (!service)
       throw new FrameworkError(FrameworkErrorCode.ERR_SERVICE_NOT_FOUND, `ERR_SERVICE_NOT_FOUND, name=${body.name}`);
-    await Runtime.installService(service);
+    await Runtime.installService(service, new Context());
     return {id: service.id};
   }
 

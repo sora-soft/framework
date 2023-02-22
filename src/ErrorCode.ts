@@ -39,3 +39,7 @@ export enum RetryErrorCode {
 export enum TCPErrorCode {
   ERR_NO_AVAILABLE_PORT = 'ERR_NO_AVAILABLE_PORT',
 }
+
+export enum AbortErrorCode {
+  ERR_ABORT = 'ERR_ABORT',
+}

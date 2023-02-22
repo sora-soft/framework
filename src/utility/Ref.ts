@@ -1,33 +1,34 @@
-export type RefCallback = () => Promise<void>;
+import {ErrorLevel} from '../Enum';
+import {ExError} from './ExError';
 
-class Ref {
+export type RefCallback<T> = () => Promise<T>;
+
+class Ref<T = unknown> {
   constructor() {
     this.count_ = 0;
   }
 
-  async add(callback: RefCallback) {
+  async add(callback: RefCallback<T>): Promise<T> {
     this.count_ ++;
     if (this.count_ > 1) {
-      await this.startPromise_;
-      return;
+      return this.startPromise_;
     }
 
     this.startPromise_ = callback();
-    await this.startPromise_;
+    return this.startPromise_;
   }
 
-  async minus(callback: RefCallback) {
+  async minus(callback: RefCallback<T>) {
     this.count_ --;
     if (this.count_ < 0)
-      throw new Error('ERR_REF_NEGATIVE');
+      throw new ExError('ERR_REF_NEGATIVE', 'RefError', 'ERR_REF_NEGATIVE', ErrorLevel.UNEXPECTED);
 
     if (this.count_ > 0) {
-      await this.stopPromise_;
-      return;
+      return this.stopPromise_;
     }
 
     this.stopPromise_ = callback();
-    await this.stopPromise_;
+    return this.stopPromise_;
   }
 
   get count() {
@@ -35,8 +36,8 @@ class Ref {
   }
 
   private count_: number;
-  private startPromise_: Promise<void>;
-  private stopPromise_: Promise<void>;
+  private startPromise_: Promise<T>;
+  private stopPromise_: Promise<T>;
 }
 
 export {Ref}

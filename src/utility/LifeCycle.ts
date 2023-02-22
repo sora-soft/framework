@@ -2,11 +2,12 @@ import EventEmitter = require('events');
 import {FrameworkErrorCode} from '../ErrorCode';
 import {LifeCycleEvent} from '../Event';
 import {IEventEmitter} from '../interface/event';
+import {Context} from '../lib/Context';
 import {FrameworkError} from '../lib/FrameworkError';
 import {ExError} from './ExError';
 
-export type LifeCycleHandler = (...args: any) => Promise<void>;
-export type LifeCycleAllHandler<T> = (state: T, ...args: any) => Promise<void>;
+export type LifeCycleHandler = (context: Context, ...args: any) => Promise<void>;
+export type LifeCycleAllHandler<T> = (context: Context, state: T, ...args: any) => Promise<void>;
 
 export interface ILifeCycleEvent<T> {
   [LifeCycleEvent.StateChange]: (preState: T, state: T, ...args) => void;
@@ -14,29 +15,34 @@ export interface ILifeCycleEvent<T> {
 }
 
 class LifeCycle<T extends number> {
-  constructor(state: T, backtrackable = false) {
+  constructor(state: T, backtrackable = true) {
     this.state_ = state;
     this.backtrackable_ = backtrackable;
     this.emitter_ = new EventEmitter();
   }
 
   async setState(state: T, ...args: any[]) {
-    const preState = this.state;
-    if (preState > state && !this.backtrackable_) {
-      throw new ExError('ERR_LIFE_CYCLE_CAN_NOT_BACKTACK', 'LifeCycleError', `ERR_LIFE_CYCLE_CAN_NOT_BACKTACK,pre=${preState},new=${state}`);
-    }
-    if (preState === state)
-      return;
-    this.state_ = state;
-    for (const handler of this.allHandlers_) {
-      await handler(state, ...args);
-    }
-    const handlers = this.handlers_.get(state) || [];
-    for (const handler of handlers) {
-      await handler(...args);
-    }
-    this.emitter_.emit(LifeCycleEvent.StateChange, preState, state, ...args);
-    this.emitter_.emit(LifeCycleEvent.StateChangeTo, state, ...args);
+    this.context_?.abort();
+
+    this.context_ = new Context();
+    return this.context_.run(async (context) => {
+      const preState = this.state;
+      if (preState > state && !this.backtrackable_) {
+        throw new ExError('ERR_LIFE_CYCLE_CAN_NOT_BACKTACK', 'LifeCycleError', `ERR_LIFE_CYCLE_CAN_NOT_BACKTACK,pre=${preState},new=${state}`);
+      }
+      if (preState === state)
+        return;
+      this.state_ = state;
+      for (const handler of this.allHandlers_) {
+        await context.await(handler(context, state, ...args));
+      }
+      const handlers = this.handlers_.get(state) || [];
+      for (const handler of handlers) {
+        await context.await(handler(context, ...args));
+      }
+      this.emitter_.emit(LifeCycleEvent.StateChange, preState, state, ...args);
+      this.emitter_.emit(LifeCycleEvent.StateChangeTo, state, ...args);
+    })
   }
 
   addAllHandler(handler: LifeCycleAllHandler<T>) {
@@ -71,6 +77,7 @@ class LifeCycle<T extends number> {
   private allHandlers_: Set<LifeCycleAllHandler<T>> = new Set();
   private emitter_: IEventEmitter<ILifeCycleEvent<T>>;
   private backtrackable_: boolean;
+  private context_: Context | null;
 }
 
 export {LifeCycle}

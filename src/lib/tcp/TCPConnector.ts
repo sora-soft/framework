@@ -14,6 +14,8 @@ import {Logger} from '../logger/Logger';
 import {RetryEvent} from '../../Event';
 import {RPCSender} from '../rpc/RPCSender';
 import {is} from 'typescript-is';
+import {Context} from '../Context';
+import {AbortError} from '../../utility/AbortError';
 
 class TCPConnector extends Connector {
   static register() {
@@ -37,26 +39,29 @@ class TCPConnector extends Connector {
         endpoint: `${socket.remoteAddress}:${socket.remotePort}`,
         labels: {},
       };
-      this.connected_ = true;
       this.socket_.on('error', this.onSocketError(socket).bind(this));
       this.socket_.on('close', this.onSocketError(this.socket_));
     }
   }
 
   isAvailable() {
-    return !!(this.socket_ && !this.socket_.destroyed && this.connected_);
+    return !!(this.socket_ && !this.socket_.destroyed);
   }
 
-  protected async connect(listenInfo: IListenerInfo) {
+  protected async connect(listenInfo: IListenerInfo, context: Context) {
     if (this.socket_ && !this.socket_.destroyed)
-      return false;
+      return;
 
-    const retry = new Retry(async () => {
+    const retry = new Retry(async (ctx) => {
       return new Promise<boolean>((resolve, reject) => {
         Runtime.frameLogger.info('connector.tcp', {event: 'start-connect', endpoint: listenInfo.endpoint});
+        ctx.signal.addEventListener('abort', () => {
+          reject(new AbortError());
+        }, {once: true});
+
         const [ip, portStr] = listenInfo.endpoint.split(':');
         const port = Utility.parseInt(portStr);
-        this.socket_ = new net.Socket();
+        const socket = this.socket_ = new net.Socket();
         const handlerError = (err: Error) => {
           reject(err)
         }
@@ -64,8 +69,7 @@ class TCPConnector extends Connector {
         this.bindSocketEvent(this.socket_);
 
         this.socket_.connect(port, ip, () => {
-          this.connected_ = true;
-          if (this.socket_) {
+          if (this.socket_ === socket) {
             this.socket_.removeListener('error', handlerError);
             this.socket_.on('error', this.onSocketError(this.socket_));
             this.socket_.on('close', this.onSocketError(this.socket_));
@@ -85,10 +89,7 @@ class TCPConnector extends Connector {
       Runtime.frameLogger.error('connector.tcp', err, {event: 'connector-on-error', error: Logger.errorMessage(err), nextRetry});
     });
 
-    this.reconnectJob_ = retry;
-    const success = await retry.doJob();
-    this.reconnectJob_ = null;
-    return success;
+    await retry.doJob(context);
   }
 
   private bindSocketEvent(socket: net.Socket) {
@@ -111,9 +112,6 @@ class TCPConnector extends Connector {
   }
 
   protected async disconnect() {
-    if (this.reconnectJob_) {
-      this.reconnectJob_.cancel();
-    }
     if (this.socket_) {
       this.socket_.removeAllListeners();
       this.socket_.destroy();
@@ -121,7 +119,7 @@ class TCPConnector extends Connector {
     this.socket_ = null;
   }
 
-  protected async send(request: IRawNetPacket) {
+  async send(request: IRawNetPacket) {
     return this.sendRaw(request);
   }
 
@@ -173,8 +171,6 @@ class TCPConnector extends Connector {
   }
 
   private socket_: net.Socket | null;
-  private connected_ = false;
-  private reconnectJob_: Retry<boolean> | null;
 }
 
 export {TCPConnector}

@@ -41,7 +41,9 @@ export * from './lib/Node';
 export * from './lib/Runtime';
 export * from './lib/Service';
 export * from './lib/Worker';
+export * from './lib/Context';
 
+export * from './utility/AbortError';
 export * from './utility/ExError';
 export * from './utility/Executor';
 export * from './utility/LabelFilter';

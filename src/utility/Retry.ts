@@ -2,6 +2,8 @@ import EventEmitter = require('events');
 import {RetryErrorCode} from '../ErrorCode';
 import {RetryEvent} from '../Event';
 import {IEventEmitter} from '../interface/event';
+import {Context} from '../lib/Context';
+import {AbortError} from './AbortError';
 import {ExError} from './ExError';
 import {Time} from './Time';
 
@@ -13,7 +15,7 @@ export class RetryError extends ExError {
 }
 
 export type retryFunc<T> = (err: Error) => Promise<T>;
-export type retryExecutor<T> = () => Promise<T>;
+export type retryExecutor<T> = (context: Context) => Promise<T>;
 interface IErrorEvent {
   [RetryEvent.Error]: (err: Error, nextRetry: number) => void;
   [RetryEvent.MaxRetryTime]: () => void;
@@ -58,25 +60,29 @@ class Retry<T> {
     this.executor_ = executor;
   }
 
-  async doJob(): Promise<T> {
-    this.running_ = true;
+  async doJob(ctx?: Context): Promise<T> {
+    const context = new Context(ctx);
     this.count_ = 0;
 
     const retry = async (err: Error) => {
-      if (!this.running_)
-        return;
+      if (err instanceof AbortError)
+        throw err;
 
       this.count_++;
       this.errorEmitter_.emit(RetryEvent.Error, err, this.currentInterval_);
       if (this.count_ < this.maxRetryTimes_ || !this.maxRetryTimes_) {
-        await Time.timeout(this.currentInterval_);
+        await context.await(Time.timeout(this.currentInterval_, context.signal));
         if (this.incrementInterval_) {
           this.currentInterval_ = Math.min(this.maxRetryIntervalMS_, this.currentInterval_ * 2);
         }
-        if (!this.running_)
-          return;
-        return this.executor_().catch((err) => {
-          return retry(err);
+        if (context.signal.aborted)
+          throw new AbortError();
+
+        return context.await(this.executor_(context)).catch((e: Error) => {
+          if (e instanceof AbortError) {
+            throw e;
+          }
+          return retry(e);
         });
       } else {
         this.errorEmitter_.emit(RetryEvent.MaxRetryTime);
@@ -84,13 +90,9 @@ class Retry<T> {
       }
     }
 
-    return this.executor_().catch((err) => {
+    return this.executor_(context).catch((err) => {
       return retry(err);
     });
-  }
-
-  async cancel() {
-    this.running_ = false;
   }
 
   get errorEmitter() {
@@ -106,7 +108,6 @@ class Retry<T> {
   private count_: number;
   private errorEmitter_: IEventEmitter<IErrorEvent>;
   private executor_: retryExecutor<T>;
-  private running_ = false;
 }
 
 export {Retry}

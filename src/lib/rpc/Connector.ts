@@ -3,12 +3,14 @@ import {RPCHeader} from '../../Const';
 import {OPCode, ConnectorCommand, ConnectorState, ErrorLevel} from '../../Enum';
 import {FrameworkErrorCode, RPCErrorCode} from '../../ErrorCode';
 import {IConnectorOptions, IConnectorPingOptions as IConnectorPingOptions, IListenerInfo, IRawNetPacket, IRawOperationPacket, IRawReqPacket, IRawResPacket} from '../../interface/rpc';
+import {AbortError} from '../../utility/AbortError';
 import {Executor} from '../../utility/Executor';
 import {ExError} from '../../utility/ExError';
 import {LifeCycle} from '../../utility/LifeCycle'
 import {TimeoutError} from '../../utility/TimeoutError';
 import {NodeTime} from '../../utility/Utility';
 import {Waiter} from '../../utility/Waiter';
+import {Context} from '../Context';
 import {FrameworkError} from '../FrameworkError';
 import {Logger} from '../logger/Logger';
 import {Runtime} from '../Runtime';
@@ -25,7 +27,7 @@ abstract class Connector {
     this.pongWaiter_ = new Waiter();
     this.executor_ = new Executor();
 
-    this.lifeCycle_.addAllHandler(async (state) => {
+    this.lifeCycle_.addAllHandler(async (context, state) => {
       switch(state) {
         case ConnectorState.READY:
           this.executor_.start();
@@ -40,17 +42,16 @@ abstract class Connector {
 
   abstract isAvailable(): boolean;
 
-  protected abstract connect(target: IListenerInfo): Promise<boolean>;
-  public async start(target: IListenerInfo) {
+  protected abstract connect(target: IListenerInfo, context: Context): Promise<void>;
+  public async start(target: IListenerInfo, context?: Context) {
+    this.startContext_ = new Context(context);
     if (this.lifeCycle_.state > ConnectorState.INIT)
       return;
 
     this.target_ = target;
-    const success = await this.connect(target).catch(this.onError.bind(this));
-    if (success)
-      await this.lifeCycle_.setState(ConnectorState.READY);
-    else
-      throw new FrameworkError(FrameworkErrorCode.ERR_CONNECTOR_CONNECT_FAILED, `ERR_CONNECTOR_CONNECT_FAILED`);
+    await this.connect(target, this.startContext_).catch(this.onError.bind(this));
+    await this.startContext_.await(this.lifeCycle_.setState(ConnectorState.READY));
+    this.startContext_ = null;
   }
 
   protected abstract disconnect(): Promise<void>;
@@ -58,6 +59,9 @@ abstract class Connector {
     const invalidState = [ConnectorState.STOPPING, ConnectorState.STOPPED];
     if (invalidState.includes(this.state))
       return;
+
+    this.startContext_?.abort();
+    this.startContext_ = null;
 
     if (this.state < ConnectorState.STOPPING)
       await this.lifeCycle_.setState(ConnectorState.STOPPING);
@@ -71,11 +75,12 @@ abstract class Connector {
   }
 
   private onError(err: Error) {
-    this.lifeCycle_.setState(ConnectorState.ERROR, err);
+    if (!(err instanceof AbortError))
+      this.lifeCycle_.setState(ConnectorState.ERROR, err);
     throw err;
   }
 
-  protected abstract send<RequestPayload>(request: IRawNetPacket<RequestPayload>): Promise<void>;
+  abstract send<RequestPayload>(request: IRawNetPacket<RequestPayload>): Promise<void>;
   abstract sendRaw(request: Object): Promise<void>;
 
   public async sendRpc<ResponsePayload>(request: Request, fromId?: string | null, timeout = 10 * 1000): Promise<IRawResPacket<ResponsePayload>> {
@@ -316,6 +321,7 @@ abstract class Connector {
   private pongWaiter_: Waiter<void>;
   private pingInterval_: NodeJS.Timer | null;
   private options_: IConnectorOptions;
+  private startContext_: Context | null;
 }
 
 export {Connector}

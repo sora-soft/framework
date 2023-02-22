@@ -10,6 +10,7 @@ import {Broadcaster} from './rpc/Broadcaster';
 import {INodeNotifyHandler} from './handler/NodeNotifyHandler';
 import {Runtime} from './Runtime';
 import {INodeRunData, ServiceBuilder, WorkerBuilder} from '../interface/node';
+import {Context} from './Context';
 
 class Node extends Service {
   static registerWorker(name: string, builder: WorkerBuilder) {
@@ -43,11 +44,11 @@ class Node extends Service {
     this.broadcaster_ = new Broadcaster();
   }
 
-  async startup() {
+  async startup(context: Context) {
     const route = new NodeHandler(this);
     this.TCPListener_ = new TCPListener(this.nodeOptions_.api, Route.callback(route), {});
 
-    await this.installListener(this.TCPListener_);
+    await this.installListener(this.TCPListener_, context);
 
     this.doJobInterval(async () => {
       this.broadcaster_.notify(this.id).notifyNodeState(this.nodeRunData);

@@ -3,6 +3,7 @@ import {DiscoveryEvent, DiscoveryListenerEvent, DiscoveryNodeEvent, DiscoverySer
 import {IEventEmitter} from '../../interface/event';
 import {IListenerEventData, IListenerMetaData, INodeMetaData, IServiceMetaData} from '../../interface/discovery';
 import {ListenerState, WorkerState} from '../../Enum';
+import {Context} from '../Context';
 
 export interface IServiceEvent {
   [DiscoveryServiceEvent.ServiceCreated]: (info: IServiceMetaData) => void;
@@ -58,14 +59,18 @@ abstract class Discovery {
   abstract unregisterEndPoint(id: string): Promise<void>;
   abstract unregisterNode(id: string): Promise<void>;
 
-  protected abstract startup(): Promise<void>;
+  protected abstract startup(context: Context): Promise<void>;
   protected abstract shutdown(): Promise<void>;
 
-  async connect() {
-    await this.startup();
+  async connect(context: Context) {
+    this.startupContext_ = new Context(context);
+    await this.startup(this.startupContext_);
+    this.startupContext_ = null;
   }
 
   async disconnect() {
+    this.startupContext_?.abort();
+    this.startupContext_ = null;
     await this.shutdown();
   }
 
@@ -93,6 +98,7 @@ abstract class Discovery {
   protected listenerEmitter_: IEventEmitter<IDiscoveryListenerEvent>;
   protected nodeEmitter_: IEventEmitter<INodeEvent>;
   protected discoveryEmitter_: IEventEmitter<IDiscoveryEvent>;
+  private startupContext_: Context | null;
 }
 
 export {Discovery}
