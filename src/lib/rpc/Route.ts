@@ -82,7 +82,7 @@ class Route {
           try {
             const rpcId = request.getHeader<number>(RPCHeader.RPC_ID_HEADER);
             request.setHeader(RPCHeader.RPC_SESSION_HEADER, session);
-            Runtime.rpcLogger.debug('route', { method: request.method, request: request.payload });
+            Runtime.rpcLogger.debug('route', { event: 'receive-rpc-request', method: request.method });
 
             response.setHeader(RPCHeader.RPC_ID_HEADER, rpcId);
 
@@ -104,7 +104,7 @@ class Route {
               } as IResPayloadPacket<null>;
             });
             response.payload = result;
-            Runtime.rpcLogger.debug('route', { method: request.method, request: request.payload, response: response.payload, duration: Date.now() - startTime });
+            Runtime.rpcLogger.debug('route', { event: 'response-rpc-request', method: request.method, duration: Date.now() - startTime });
 
             // hooked Method 自行通过connector返回
             if (route.isHookedMethod(request.method)) {
@@ -121,14 +121,16 @@ class Route {
           // notify 不需要回复
           const notify = new Notify(packet);
           notify.setHeader(RPCHeader.RPC_SESSION_HEADER, session);
-          Runtime.rpcLogger.debug('route', { method: notify.method, notify: notify.payload });
+          Runtime.rpcLogger.debug('route', { event: 'receive-notify', method: notify.method });
           if (!route.hasNotify(notify.method))
             throw new RPCError(RPCErrorCode.ERR_RPC_METHOD_NOT_FOUND, `ERR_RPC_METHOD_NOT_FOUND, method=${notify.method}`);
 
-            await route.callNotify(notify.method, notify, connector).catch(err => {
-            Runtime.frameLogger.error('route', err, { event: 'notify-handler', error: Logger.errorMessage(err), method: notify.method, request: notify.payload })
-          });
-          Runtime.rpcLogger.debug('route', { method: notify.method, notify: notify.payload, duration: Date.now() - startTime });
+            await route.callNotify(notify.method, notify, connector).catch((err: ExError) => {
+              if (err.level !== ErrorLevel.EXPECTED) {
+                Runtime.frameLogger.error('route', err, { event: 'notify-handler', error: Logger.errorMessage(err), method: notify.method, request: notify.payload })
+              }
+            });
+          Runtime.rpcLogger.debug('route', { event: 'handled-notify', method: notify.method, duration: Date.now() - startTime });
           return null;
         default:
           // 不应该在路由处收到 rpc 回包消息
