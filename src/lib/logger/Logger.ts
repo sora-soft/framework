@@ -10,7 +10,7 @@ export interface ILoggerOptions {
 }
 
 export interface ILoggerData {
-  time: Date,
+  time: Date;
   timeString: string;
   identify: string;
   category: string;
@@ -45,11 +45,12 @@ abstract class Logger {
     return parse(my);
   }
 
-  static errorMessage(e: Error) {
-    const stack = parse(e).map(frame => {
-      return `${frame.functionName}(${frame.fileName ? frame.fileName.replace(/\\/g, '/') : 'anonymous'}:${frame.lineNumber ? frame.lineNumber : 'NA'})`;
+  static errorMessage(e: ExError | Error) {
+    const err = ExError.fromError(e);
+    const stack = parse(err).map(frame => {
+      return `${frame.functionName || 'unknown'}(${frame.fileName ? frame.fileName.replace(/\\/g, '/') : 'anonymous'}:${frame.lineNumber ? frame.lineNumber : 'NA'})`;
     });
-    return {code: e['code'], name: e.name, message: e.message, stack};
+    return {code: err.code, name: err.name, message: err.message, stack};
   }
 
   constructor(options: ILoggerOptions) {
@@ -57,23 +58,23 @@ abstract class Logger {
     this.output_ = [];
   }
 
-  debug(category: string, ...args) {
+  debug(category: string, ...args: unknown[]) {
     this.write(LogLevel.debug, category, null, ...args);
   }
 
-  info(category: string, ...args) {
+  info(category: string, ...args: unknown[]) {
     this.write(LogLevel.info, category, null, ...args);
   }
 
-  warn(category: string, ...args) {
+  warn(category: string, ...args: unknown[]) {
     this.write(LogLevel.warn, category, null, ...args);
   }
 
-  success(category: string, ...args) {
+  success(category: string, ...args: unknown[]) {
     this.write(LogLevel.success, category, null, ...args);
   }
 
-  error(category: string, error: Error | ExError, ...args) {
+  error(category: string, error: Error | ExError, ...args: unknown[]) {
     switch (error['level']) {
       case ErrorLevel.FATAL:
         this.fatal(category, error, ...args);
@@ -87,7 +88,7 @@ abstract class Logger {
     }
   }
 
-  fatal(category: string, error: Error, ...args) {
+  fatal(category: string, error: Error, ...args: unknown[]) {
     this.write(LogLevel.fatal, category, error, ...args);
   }
 
@@ -96,10 +97,10 @@ abstract class Logger {
     return this;
   }
 
-  private write(level: LogLevel, category: string, error: Error | null | undefined, ...args) {
+  private write(level: LogLevel, category: string, error: Error | null | undefined, ...args: unknown[]) {
     const now = new Date();
     const stack = error ? parse(error)[0] : Logger.getStackPosition(3);
-    const timeString = Utility.formatLogTimeString(now);
+    const timeString = Utility.formatLogTimeString();
     for (const output of this.output_) {
       output.log({
         time: now,
@@ -111,7 +112,7 @@ abstract class Logger {
         pid: process.pid,
         content: this.generateContent(...args),
         stack: Logger.getStack(),
-        position: `${stack.fileName ? path.basename(stack.fileName) : 'unknown'}:${stack.lineNumber}:${stack.functionName}`,
+        position: `${stack.fileName ? path.basename(stack.fileName) : 'unknown'}:${stack.lineNumber || '?'}:${stack.functionName || '?'}`,
         raw: args,
       });
     }
@@ -127,4 +128,4 @@ abstract class Logger {
   private output_: LoggerOutput[];
 }
 
-export {Logger}
+export {Logger};

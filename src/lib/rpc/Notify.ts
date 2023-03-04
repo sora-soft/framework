@@ -1,5 +1,5 @@
 import {OPCode} from '../../Enum';
-import {IRawNetPacket, IRawReqPacket} from '../../interface/rpc';
+import {IRawReqPacket} from '../../interface/rpc';
 import {RawPacket} from './RawPacket';
 
 class Notify<T = unknown> extends RawPacket<T> {
@@ -16,7 +16,7 @@ class Notify<T = unknown> extends RawPacket<T> {
   }
 
   get path() {
-    return super.path!;
+    return super.path;
   }
 
   set path(value: string) {
@@ -24,7 +24,7 @@ class Notify<T = unknown> extends RawPacket<T> {
   }
 
   get method() {
-    return super.method!;
+    return super.method;
   }
 
   set method(value: string) {
@@ -32,4 +32,4 @@ class Notify<T = unknown> extends RawPacket<T> {
   }
 }
 
-export {Notify}
+export {Notify};

@@ -21,7 +21,7 @@ class LifeCycle<T extends number> {
     this.emitter_ = new EventEmitter();
   }
 
-  async setState(state: T, ...args: any[]) {
+  async setState(state: T, ...args: unknown[]) {
     this.context_?.abort();
 
     this.context_ = new Context();
@@ -42,7 +42,7 @@ class LifeCycle<T extends number> {
       }
       this.emitter_.emit(LifeCycleEvent.StateChange, preState, state, ...args);
       this.emitter_.emit(LifeCycleEvent.StateChangeTo, state, ...args);
-    })
+    });
   }
 
   addAllHandler(handler: LifeCycleAllHandler<T>) {
@@ -63,9 +63,9 @@ class LifeCycle<T extends number> {
 
   get state() {
     if (this.state_ === null) {
-      throw new FrameworkError(FrameworkErrorCode.ERR_LIFECYCLE_IS_DESTORYED, `ERR_LIFECYCLE_IS_DESTORYED`);
+      throw new FrameworkError(FrameworkErrorCode.ERR_LIFECYCLE_IS_DESTORYED, 'ERR_LIFECYCLE_IS_DESTORYED');
     }
-    return this.state_ as T;
+    return this.state_ ;
   }
 
   get emitter() {
@@ -80,4 +80,4 @@ class LifeCycle<T extends number> {
   private context_: Context | null;
 }
 
-export {LifeCycle}
+export {LifeCycle};

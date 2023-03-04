@@ -2,6 +2,7 @@ import {ListenerState, WorkerState} from '../Enum';
 import {LifeCycleEvent} from '../Event';
 import {ILabels, IServiceOptions} from '../interface/config';
 import {IServiceMetaData, IServiceRunData} from '../interface/discovery';
+import {ExError} from '../utility/ExError';
 import {Context} from './Context';
 import {Logger} from './logger/Logger';
 import {Listener} from './rpc/Listener';
@@ -19,12 +20,14 @@ abstract class Service extends Worker {
 
     this.lifeCycle_.emitter.on(LifeCycleEvent.StateChangeTo, (state: WorkerState) => {
 
-      Runtime.frameLogger.debug(this.logCategory, { event: 'service-state-change', state });
+      Runtime.frameLogger.debug(this.logCategory, {event: 'service-state-change', state});
 
       switch (state) {
         case WorkerState.ERROR:
           for (const [id] of this.listenerPool_) {
-            this.uninstallListener(id);
+            this.uninstallListener(id).catch((err: ExError) => {
+              Runtime.frameLogger.error('service', err, {event: 'uninstall-listener-error', error: Logger.errorMessage(err)});
+            });
           }
           break;
       }
@@ -36,12 +39,14 @@ abstract class Service extends Worker {
     await this.lifeCycle_.setState(WorkerState.STOPPING);
     this.intervalJobTimer_.clearAll();
     for (const id of this.listenerPool_.keys()) {
-      await this.uninstallListener(id).catch((err: Error) => {
-        Runtime.frameLogger.error(this.logCategory, err, { event: 'service-uninstall-listener', error: Logger.errorMessage(err) });
+      await this.uninstallListener(id).catch((err: ExError) => {
+        Runtime.frameLogger.error(this.logCategory, err, {event: 'service-uninstall-listener', error: Logger.errorMessage(err)});
       });
     }
     await this.executor_.stop();
-    await this.shutdown(reason).catch(this.onError.bind(this));
+    await this.shutdown(reason).catch((err: ExError) => {
+      this.onError(err);
+    });
     await this.lifeCycle_.setState(WorkerState.STOPPED);
   }
 
@@ -49,13 +54,13 @@ abstract class Service extends Worker {
     if (!ctx)
       ctx = new Context();
 
-    Runtime.frameLogger.info(this.logCategory, { event: 'install-listener', name: this.name, id: this.id, meta: listener.metaData, version: listener.version });
+    Runtime.frameLogger.info(this.logCategory, {event: 'install-listener', name: this.name, id: this.id, meta: listener.metaData, version: listener.version});
 
     {
       const labels = {
         ...this.metaData.labels,
         ...listener.labels,
-      }
+      };
 
       await ctx.await(Runtime.discovery.registerEndpoint({
         ...listener.metaData,
@@ -78,12 +83,16 @@ abstract class Service extends Worker {
         state: listener.state,
         targetId: this.id,
         labels,
+      }).catch((e: ExError) => {
+        Runtime.frameLogger.error('service', e, {event: 'register-service-endpoint', error: Logger.errorMessage(e)});
       });
 
       switch (state) {
         case ListenerState.ERROR:
-          Runtime.frameLogger.error(this.logCategory, err, { event: 'listener-err', name: this.name, id: this.id, listenerId: listener.id, preState: pre, error: Logger.errorMessage(err) });
-          this.uninstallListener(listener.id);
+          Runtime.frameLogger.error(this.logCategory, err, {event: 'listener-err', name: this.name, id: this.id, listenerId: listener.id, preState: pre, error: Logger.errorMessage(err)});
+          this.uninstallListener(listener.id).catch((e: ExError) => {
+            Runtime.frameLogger.error('service', e, {event: 'uninstall-listener', error: Logger.errorMessage(e)});
+          });
           break;
       }
     });
@@ -92,7 +101,7 @@ abstract class Service extends Worker {
 
     await listener.startListen();
 
-    Runtime.frameLogger.success(this.logCategory, { event: 'listener-started', name: this.name, id: this.id, meta: listener.metaData, version: listener.version });
+    Runtime.frameLogger.success(this.logCategory, {event: 'listener-started', name: this.name, id: this.id, meta: listener.metaData, version: listener.version});
 
   }
 
@@ -101,7 +110,7 @@ abstract class Service extends Worker {
       const labels = {
         ...this.metaData.labels,
         ...listener.labels,
-      }
+      };
 
       await Runtime.discovery.registerEndpoint({
         ...listener.metaData,
@@ -118,12 +127,12 @@ abstract class Service extends Worker {
     if (!listener)
       return;
 
-    Runtime.frameLogger.info(this.logCategory, { event: 'uninstall-listener', name: this.name, id: this.id, meta: listener.metaData });
+    Runtime.frameLogger.info(this.logCategory, {event: 'uninstall-listener', name: this.name, id: this.id, meta: listener.metaData});
 
     this.listenerPool_.delete(id);
     await listener.stopListen();
 
-    Runtime.frameLogger.success(this.logCategory, { event: 'listener-stopped', name: this.name, id: this.id, meta: listener.metaData });
+    Runtime.frameLogger.success(this.logCategory, {event: 'listener-stopped', name: this.name, id: this.id, meta: listener.metaData});
 
     await Runtime.discovery.unregisterEndPoint(id);
   }
@@ -135,13 +144,13 @@ abstract class Service extends Worker {
       nodeId: Runtime.node.id,
       state: this.state,
       labels: this.options_.labels || [] as unknown as ILabels,
-    }
+    };
   }
 
   get runData(): IServiceRunData {
     return {
       ...this.metaData,
-      listeners: [...this.listenerPool_].map(([id, listener]) => {
+      listeners: [...this.listenerPool_].map(([_, listener]) => {
         return {
           ...listener.metaData,
           id: listener.id,
@@ -152,14 +161,14 @@ abstract class Service extends Worker {
   }
 
   protected get logCategory() {
-    return `service.${this.name}`
+    return `service.${this.name}`;
   }
 
   protected get listenerPool() {
     return this.listenerPool_;
   }
 
-  private listenerPool_: Map<string/*id*/, Listener>;
+  private listenerPool_: Map<string/* id*/, Listener>;
   private options_: IServiceOptions;
 }
 

@@ -1,8 +1,10 @@
 import {RPCHeader} from '../../Const';
 import {FrameworkErrorCode} from '../../ErrorCode';
 import {IServiceOptions, IWorkerOptions} from '../../interface/config';
+import {ExError} from '../../utility/ExError';
 import {Context} from '../Context';
 import {FrameworkError} from '../FrameworkError';
+import {Logger} from '../logger/Logger';
 import {Node} from '../Node';
 import {Request} from '../rpc/Request';
 import {Route} from '../rpc/Route';
@@ -32,7 +34,7 @@ class NodeHandler extends Route {
   @Route.method
   async createService(body: IReqCreateService) {
     if (body.name === 'node')
-      throw new FrameworkError(FrameworkErrorCode.ERR_NODE_SERVICE_CANNOT_BE_CREATED, `ERR_NODE_SERVICE_CANNOT_BE_CREATED`);
+      throw new FrameworkError(FrameworkErrorCode.ERR_NODE_SERVICE_CANNOT_BE_CREATED, 'ERR_NODE_SERVICE_CANNOT_BE_CREATED');
 
     const service = Node.serviceFactory(body.name, body.options);
     if (!service)
@@ -53,26 +55,34 @@ class NodeHandler extends Route {
   @Route.method
   async removeService(body: IReqRemoveWorker) {
     if (body.id === this.node_.id)
-      throw new FrameworkError(FrameworkErrorCode.ERR_NODE_SERVICE_CANNOT_BE_CLOSED, `ERR_NODE_SERVICE_CANNOT_BE_CLOSED`);
-    Runtime.uninstallService(body.id, body.reason);
+      throw new FrameworkError(FrameworkErrorCode.ERR_NODE_SERVICE_CANNOT_BE_CLOSED, 'ERR_NODE_SERVICE_CANNOT_BE_CLOSED');
+    Runtime.uninstallService(body.id, body.reason).catch((err: ExError) => {
+      Runtime.frameLogger.error(`${this.node_.name}.handler`, err, {event: 'uninstall-service-error', error: Logger.errorMessage(err)});
+    });
     return {};
   }
 
   @Route.method
   async removeWorker(body: IReqRemoveWorker) {
-    Runtime.uninstallWorker(body.id, body.reason);
+    Runtime.uninstallWorker(body.id, body.reason).catch((err: ExError) => {
+      Runtime.frameLogger.error(`${this.node_.name}.handler`, err, {event: 'uninstall-worker-error', error: Logger.errorMessage(err)});
+    });
     return {};
   }
 
   @Route.method
-  async shutdown(body: void) {
-    Runtime.shutdown();
+  async shutdown() {
+    Runtime.shutdown().catch((err: ExError) => {
+      Runtime.frameLogger.error(`${this.node_.name}.handler`, err, {event: 'shutdown-error', error: Logger.errorMessage(err)});
+    });
     return {};
   }
 
   @Route.method
   async registerRunningDataNotify(body: void, request: Request<{}>) {
     const session = request.getHeader<string>(RPCHeader.RPC_SESSION_HEADER);
+    if (!session)
+      return {};
     this.node_.registerBroadcaster('notifyNodeState', session);
     return {};
   }
@@ -85,4 +95,4 @@ class NodeHandler extends Route {
   private node_: Node;
 }
 
-export {NodeHandler}
+export {NodeHandler};

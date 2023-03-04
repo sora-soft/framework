@@ -6,15 +6,15 @@ export interface ITCPListenerOptions {
 }
 
 export interface INodeOptions extends IServiceOptions {
-  api: ITCPListenerOptions
+  api: ITCPListenerOptions;
 }
 
 export interface ILabels {
-  [key: string]: string
+  [key: string]: string;
 }
 
 export interface IServiceOptions {
-  labels?: ILabels
+  labels?: ILabels;
 }
 
 export interface IWorkerOptions {}

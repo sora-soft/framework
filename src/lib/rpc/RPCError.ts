@@ -18,4 +18,4 @@ class RPCResponseError extends ExError {
   }
 }
 
-export {RPCError, RPCResponseError}
+export {RPCError, RPCResponseError};

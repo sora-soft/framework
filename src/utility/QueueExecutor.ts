@@ -1,4 +1,6 @@
 import {Executor, JobExecutor} from './Executor';
+import {ExError} from './ExError';
+import {Utility} from './Utility';
 
 class QueueExecutor extends Executor {
   public async doJob<T = unknown>(executor: JobExecutor<T>) {
@@ -12,14 +14,14 @@ class QueueExecutor extends Executor {
         executor,
       });
     });
-    this.doJobInQueue();
+    this.doJobInQueue().catch(Utility.null);
     return promise;
   }
 
   public async stop() {
     this.isStopped_ = true;
     if (this.isDoingJob_) {
-      const stopPromise = new Promise<void>((resolve) => { this.stopCallback_ = resolve});
+      const stopPromise = new Promise<void>((resolve) => { this.stopCallback_ = resolve; });
       await stopPromise;
     }
   }
@@ -35,7 +37,7 @@ class QueueExecutor extends Executor {
         break;
 
       let hasError = false;
-      const result = await info.executor().catch(err => {
+      const result = await info.executor().catch((err: ExError) => {
         info.reject(err);
         hasError = true;
       });
@@ -54,7 +56,7 @@ class QueueExecutor extends Executor {
     return !this.isDoingJob_;
   }
 
-  private executorQueue_: {resolve: (value: unknown) => void, reject: (err: Error) => void, executor: JobExecutor}[] = [];
+  private executorQueue_: {resolve: (value: unknown) => void; reject: (err: Error) => void; executor: JobExecutor}[] = [];
   private stopCallback_: () => void;
   private isDoingJob_ = false;
 }

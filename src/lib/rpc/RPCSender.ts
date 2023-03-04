@@ -34,4 +34,4 @@ class RPCSender {
   private isBusy_: boolean;
 }
 
-export {RPCSender}
+export {RPCSender};

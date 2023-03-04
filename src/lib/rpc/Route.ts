@@ -12,12 +12,13 @@ import {Notify} from './Notify';
 import {Request} from './Request';
 import {Response} from './Response';
 import {RPCError, RPCResponseError} from './RPCError';
+import 'reflect-metadata';
 
 export type RPCHandler<Req=unknown, Res=unknown> = (body: Req, ...args) => Promise<Res>;
 export type MethodPramBuilder<T=unknown, R extends Route = Route, Req=unknown, Res=unknown> = (route: R, body: Req, req: Request<Req>, response: Response<Res> | null, connector: Connector) => Promise<T>;
 export interface IRPCHandlerParam<T=unknown, R extends Route = Route, Req=unknown, Res=unknown> {
   type: any;
-  provider: MethodPramBuilder<T, R, Req, Res>
+  provider: MethodPramBuilder<T, R, Req, Res>;
 }
 export type IRPCMiddlewares<T extends Route = Route, Req = unknown, Res = unknown> = (route: T, body: Req, req: Request<Req>, response: Response<Res> | null, connector: Connector) => Promise<boolean>;
 export interface IRPCHandler<Req=unknown, Res=unknown> {
@@ -34,21 +35,21 @@ export interface INotifyHandler<Req=unknown> {
 
 class Route {
   protected static method(target: Route, key: string) {
-    const types = Reflect.getMetadata('design:paramtypes', target, key);
+    const types = Reflect.getMetadata('design:paramtypes', target, key) as unknown[];
 
-    target.registerMethod(key, target[key], types);
+    target.registerMethod(key, target[key] as RPCHandler, types);
   }
 
   protected static hook(target: Route, key: string) {
-    const types = Reflect.getMetadata('design:paramtypes', target, key);
+    const types = Reflect.getMetadata('design:paramtypes', target, key) as unknown[];
 
-    target.registerHookedMethod(key, target[key], types);
+    target.registerHookedMethod(key, target[key] as RPCHandler, types);
   }
 
   protected static notify(target: Route, key: string) {
-    const types = Reflect.getMetadata('design:paramtypes', target, key);
+    const types = Reflect.getMetadata('design:paramtypes', target, key) as unknown[];
 
-    target.registerNotify(key, target[key], types);
+    target.registerNotify(key, target[key] as NotifyHandler, types);
   }
 
   protected static makeErrorRPCResponse(request: Request, response: Response, err: ExError) {
@@ -82,7 +83,7 @@ class Route {
           try {
             const rpcId = request.getHeader<number>(RPCHeader.RPC_ID_HEADER);
             request.setHeader(RPCHeader.RPC_SESSION_HEADER, session);
-            Runtime.rpcLogger.debug('route', { event: 'receive-rpc-request', method: request.method });
+            Runtime.rpcLogger.debug('route', {event: 'receive-rpc-request', method: request.method});
 
             response.setHeader(RPCHeader.RPC_ID_HEADER, rpcId);
 
@@ -91,7 +92,7 @@ class Route {
 
             const result = await route.callMethod(request.method, request, response, connector).catch((err: ExError) => {
               if (err.level !== ErrorLevel.EXPECTED) {
-                Runtime.rpcLogger.error('route', err, { event: 'rpc-handler-error', error: Logger.errorMessage(err), method: request.method, request: request.payload });
+                Runtime.rpcLogger.error('route', err, {event: 'rpc-handler-error', error: Logger.errorMessage(err), method: request.method, request: request.payload});
               }
               return {
                 error: {
@@ -104,7 +105,7 @@ class Route {
               } as IResPayloadPacket<null>;
             });
             response.payload = result;
-            Runtime.rpcLogger.debug('route', { event: 'response-rpc-request', method: request.method, duration: Date.now() - startTime });
+            Runtime.rpcLogger.debug('route', {event: 'response-rpc-request', method: request.method, duration: Date.now() - startTime});
 
             // hooked Method 自行通过connector返回
             if (route.isHookedMethod(request.method)) {
@@ -112,7 +113,7 @@ class Route {
             }
             return response.toPacket();
           } catch (err) {
-            const exError = ExError.fromError(err);
+            const exError = ExError.fromError(err as Error);
             return this.makeErrorRPCResponse(request, response, exError);
           }
         }
@@ -121,22 +122,22 @@ class Route {
           // notify 不需要回复
           const notify = new Notify(packet);
           notify.setHeader(RPCHeader.RPC_SESSION_HEADER, session);
-          Runtime.rpcLogger.debug('route', { event: 'receive-notify', method: notify.method });
+          Runtime.rpcLogger.debug('route', {event: 'receive-notify', method: notify.method});
           if (!route.hasNotify(notify.method))
             throw new RPCError(RPCErrorCode.ERR_RPC_METHOD_NOT_FOUND, `ERR_RPC_METHOD_NOT_FOUND, method=${notify.method}`);
 
             await route.callNotify(notify.method, notify, connector).catch((err: ExError) => {
               if (err.level !== ErrorLevel.EXPECTED) {
-                Runtime.frameLogger.error('route', err, { event: 'notify-handler', error: Logger.errorMessage(err), method: notify.method, request: notify.payload })
+                Runtime.frameLogger.error('route', err, {event: 'notify-handler', error: Logger.errorMessage(err), method: notify.method, request: notify.payload});
               }
             });
-          Runtime.rpcLogger.debug('route', { event: 'handled-notify', method: notify.method, duration: Date.now() - startTime });
+          Runtime.rpcLogger.debug('route', {event: 'handled-notify', method: notify.method, duration: Date.now() - startTime});
           return null;
         default:
           // 不应该在路由处收到 rpc 回包消息
           return null;
       }
-    }
+    };
   }
 
   constructor() {
@@ -184,7 +185,7 @@ class Route {
     });
   }
 
-  protected registerProvider<T=unknown, R extends Route = Route>(method: string, type: any, provider: MethodPramBuilder<T, R>) {
+  protected registerProvider<T=unknown, R extends Route = Route>(method: string, type: unknown, provider: MethodPramBuilder<T, R>) {
     if (!this.providerMap_)
       this.providerMap_ = new ArrayMap();
 
@@ -201,7 +202,7 @@ class Route {
   }
 
   protected async buildCallParams<T extends Route>(route: T, method: string, paramTypes: any[], request: Request, response: Response | null, connector: Connector) {
-    const params: any[] = await Promise.all(paramTypes.slice(1).map(async (type) => {
+    const params: unknown[] = await Promise.all(paramTypes.slice(1).map(async (type) => {
       switch(type) {
         case Connector:
           return connector;
@@ -224,7 +225,7 @@ class Route {
 
     params.unshift(request.payload);
 
-    return params
+    return params;
   }
 
   protected async callMethod(method: string, request: Request, response: Response, connector: Connector) {
@@ -232,7 +233,7 @@ class Route {
       try {
         const handler = this.methodMap_.get(method);
         if (!handler) {
-          throw new RPCResponseError(RPCErrorCode.ERR_RPC_METHOD_NOT_FOUND, ErrorLevel.EXPECTED, `ERR_RPC_METHOD_NOT_FOUND`)
+          throw new RPCResponseError(RPCErrorCode.ERR_RPC_METHOD_NOT_FOUND, ErrorLevel.EXPECTED, 'ERR_RPC_METHOD_NOT_FOUND');
         }
 
         const middlewares = this.middlewareMap_.get(method);
@@ -245,19 +246,20 @@ class Route {
         }
 
         const params = await this.buildCallParams(this, method, handler.params, request, response, connector);
-        const result = await (this[method] as RPCHandler).apply(this, params);
+        const result = await (this[method] as RPCHandler).apply(this, params) as unknown;
         return {
           error: null,
           result,
         };
-      } catch(err) {
+      } catch(e) {
+        const err = ExError.fromError(e as Error);
         if (err.name === 'TypeGuardError') {
-          throw new RPCResponseError(RPCErrorCode.ERR_RPC_PARAMETER_INVALID, ErrorLevel.EXPECTED, `ERR_RPC_PARAMETER_INVALID, ${err.message.split(',').slice(0, 1).join('')}`)
+          throw new RPCResponseError(RPCErrorCode.ERR_RPC_PARAMETER_INVALID, ErrorLevel.EXPECTED, `ERR_RPC_PARAMETER_INVALID, ${err.message.split(',').slice(0, 1).join('')}`);
         }
         throw err;
       }
     } else {
-      throw new RPCResponseError(RPCErrorCode.ERR_RPC_METHOD_NOT_FOUND, ErrorLevel.EXPECTED, `ERR_RPC_METHOD_NOT_FOUND`);
+      throw new RPCResponseError(RPCErrorCode.ERR_RPC_METHOD_NOT_FOUND, ErrorLevel.EXPECTED, 'ERR_RPC_METHOD_NOT_FOUND');
     }
   }
 
@@ -266,7 +268,7 @@ class Route {
       try {
         const handler = this.notifyMap_.get(method);
         if (!handler) {
-          throw new RPCResponseError(RPCErrorCode.ERR_RPC_METHOD_NOT_FOUND, ErrorLevel.EXPECTED, `ERR_RPC_METHOD_NOT_FOUND`)
+          throw new RPCResponseError(RPCErrorCode.ERR_RPC_METHOD_NOT_FOUND, ErrorLevel.EXPECTED, 'ERR_RPC_METHOD_NOT_FOUND');
         }
 
         const middlewares = this.middlewareMap_.get(method);
@@ -280,9 +282,10 @@ class Route {
 
         const params = await this.buildCallParams(this, method, handler.params, request, null, connector);
         await (this[method] as NotifyHandler).apply(this, params);
-      } catch (err) {
+      } catch (e) {
+        const err = ExError.fromError(e as Error);
         if (err.name === 'TypeGuardError') {
-          throw new RPCResponseError(RPCErrorCode.ERR_RPC_PARAMETER_INVALID, ErrorLevel.EXPECTED, `ERR_RPC_PARAMETER_INVALID, ${err.message.split(',').slice(0, 1).join('')}`)
+          throw new RPCResponseError(RPCErrorCode.ERR_RPC_PARAMETER_INVALID, ErrorLevel.EXPECTED, `ERR_RPC_PARAMETER_INVALID, ${err.message.split(',').slice(0, 1).join('')}`);
         }
         throw err;
       }
@@ -308,4 +311,4 @@ class Route {
   protected providerMap_: ArrayMap<string, IRPCHandlerParam>;
 }
 
-export {Route}
+export {Route};

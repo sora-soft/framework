@@ -1,4 +1,5 @@
 import {QueueExecutor} from '../../utility/QueueExecutor';
+import {Utility} from '../../utility/Utility';
 import {ILoggerData, LogLevel} from './Logger';
 
 export interface ILoggerOutputOptions {
@@ -17,7 +18,7 @@ abstract class LoggerOutput {
     if (!this.options_.levels || this.options_.levels.includes(log.level)) {
       this.executor_.doJob(async () => {
         await this.output(log);
-      });
+      }).catch(Utility.null);
     }
 
     if (this.next_)
@@ -29,4 +30,4 @@ abstract class LoggerOutput {
   private options_: ILoggerOutputOptions;
 }
 
-export {LoggerOutput}
+export {LoggerOutput};

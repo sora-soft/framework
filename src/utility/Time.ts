@@ -7,7 +7,7 @@ class Time {
         if (timer)
           clearTimeout(timer);
         reject(new AbortError());
-      }
+      };
       if (signal) {
         signal.addEventListener('abort', abort, {once: true});
       }
@@ -21,4 +21,4 @@ class Time {
   }
 }
 
-export {Time}
+export {Time};

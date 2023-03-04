@@ -16,7 +16,7 @@ class Executor {
     return promise;
   }
 
-  public async start() {
+  public start() {
     this.isStopped_ = false;
   }
 
@@ -34,4 +34,4 @@ class Executor {
   private workingPromises_: Promise<unknown>[] = [];
 }
 
-export {Executor}
+export {Executor};

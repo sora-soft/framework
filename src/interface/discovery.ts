@@ -10,7 +10,7 @@ export interface IWorkerMetaData {
 }
 
 export interface IServiceMetaData extends IWorkerMetaData {
-  labels: ILabels
+  labels: ILabels;
 }
 
 export interface IServiceRunData extends IServiceMetaData {

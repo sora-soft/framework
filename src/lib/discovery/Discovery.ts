@@ -101,4 +101,4 @@ abstract class Discovery {
   private startupContext_: Context | null;
 }
 
-export {Discovery}
+export {Discovery};

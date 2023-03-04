@@ -1,13 +1,16 @@
 import {ConnectorState, ListenerState} from '../../Enum';
 import {LifeCycle} from '../../utility/LifeCycle';
 import {v4 as uuid} from 'uuid';
-import {IListenerInfo, IRawNetPacket, IRawReqPacket, IRawResPacket} from '../../interface/rpc';
+import {IListenerInfo, IRawReqPacket, IRawResPacket} from '../../interface/rpc';
 import {IEventEmitter} from '../../interface/event';
 import {LifeCycleEvent, ListenerEvent} from '../../Event';
 import {ILabels} from '../../interface/config';
 import {EventEmitter} from 'events';
 import {Connector} from './Connector';
 import {Context} from '../Context';
+import {ExError} from '../../utility/ExError';
+import {Runtime} from '../Runtime';
+import {Logger} from '../logger/Logger';
 
 export interface IListenerEvent {
   [ListenerEvent.NewConnect]: (session: string, connector: Connector, ...args: any[]) => void;
@@ -30,7 +33,10 @@ abstract class Listener {
   public async startListen(context?: Context) {
     this.startContext_ = new Context(context);
     await this.startContext_.await(this.lifeCycle_.setState(ListenerState.PENDING));
-    this.info_ = await this.listen(this.startContext_).catch(this.onError.bind(this)) as IListenerInfo;
+    this.info_ = await this.listen(this.startContext_).catch((err: ExError) => {
+      this.onError(err);
+      throw err;
+    }) ;
     await this.startContext_.await(this.lifeCycle_.setState(ListenerState.READY));
     this.startContext_ = null;
   }
@@ -45,18 +51,20 @@ abstract class Listener {
   }
 
   abstract get metaData(): IListenerInfo;
-  protected async newConnector(session:string, connector: Connector) {
+  protected newConnector(session:string, connector: Connector) {
     connector.session = session;
     this.connectors_.set(session, connector);
 
-    connector.enableResponse(this.callback_.bind(this));
+    connector.enableResponse(this.callback_.bind(this) as ListenerCallback<unknown, unknown>);
 
     connector.stateEmitter.on(LifeCycleEvent.StateChangeTo, (state) => {
       switch (state) {
         case ConnectorState.ERROR:
         case ConnectorState.STOPPED:
           if (this.connectors_.delete(connector.session)) {
-            connector.off();
+            connector.off().catch((err: ExError) => {
+              Runtime.rpcLogger.error('listener', err, {event: 'listener-connector-off-error', error: Logger.errorMessage(err)});
+            });
             this.connectionEmitter_.emit(ListenerEvent.LostConnect, session, connector);
           }
           break;
@@ -69,8 +77,8 @@ abstract class Listener {
     return this.connectors_.get(session);
   }
 
-  private async onError(err: Error) {
-    await this.lifeCycle_.setState(ListenerState.ERROR, err);
+  private onError(err: Error) {
+    void this.lifeCycle_.setState(ListenerState.ERROR, err);
     throw err;
   }
 
@@ -117,4 +125,4 @@ abstract class Listener {
   private startContext_: Context | null;
 }
 
-export {Listener}
+export {Listener};

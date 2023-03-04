@@ -24,10 +24,10 @@ class LabelFilter {
         case FilterOperator.EXCLUDE:
           return !filter.values.includes(labels[filter.label]);
       }
-    })
+    });
   }
 
   private filters_: ILabelData[];
 }
 
-export {LabelFilter}
+export {LabelFilter};

@@ -4,4 +4,4 @@ class RPCHeader {
   static readonly RPC_SESSION_HEADER = 'rpc-session';
 }
 
-export {RPCHeader}
+export {RPCHeader};

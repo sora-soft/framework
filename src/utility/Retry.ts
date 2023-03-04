@@ -41,7 +41,7 @@ export const DefaultRetryOptions: IRetryOptions = {
   maxRetryTimes: 0,
   incrementInterval: false,
   intervalMS: 1000,
-}
+};
 
 class Retry<T> {
   constructor(executor: retryExecutor<T>, options: IRetryOptions = DefaultRetryOptions) {
@@ -64,7 +64,7 @@ class Retry<T> {
     const context = new Context(ctx);
     this.count_ = 0;
 
-    const retry = async (err: Error) => {
+    const retry = async (err: Error): Promise<T> => {
       if (err instanceof AbortError)
         throw err;
 
@@ -86,11 +86,11 @@ class Retry<T> {
         });
       } else {
         this.errorEmitter_.emit(RetryEvent.MaxRetryTime);
-        throw new RetryError(RetryErrorCode.ERR_RETRY_TOO_MANY_RETRY, `ERR_RETRY_TOO_MANY_RETRY`);
+        throw new RetryError(RetryErrorCode.ERR_RETRY_TOO_MANY_RETRY, 'ERR_RETRY_TOO_MANY_RETRY');
       }
-    }
+    };
 
-    return this.executor_(context).catch((err) => {
+    return this.executor_(context).catch((err: Error) => {
       return retry(err);
     });
   }
@@ -110,4 +110,4 @@ class Retry<T> {
   private executor_: retryExecutor<T>;
 }
 
-export {Retry}
+export {Retry};

@@ -1,4 +1,4 @@
-import {Connector} from './Connector'
+import {Connector} from './Connector';
 import {Route} from './Route';
 import {ConvertRouteMethod, IRequestOptions} from './Provider';
 import {Notify} from './Notify';
@@ -6,6 +6,7 @@ import {LifeCycleEvent} from '../../Event';
 import {ConnectorState} from '../../Enum';
 import {Runtime} from '../Runtime';
 import {Logger} from '../logger/Logger';
+import {ExError} from '../../utility/ExError';
 
 class Broadcaster<T extends Route> {
   constructor() {
@@ -40,8 +41,8 @@ class Broadcaster<T extends Route> {
   }
 
   notify(fromId?: string, toSession?: string[]): ConvertRouteMethod<T> {
-    return new Proxy<ConvertRouteMethod<T>>({} as any, {
-      get: (target, prop: string, receiver) => {
+    return new Proxy<ConvertRouteMethod<T>>({} as ConvertRouteMethod<T>, {
+      get: (target, prop: string) => {
         return async (body: unknown, options: IRequestOptions = {}) => {
           for (const [session, handler] of this.connectors_) {
             if (toSession && !toSession.includes(session))
@@ -59,20 +60,20 @@ class Broadcaster<T extends Route> {
               path: '',
               headers: options.headers || {},
             });
-            await handler.connector.sendNotify(notify, fromId).catch(err => {
+            await handler.connector.sendNotify(notify, fromId).catch((err: ExError) => {
               Runtime.frameLogger.error('broadcaster', err, {event: 'broadcast-sender-notify', error: Logger.errorMessage(err)});
             });
           }
         };
       }
-    })
+    });
   }
 
 
   private connectors_: Map<string, {
-    connector: Connector,
+    connector: Connector;
     methods: Set<string>;
   }>;
 }
 
-export {Broadcaster}
+export {Broadcaster};

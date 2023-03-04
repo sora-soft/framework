@@ -1,8 +1,7 @@
 import {Listener, ListenerCallback} from '../rpc/Listener';
 import net =  require('net');
-import {ConnectorCommand, ConnectorState, ListenerState, OPCode} from '../../Enum';
+import {ListenerState} from '../../Enum';
 import util = require('util');
-import {Executor} from '../../utility/Executor';
 import {ILabels, ITCPListenerOptions} from '../../interface/config';
 import {v4 as uuid} from 'uuid';
 import EventEmitter = require('events');
@@ -25,7 +24,9 @@ class TCPListener extends Listener {
 
     this.connectionEmitter_ = new EventEmitter();
     this.server_ = net.createServer();
-    this.server_.on('connection', this.onSocketConnect.bind(this));
+    this.server_.on('connection', (socket) => {
+      this.onSocketConnect(socket);
+    });
   }
 
   get exposeHost() {
@@ -39,11 +40,11 @@ class TCPListener extends Listener {
       endpoint: `${this.exposeHost}:${this.usePort_}`,
       state: this.state,
       labels: this.labels
-    }
+    };
   }
 
   private onServerError(err: Error) {
-    this.lifeCycle_.setState(ListenerState.ERROR, err);
+    void this.lifeCycle_.setState(ListenerState.ERROR, err);
     Runtime.frameLogger.error('listener.tcp', err, {event: 'tcp-server-on-error', error: Logger.errorMessage(err)});
   }
 
@@ -54,9 +55,9 @@ class TCPListener extends Listener {
     if (this.options_.port)
       this.usePort_ = this.options_.port;
 
-    await util.promisify<number, string, void>(this.server_.listen.bind(this.server_))(this.usePort_, this.options_.host);
+    await util.promisify<number, string>(this.server_.listen)(this.usePort_, this.options_.host);
 
-    this.server_.on('error', this.onServerError.bind(this));
+    this.server_.on('error', (err: ExError) => {this.onServerError(err);});
 
     return this.metaData;
   }
@@ -68,7 +69,7 @@ class TCPListener extends Listener {
       const onError = async (err: ExError) => {
         if (err.code === 'EADDRINUSE') {
           if (this.usePort_ + 5 > max) {
-            reject(new TCPError(TCPErrorCode.ERR_NO_AVAILABLE_PORT, `ERR_NO_AVAILABLE_PORT`));
+            reject(new TCPError(TCPErrorCode.ERR_NO_AVAILABLE_PORT, 'ERR_NO_AVAILABLE_PORT'));
           }
 
           this.usePort_ = this.usePort_ + Utility.randomInt(0, 5);
@@ -78,14 +79,14 @@ class TCPListener extends Listener {
         } else {
           throw err;
         }
-      }
+      };
 
       this.server_.on('error', onError);
 
       this.server_.once('listening', () => {
         this.server_.removeListener('error', onError);
 
-        this.server_.on('error', this.onServerError.bind(this));
+        this.server_.on('error', (err: ExError) => {this.onServerError(err);});
         resolve({
           protocol: 'tcp',
           endpoint: `${this.options_.host}:${this.usePort_}`,
@@ -94,7 +95,7 @@ class TCPListener extends Listener {
       });
 
       this.server_.listen(this.usePort_, this.options_.host);
-    })
+    });
   }
 
   get version() {
@@ -103,7 +104,7 @@ class TCPListener extends Listener {
 
   protected async shutdown() {
     // 要等所有 socket 由对方关闭
-    await util.promisify(this.server_.close.bind(this.server_))();
+    await util.promisify(this.server_.close)();
   }
 
   private onSocketConnect(socket: net.Socket) {

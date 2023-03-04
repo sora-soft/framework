@@ -5,7 +5,7 @@ import {ILoggerOutputOptions, LoggerOutput} from './LoggerOutput';
 export interface IConsoleOutputOptions extends ILoggerOutputOptions {
   colors?: {
     [key in LogLevel]?: chalk.Chalk
-  }
+  };
 }
 
 class ConsoleOutput extends LoggerOutput {
@@ -45,11 +45,10 @@ class ConsoleOutput extends LoggerOutput {
       wrapper = chalk.white;
     }
 
-    // tslint:disable-next-line: no-console
-    console.log(wrapper(`${data.timeString},${data.level},${data.identify},${data.category},${data.position},${data.content}`));
+    process.stdout.write(wrapper(`${data.timeString},${data.level},${data.identify},${data.category},${data.position},${data.content}`));
   }
 
   protected consoleOptions_: IConsoleOutputOptions;
 }
 
-export {ConsoleOutput}
+export {ConsoleOutput};

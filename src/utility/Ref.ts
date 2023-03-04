@@ -40,4 +40,4 @@ class Ref<T = unknown> {
   private stopPromise_: Promise<T>;
 }
 
-export {Ref}
+export {Ref};

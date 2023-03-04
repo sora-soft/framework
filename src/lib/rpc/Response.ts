@@ -1,5 +1,5 @@
 import {OPCode} from '../../Enum';
-import {IRawResPacket, IRawNetPacket, IResPayloadPacket} from '../../interface/rpc';
+import {IRawResPacket, IResPayloadPacket} from '../../interface/rpc';
 import {Utility} from '../../utility/Utility';
 import {RawPacket} from './RawPacket';
 
@@ -17,7 +17,7 @@ class Response<T = unknown> extends RawPacket<IResPayloadPacket<T>> {
       opcode: OPCode.RESPONSE,
       headers: Utility.mapToJSON(this.headers_),
       payload: this.payload,
-    }
+    };
   }
 
   toResult() {
@@ -26,4 +26,4 @@ class Response<T = unknown> extends RawPacket<IResPayloadPacket<T>> {
   }
 }
 
-export {Response}
+export {Response};

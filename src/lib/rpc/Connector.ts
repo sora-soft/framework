@@ -2,13 +2,13 @@ import {is} from 'typescript-is';
 import {RPCHeader} from '../../Const';
 import {OPCode, ConnectorCommand, ConnectorState, ErrorLevel} from '../../Enum';
 import {FrameworkErrorCode, RPCErrorCode} from '../../ErrorCode';
-import {IConnectorOptions, IConnectorPingOptions as IConnectorPingOptions, IListenerInfo, IRawNetPacket, IRawOperationPacket, IRawReqPacket, IRawResPacket} from '../../interface/rpc';
+import {IConnectorOptions, IListenerInfo, IRawNetPacket, IRawOperationPacket, IRawReqPacket, IRawResPacket} from '../../interface/rpc';
 import {AbortError} from '../../utility/AbortError';
 import {Executor} from '../../utility/Executor';
 import {ExError} from '../../utility/ExError';
-import {LifeCycle} from '../../utility/LifeCycle'
+import {LifeCycle} from '../../utility/LifeCycle';
 import {TimeoutError} from '../../utility/TimeoutError';
-import {NodeTime} from '../../utility/Utility';
+import {NodeTime, Utility} from '../../utility/Utility';
 import {Waiter} from '../../utility/Waiter';
 import {Context} from '../Context';
 import {FrameworkError} from '../FrameworkError';
@@ -37,7 +37,7 @@ abstract class Connector {
           this.disablePingPong();
           break;
       }
-    })
+    });
   }
 
   abstract isAvailable(): boolean;
@@ -49,7 +49,9 @@ abstract class Connector {
       return;
 
     this.target_ = target;
-    await this.connect(target, this.startContext_).catch(this.onError.bind(this));
+    await this.connect(target, this.startContext_).catch((err: ExError) => {
+      this.onError(err);
+    });
     await this.startContext_.await(this.lifeCycle_.setState(ConnectorState.READY));
     this.startContext_ = null;
   }
@@ -67,7 +69,9 @@ abstract class Connector {
       await this.lifeCycle_.setState(ConnectorState.STOPPING);
     await this.resWaiter_.waitForAll(10000);
     await this.executor_.stop();
-    await this.disconnect().catch(this.onError.bind(this));
+    await this.disconnect().catch((err: ExError) => {
+      this.onError(err);
+    });
     if (this.state < ConnectorState.STOPPED)
       await this.lifeCycle_.setState(ConnectorState.STOPPED);
 
@@ -76,7 +80,7 @@ abstract class Connector {
 
   private onError(err: Error) {
     if (!(err instanceof AbortError))
-      this.lifeCycle_.setState(ConnectorState.ERROR, err);
+      this.lifeCycle_.setState(ConnectorState.ERROR, err).catch(Utility.null);
     throw err;
   }
 
@@ -102,7 +106,7 @@ abstract class Connector {
     await this.send(notify.toPacket());
   }
 
-  public async sendCommand(command: ConnectorCommand, args?: any) {
+  public async sendCommand(command: ConnectorCommand, args?: unknown) {
     await this.send({
       opcode: OPCode.OPERATION,
       command,
@@ -114,7 +118,7 @@ abstract class Connector {
     await this.sendCommand(ConnectorCommand.PING, {id});
   }
 
-  protected async sendPong(id) {
+  protected async sendPong(id: number) {
     await this.sendCommand(ConnectorCommand.PONG, {id});
   }
 
@@ -122,7 +126,9 @@ abstract class Connector {
     if (!packet.headers[RPCHeader.RPC_ID_HEADER])
       return;
 
-    let rpcId = packet.headers[RPCHeader.RPC_ID_HEADER];
+    let rpcId = packet.headers[RPCHeader.RPC_ID_HEADER] as number | string | undefined;
+    if (Utility.isUndefined(rpcId))
+      throw new RPCError(RPCErrorCode.ERR_RPC_ID_NOT_FOUND, 'ERR_RPC_ID_NOT_FOUND');
     if (is<string>(rpcId)) {
       rpcId = parseInt(rpcId, 10);
     }
@@ -135,14 +141,14 @@ abstract class Connector {
     }
   }
 
-  async enableResponse(callback: ListenerCallback) {
+  enableResponse(callback: ListenerCallback) {
     if (this.routeCallback_)
-      throw new FrameworkError(FrameworkErrorCode.ERR_CONNECTOR_DUPLICATE_ENABLE_RESPONSE, `ERR_CONNECTOR_DUPLICATE_ENABLE_RESPONSE`);
+      throw new FrameworkError(FrameworkErrorCode.ERR_CONNECTOR_DUPLICATE_ENABLE_RESPONSE, 'ERR_CONNECTOR_DUPLICATE_ENABLE_RESPONSE');
 
     this.routeCallback_ = callback;
   }
 
-  protected async enablePingPong() {
+  protected enablePingPong() {
     if (this.pingInterval_)
       return;
 
@@ -157,10 +163,10 @@ abstract class Connector {
         return;
 
       const {id, promise} = this.pongWaiter_.wait(this.options_.ping.timeout || NodeTime.second(5));
-      await this.sendPing(id).catch(err => {
+      await this.sendPing(id).catch((err: ExError) => {
         this.pongWaiter_.emitError(id, err);
       });
-      await promise.catch(err => {
+      await promise.catch((err: ExError) => {
         if (err instanceof TimeoutError) {
           Runtime.frameLogger.warn('connector', {event: 'ping-timeout'});
         } else {
@@ -171,14 +177,14 @@ abstract class Connector {
     }, this.options_.ping.interval || NodeTime.second(10));
   }
 
-  protected async onPingError(err: ExError) {
+  protected onPingError(err: ExError) {
     if (this.state !== ConnectorState.READY)
       return;
 
-    this.lifeCycle_.setState(ConnectorState.ERROR, new ExError('ERR_CONNECTOR_PING', err.name, err.message, err.level));
+    this.lifeCycle_.setState(ConnectorState.ERROR, new ExError('ERR_CONNECTOR_PING', err.name, err.message, err.level)).catch(Utility.null);
   }
 
-  protected async disablePingPong() {
+  protected disablePingPong() {
     if (this.pingInterval_) {
       clearInterval(this.pingInterval_);
       this.pongWaiter_.clear();
@@ -194,13 +200,18 @@ abstract class Connector {
             Runtime.frameLogger.warn('connector', {event: 'connector-response-not-enabled', session: this.session});
             return;
           }
+
+          const rpcId = data.headers[RPCHeader.RPC_ID_HEADER] as number | undefined;
+          if (Utility.isUndefined(rpcId))
+            throw new RPCError(RPCErrorCode.ERR_RPC_ID_NOT_FOUND, 'ERR_RPC_ID_NOT_FOUND');
+
           try {
             let response: IRawResPacket<unknown> | null = null;
             const createErrorResPacket = (err: ExError) => {
               return {
                 opcode: OPCode.RESPONSE,
                 headers: {
-                  [RPCHeader.RPC_ID_HEADER]: data.headers[RPCHeader.RPC_ID_HEADER]
+                  [RPCHeader.RPC_ID_HEADER]: rpcId,
                 },
                 payload: {
                   error: {
@@ -212,18 +223,18 @@ abstract class Connector {
                   result: null,
                 }
               } as IRawResPacket<null>;
-            }
+            };
 
             if (!is<IRawReqPacket>(data)) {
-              response = createErrorResPacket(new RPCResponseError(RPCErrorCode.ERR_RPC_BODY_PARSE_FAILED, ErrorLevel.EXPECTED, `ERR_RPC_BODY_PARSE_FAILED`));
-              await this.send(response as IRawResPacket);
+              response = createErrorResPacket(new RPCResponseError(RPCErrorCode.ERR_RPC_BODY_PARSE_FAILED, ErrorLevel.EXPECTED, 'ERR_RPC_BODY_PARSE_FAILED'));
+              await this.send(response );
               return;
             }
 
-            response = await this.routeCallback_(data, this.session_, connector).catch(err => {
+            response = await this.routeCallback_(data, this.session_, connector).catch((err: ExError) => {
               const exError = ExError.fromError(err);
               if (exError.name !== 'RPCResponseError') {
-                Runtime.frameLogger.error('connector', err, { event: 'handle-error', error: Logger.errorMessage(err) });
+                Runtime.frameLogger.error('connector', err, {event: 'handle-error', error: Logger.errorMessage(err)});
               }
               return createErrorResPacket(exError);
             });
@@ -236,8 +247,9 @@ abstract class Connector {
             } else {
               await this.send(createErrorResPacket(new RPCError(RPCErrorCode.ERR_RPC_EMPTY_RESPONSE, 'ERR_RPC_EMPTY_RESPONSE')));
             }
-          } catch (err) {
-            Runtime.frameLogger.error('connector', err, { event: 'event-handle-data', error: Logger.errorMessage(err)});
+          } catch (e) {
+            const err = ExError.fromError(e as Error);
+            Runtime.frameLogger.error('connector', err, {event: 'event-handle-data', error: Logger.errorMessage(err)});
           }
           break;
         case OPCode.NOTIFY:
@@ -246,51 +258,63 @@ abstract class Connector {
             return;
           }
           if (!is<IRawReqPacket>(data)) {
-            Runtime.frameLogger.warn('connector', { event: 'parse-body-failed', data });
+            Runtime.frameLogger.warn('connector', {event: 'parse-body-failed', data});
             return;
           }
           await this.routeCallback_(data, session, this);
           break;
         case OPCode.RESPONSE:
           if (!is<IRawResPacket>(data)) {
-            Runtime.frameLogger.warn('connector', { event: 'parse-body-failed', data });
+            Runtime.frameLogger.warn('connector', {event: 'parse-body-failed', data});
             return;
           }
           this.emitRPCResponse(data);
           break;
         case OPCode.OPERATION:
           if (!is<IRawOperationPacket>(data)) {
-            Runtime.frameLogger.warn('connector', { event: 'parse-body-failed', data });
+            Runtime.frameLogger.warn('connector', {event: 'parse-body-failed', data});
             return;
           }
-          this.handleCommand(data.command as ConnectorCommand, data.args);
+          this.handleCommand(data.command as ConnectorCommand, data.args).catch((err: ExError) => {
+            Runtime.frameLogger.error('connector', err, {event: 'handle-command-error', error: Logger.errorMessage(err)});
+          });
           break;
         default:
-          const error = new RPCError(RPCErrorCode.ERR_RPC_NOT_SUPPORT_OPCODE, `ERR_RPC_NOT_SUPPORT_OPCODE`)
-          Runtime.frameLogger.error('connector.tcp', error, {event: 'opcode-not-support', opCode: (data as any).opcode});
+          const error = new RPCError(RPCErrorCode.ERR_RPC_NOT_SUPPORT_OPCODE, 'ERR_RPC_NOT_SUPPORT_OPCODE');
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
+          Runtime.frameLogger.error('connector', error, {event: 'opcode-not-support', opCode: (data as any).opcode});
           break;
       }
     });
   }
 
-  protected async handleCommand(command: ConnectorCommand, args: any) {
+  protected async handleCommand(command: ConnectorCommand, args: unknown) {
     const logBlackList = [ConnectorCommand.PING, ConnectorCommand.PONG];
     if (!logBlackList.includes(command))
       Runtime.frameLogger.info('connector', {event: 'connector-command', command, args});
     switch(command) {
       case ConnectorCommand.ERROR:
-        this.lifeCycle_.setState(ConnectorState.ERROR, new ExError(args.code, args.name, args.message, args.level));
+        const error = args as ExError;
+        this.lifeCycle_.setState(ConnectorState.ERROR, new ExError(error.code, error.name, error.message, error.level)).catch(Utility.null);
         break;
       case ConnectorCommand.OFF:
-        this.off();
+        this.off().catch((err: ExError) => {
+          Runtime.frameLogger.error('connector', err, {event: 'cconnect-off-error', error: Logger.errorMessage(err)});
+        });
         break;
-      case ConnectorCommand.PING:
-        this.sendPong(args.id);
+      case ConnectorCommand.PING: {
+        const data = args as {id: number};
+        this.sendPong(data.id).catch((err: ExError) => {
+          Runtime.frameLogger.error('connector', err, {event: 'send-pong-error', error: Logger.errorMessage(err)});
+        });
         break;
-      case ConnectorCommand.PONG:
+      }
+      case ConnectorCommand.PONG: {
+        const data = args as {id: number};
         if (this.pongWaiter_)
-          this.pongWaiter_.emit(args.id);
+          this.pongWaiter_.emit(data.id);
         break;
+      }
       default:
         break;
     }
@@ -324,4 +348,4 @@ abstract class Connector {
   private startContext_: Context | null;
 }
 
-export {Connector}
+export {Connector};

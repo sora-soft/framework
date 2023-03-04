@@ -5,12 +5,14 @@ import {TCPListener} from './tcp/TCPListener';
 import {Route} from './rpc/Route';
 import {NodeHandler} from './handler/NodeHandler';
 import {INodeMetaData} from '../interface/discovery';
-import {TCPConnector} from './tcp/TCPConnector';
 import {Broadcaster} from './rpc/Broadcaster';
 import {INodeNotifyHandler} from './handler/NodeNotifyHandler';
 import {Runtime} from './Runtime';
 import {INodeRunData, ServiceBuilder, WorkerBuilder} from '../interface/node';
 import {Context} from './Context';
+import {ExError} from '../utility/ExError';
+import {Logger} from './logger/Logger';
+import {Utility} from '../utility/Utility';
 
 class Node extends Service {
   static registerWorker(name: string, builder: WorkerBuilder) {
@@ -51,8 +53,10 @@ class Node extends Service {
     await this.installListener(this.TCPListener_, context);
 
     this.doJobInterval(async () => {
-      this.broadcaster_.notify(this.id).notifyNodeState(this.nodeRunData);
-    }, 1000);
+      this.broadcaster_.notify(this.id).notifyNodeState(this.nodeRunData).catch((err: ExError) => {
+        Runtime.frameLogger.error('node', err, {event: 'node-broadcast-state-error', error: Logger.errorMessage(err)});
+      });
+    }, 1000).catch(Utility.null);
   }
 
   async shutdown() {}
@@ -69,7 +73,7 @@ class Node extends Service {
       services: Runtime.services.map((service) => service.runData),
       workers: Runtime.workers.map((worker) => worker.metaData),
       node: Runtime.node.nodeStateData,
-    }
+    };
   }
 
   get nodeStateData(): INodeMetaData {
@@ -79,7 +83,7 @@ class Node extends Service {
       pid: process.pid,
       endpoint: this.TCPListener_.metaData,
       state: this.state,
-    }
+    };
   }
   private nodeOptions_: INodeOptions;
   private broadcaster_: Broadcaster<INodeNotifyHandler>;

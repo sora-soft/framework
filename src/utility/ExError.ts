@@ -44,4 +44,4 @@ class ExError extends Error {
   private level_: ErrorLevel;
 }
 
-export {ExError}
+export {ExError};

@@ -1,5 +1,4 @@
 import {WorkerState} from '../Enum';
-import {Time} from '../utility/Time';
 import {v4 as uuid} from 'uuid';
 import {LifeCycle} from '../utility/LifeCycle';
 import {Executor, JobExecutor} from '../utility/Executor';
@@ -10,6 +9,8 @@ import {Component} from './Component';
 import {Provider} from './rpc/Provider';
 import {Logger} from './logger/Logger';
 import {Context} from './Context';
+import {Utility} from '../utility/Utility';
+import {ExError} from '../utility/ExError';
 
 abstract class Worker {
   constructor(name: string) {
@@ -25,15 +26,15 @@ abstract class Worker {
     this.lifeCycle_.addHandler(WorkerState.STOPPED, async () => {
       for (const provider of this.providerPool_.keys()) {
         await this.unregisterProvider(provider).catch((err: Error) => {
-          Runtime.frameLogger.error(this.logCategory, err, {event: 'unregister-provider', error: Logger.errorMessage(err) });
+          Runtime.frameLogger.error(this.logCategory, err, {event: 'unregister-provider', error: Logger.errorMessage(err)});
         });
       }
       for (const component of this.componentPool_.keys()) {
         await this.disconnectComponent(component).catch((err: Error) => {
-          Runtime.frameLogger.error(this.logCategory, err, {event: 'disconnect-component', error: Logger.errorMessage(err) });
+          Runtime.frameLogger.error(this.logCategory, err, {event: 'disconnect-component', error: Logger.errorMessage(err)});
         });
       }
-    })
+    });
   }
 
   // 连接component等准备工作
@@ -42,7 +43,9 @@ abstract class Worker {
     context = this.startupContext_ = new Context(context);
     await context.await(this.lifeCycle_.setState(WorkerState.PENDING));
     this.executor_.start();
-    await context.await(this.startup(context).catch(this.onError.bind(this)));
+    await context.await(this.startup(context).catch((err: ExError) => {
+      this.onError(err);
+    }));
     await context.await(this.lifeCycle_.setState(WorkerState.READY));
     this.startupContext_ = null;
   }
@@ -53,11 +56,15 @@ abstract class Worker {
     await this.lifeCycle_.setState(WorkerState.STOPPING);
     this.intervalJobTimer_.clearAll();
     await this.executor_.stop();
-    await this.shutdown(reason).catch(this.onError.bind(this));
+    await this.shutdown(reason).catch((err: ExError) => {
+      this.onError(err);
+    });
     await this.lifeCycle_.setState(WorkerState.STOPPED);
   }
 
-  async runCommand(commands: string[]) { return false; }
+  async runCommand() {
+    return false;
+  }
 
   protected async doJob<T>(executor: JobExecutor<T>) {
     return this.executor_.doJob<T>(executor);
@@ -80,7 +87,7 @@ abstract class Worker {
 
       const startTime = Date.now();
       await this.doJob(executor).catch((err: Error) => {
-        Runtime.frameLogger.error(this.logCategory, err, { event: 'do-interval-job-error', error: Logger.errorMessage(err) });
+        Runtime.frameLogger.error(this.logCategory, err, {event: 'do-interval-job-error', error: Logger.errorMessage(err)});
       });
       const nextExecuteMS = timeMS + startTime - Date.now();
       if (nextExecuteMS > 0)
@@ -95,13 +102,13 @@ abstract class Worker {
   }
 
   public async registerProvider(provider: Provider, ctx?: Context) {
-    Runtime.frameLogger.info(this.logCategory, { event: 'register-provider', id: this.id, name: this.name, provider: provider.name });
+    Runtime.frameLogger.info(this.logCategory, {event: 'register-provider', id: this.id, name: this.name, provider: provider.name});
 
     this.providerPool_.set(provider.name, provider);
 
     await provider.startup(ctx);
 
-    Runtime.frameLogger.info(this.logCategory, { event: 'provider-started', id: this.id, name: this.name, provider: provider.name });
+    Runtime.frameLogger.info(this.logCategory, {event: 'provider-started', id: this.id, name: this.name, provider: provider.name});
   }
 
   public async unregisterProvider(name: string) {
@@ -109,11 +116,11 @@ abstract class Worker {
     if (!provider)
       return;
 
-    Runtime.frameLogger.info(this.logCategory, { event: 'unregister-provider', id: this.id, name: this.name, provider: name });
+    Runtime.frameLogger.info(this.logCategory, {event: 'unregister-provider', id: this.id, name: this.name, provider: name});
 
     await provider.shutdown();
 
-    Runtime.frameLogger.info(this.logCategory, { event: 'provider-unregistered', id: this.id, name: this.name, provider: name });
+    Runtime.frameLogger.info(this.logCategory, {event: 'provider-unregistered', id: this.id, name: this.name, provider: name});
   }
 
   public async connectComponents(components: Component[], ctx?: Context) {
@@ -123,13 +130,13 @@ abstract class Worker {
   }
 
   public async connectComponent(component: Component, ctx?: Context) {
-    Runtime.frameLogger.info(this.logCategory, { event: 'connect-component', id: this.id, name: this.name, component: component.name, version: component.version });
+    Runtime.frameLogger.info(this.logCategory, {event: 'connect-component', id: this.id, name: this.name, component: component.name, version: component.version});
 
     this.componentPool_.set(component.name, component);
 
     await component.start(ctx);
 
-    Runtime.frameLogger.info(this.logCategory, { event: 'component-connected', id: this.id, name: this.name, component: component.name, version: component.version });
+    Runtime.frameLogger.info(this.logCategory, {event: 'component-connected', id: this.id, name: this.name, component: component.name, version: component.version});
   }
 
   public async disconnectComponent(name: string) {
@@ -137,30 +144,30 @@ abstract class Worker {
     if (!component)
       return;
 
-    Runtime.frameLogger.info(this.logCategory, { event: 'disconnect-component', id: this.id, name: this.name, component: name });
+    Runtime.frameLogger.info(this.logCategory, {event: 'disconnect-component', id: this.id, name: this.name, component: name});
 
     this.componentPool_.delete(name);
     await component.stop();
 
-    Runtime.frameLogger.info(this.logCategory, { event: 'component-disconnected', id: this.id, name: this.name, component: name });
+    Runtime.frameLogger.info(this.logCategory, {event: 'component-disconnected', id: this.id, name: this.name, component: name});
   }
 
   public async setBusy() {
     if (this.state !== WorkerState.READY)
       return;
     await this.lifeCycle_.setState(WorkerState.BUSY);
-    Runtime.frameLogger.info(this.logCategory, { event: 'set-busy' });
+    Runtime.frameLogger.info(this.logCategory, {event: 'set-busy'});
   }
 
   public async cancelBusy() {
     if (this.state !== WorkerState.BUSY)
       return;
     await this.lifeCycle_.setState(WorkerState.READY);
-    Runtime.frameLogger.info(this.logCategory, { event: 'cancel-busy' });
+    Runtime.frameLogger.info(this.logCategory, {event: 'cancel-busy'});
   }
 
-  protected async onError(err: Error) {
-    await this.lifeCycle_.setState(WorkerState.ERROR, err);
+  protected onError(err: Error) {
+    this.lifeCycle_.setState(WorkerState.ERROR, err).catch(Utility.null);
     throw err;
   }
 
@@ -198,11 +205,11 @@ abstract class Worker {
       state: this.state,
       id: this.id_,
       nodeId: Runtime.node.id,
-    }
+    };
   }
 
   protected get logCategory() {
-    return `worker.${this.name}`
+    return `worker.${this.name}`;
   }
 
   // get runData() {}
@@ -212,9 +219,9 @@ abstract class Worker {
   protected intervalJobTimer_: Timer;
   private name_: string;
   private id_: string;
-  private componentPool_: Map<string/*name*/, Component>;
-  private providerPool_: Map<string/*name*/, Provider>;
+  private componentPool_: Map<string/* name*/, Component>;
+  private providerPool_: Map<string/* name*/, Provider>;
   private startupContext_: Context | null;
 }
 
-export {Worker}
+export {Worker};

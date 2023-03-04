@@ -11,7 +11,7 @@ class Timer {
     });
   }
 
-  async clearAll() {
+  clearAll() {
     for(const timer of this.timers_) {
       clearTimeout(timer);
     }
@@ -21,4 +21,4 @@ class Timer {
   private timers_: NodeJS.Timer[] = [];
 }
 
-export {Timer}
+export {Timer};

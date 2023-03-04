@@ -1,4 +1,5 @@
 import {FrameworkErrorCode} from '../ErrorCode';
+import {ExError} from '../utility/ExError';
 import {Ref} from '../utility/Ref';
 import {Context} from './Context';
 import {FrameworkError} from './FrameworkError';
@@ -26,11 +27,11 @@ abstract class Component {
 
     await this.ref_.add(async () => {
       this.startContext_ = new Context(context);
-      await this.connect(this.startContext_).catch(err => {
-        Runtime.frameLogger.error(`component.${this.name_}`, err, { event: 'connect-component', error: Logger.errorMessage(err) });
+      await this.connect(this.startContext_).catch((err: ExError) => {
+        Runtime.frameLogger.error(`component.${this.name_}`, err, {event: 'connect-component', error: Logger.errorMessage(err)});
         throw err;
       });
-      Runtime.frameLogger.success(`component.${this.name_}`, { event: 'success-connect', options: this.logOptions(), version: this.version });
+      Runtime.frameLogger.success(`component.${this.name_}`, {event: 'success-connect', options: this.logOptions(), version: this.version});
       this.init_ = true;
     });
   }
@@ -40,14 +41,14 @@ abstract class Component {
     await this.ref_.minus(async () => {
       this.startContext_?.abort();
       this.startContext_ = null;
-      await this.disconnect().catch(err => {
-        Runtime.frameLogger.error(`component.${this.name_}`, err, { event: 'disconnect-component', error: Logger.errorMessage(err) });
+      await this.disconnect().catch((err: ExError) => {
+        Runtime.frameLogger.error(`component.${this.name_}`, err, {event: 'disconnect-component', error: Logger.errorMessage(err)});
       }).then(() => {
-        Runtime.frameLogger.success(`component.${this.name_}`, { event: 'success-disconnect' });
+        Runtime.frameLogger.success(`component.${this.name_}`, {event: 'success-disconnect'});
       });
     }).catch((err: Error) => {
       if (err.message === 'ERR_REF_NEGATIVE')
-        Runtime.frameLogger.warn(`component.${this.name_}`, { event: 'duplicate-stop' });
+        Runtime.frameLogger.warn(`component.${this.name_}`, {event: 'duplicate-stop'});
       else
         throw err;
     });

@@ -1,5 +1,19 @@
+type NonUndefined<T> = T extends undefined ? never : T;
+
 class Utility {
-  static mapToJSON(map: Map<string, any>) {
+  static null() {}
+
+  static isMeaningful<T>(object: T): object is NonUndefined<T> {
+    if (typeof object === 'number')
+      return !isNaN(object);
+    return !this.isUndefined(object);
+  }
+
+  static isUndefined(object: any): object is undefined {
+    return object === undefined;
+  }
+
+  static mapToJSON(map: Map<string, unknown>) {
     const result = new Object(null);
 
     for (const key of map.keys()) {
@@ -25,16 +39,7 @@ class Utility {
     return array[index];
   }
 
-  static hideKeys<T extends { [key: string] : any }>(obj: T, keys: (keyof T)[]) {
-    const result: Partial<T> = {};
-    Object.entries(obj).forEach(([key, value]: [keyof T, any]) => {
-      if (!keys.includes(key))
-        result[key] = value;
-    });
-    return result;
-  }
-
-  static formatLogTimeString(date: Date) {
+  static formatLogTimeString() {
     const timezoneOffsetMin = new Date().getTimezoneOffset();
     const offsetHrsNum = Math.abs( timezoneOffsetMin / 60 );
     const offsetMinNum = Math.abs(timezoneOffsetMin % 60);
@@ -43,10 +48,10 @@ class Utility {
     let timezoneStandard = '';
 
     if(offsetHrsNum < 10)
-      offsetHrs = '0' + offsetHrsNum;
+      offsetHrs = `0${offsetHrsNum}`;
 
     if(offsetMinNum < 10)
-      offsetMin = '0' + offsetMinNum;
+      offsetMin = `0${offsetMinNum}`;
 
     // Add an opposite sign to the offset
     // If offset is 0, it means timezone is UTC
@@ -68,15 +73,15 @@ class Utility {
     // const current_datetime;
 
     // Add 0 before date, month, hrs, mins or secs if they are less than 0
-    const currentDateStr = currentDate < 10 ? '0' + currentDate : currentDate;
-    const currentMonthStr = currentMonth < 10 ? '0' + currentMonth : currentMonth;
-    const currentHrsStr = currentHrs < 10 ? '0' + currentHrs : currentHrs;
-    const currentMinsStr = currentMins < 10 ? '0' + currentMins : currentMins;
-    const currentSecsStr = currentSecs < 10 ? '0' + currentSecs : currentSecs;
+    const currentDateStr = currentDate < 10 ? `0${currentDate}` : currentDate;
+    const currentMonthStr = currentMonth < 10 ? `0${currentMonth}` : currentMonth;
+    const currentHrsStr = currentHrs < 10 ? `0${currentHrs}` : currentHrs;
+    const currentMinsStr = currentMins < 10 ? `0${currentMins}` : currentMins;
+    const currentSecsStr = currentSecs < 10 ? `0${currentSecs}` : currentSecs;
 
     // Current datetime
     // String such as 2016-07-16T19:20:30
-    const currentDateTime = currentYear + '-' + currentMonthStr + '-' + currentDateStr + 'T' + currentHrsStr + ':' + currentMinsStr + ':' + currentSecsStr;
+    const currentDateTime =  `${currentYear}-${currentMonthStr}-${currentDateStr}T${currentHrsStr}:${currentMinsStr}:${currentSecsStr}`;
     // Timezone difference in hours and minutes
     // String such as +5:30 or -6:00 or Z
     return currentDateTime + timezoneStandard;
@@ -89,7 +94,7 @@ class UnixTime {
   }
 
   static fromDate(date: Date) {
-    return Math.floor(date.getTime() / 1000)
+    return Math.floor(date.getTime() / 1000);
   }
 
   static now() {
@@ -127,7 +132,7 @@ class NodeTime {
   }
 
   static day(days: number) {
-    return days * this.hour(24)// 60 * 60 * 24 * days * 1000;
+    return days * this.hour(24);// 60 * 60 * 24 * days * 1000;
   }
 
   static hour(hours: number) {
@@ -158,4 +163,4 @@ class ArrayMap<K, T> extends Map<K, T[]> {
   }
 }
 
-export {Utility, NodeTime, UnixTime, ArrayMap}
+export {Utility, NodeTime, UnixTime, ArrayMap};

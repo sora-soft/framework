@@ -50,4 +50,4 @@ class Context {
   private stopped_: boolean;
 }
 
-export {Context}
+export {Context};

@@ -1,9 +1,10 @@
 import {ListenerState, ConnectorState, WorkerState} from '../../Enum';
 import {RPCErrorCode} from '../../ErrorCode';
 import {DiscoveryListenerEvent, DiscoveryServiceEvent, LifeCycleEvent} from '../../Event';
-import {IListenerEventData, IListenerMetaData, IServiceMetaData} from '../../interface/discovery';
+import {IListenerMetaData, IServiceMetaData} from '../../interface/discovery';
 import {IListenerInfo} from '../../interface/rpc';
 import {AbortError} from '../../utility/AbortError';
+import {ExError} from '../../utility/ExError';
 import {LabelFilter} from '../../utility/LabelFilter';
 import {Ref} from '../../utility/Ref';
 import {Utility} from '../../utility/Utility';
@@ -21,19 +22,19 @@ import {RPCSender} from './RPCSender';
 export type senderBuilder = (listenerId: string, targetId: string) => RPCSender;
 export interface IRequestOptions {
   headers?: {
-    [k: string]: any
-  },
+    [k: string]: any;
+  };
   timeout?: number;
 }
 
 type ThenArg<T> = T extends PromiseLike<infer U> ? U : T;
 type TypeOfClassMethod<T, M extends keyof T> = T[M] extends (...args: any) => any ? T[M] : never;
-type RawRouteRPCMethod<T extends Route, K extends keyof T> = (body: Parameters<TypeOfClassMethod<T, K>>[0], options?: IRequestOptions, raw?: true) => Promise<Response<ThenArg<ReturnType<TypeOfClassMethod<T, K>>>>>;
-type RouteRPCMethod<T extends Route, K extends keyof T> = (body: Parameters<TypeOfClassMethod<T, K>>[0], options?: IRequestOptions, raw?: false) => ReturnType<TypeOfClassMethod<T, K>>;
-type ConvertRPCRouteMethod<T extends Route> = {
+export type RawRouteRPCMethod<T extends Route, K extends keyof T> = (body: Parameters<TypeOfClassMethod<T, K>>[0], options?: IRequestOptions, raw?: true) => Promise<Response<ThenArg<ReturnType<TypeOfClassMethod<T, K>>>>>;
+export type RouteRPCMethod<T extends Route, K extends keyof T> = (body: Parameters<TypeOfClassMethod<T, K>>[0], options?: IRequestOptions, raw?: false) => ReturnType<TypeOfClassMethod<T, K>>;
+export type ConvertRPCRouteMethod<T extends Route> = {
   [K in keyof T]: RouteRPCMethod<T, K> & RawRouteRPCMethod<T, K>;
 }
-type RouteMethod<T extends Route, K extends keyof T> = (body: Parameters<TypeOfClassMethod<T, K>>[0], options?: IRequestOptions) => Promise<void>;
+export type RouteMethod<T extends Route, K extends keyof T> = (body: Parameters<TypeOfClassMethod<T, K>>[0], options?: IRequestOptions) => Promise<void>;
 export type ConvertRouteMethod<T extends Route> = {
   [K in keyof T]: RouteMethod<T, K>
 }
@@ -63,13 +64,13 @@ class Provider<T extends Route = any> {
 
     this.caller_ = {
       rpc: (fromId?: string | null, toId?: string | null) => {
-        return new Proxy<ConvertRPCRouteMethod<T>>({} as any , {
-          get: (target, prop: string, receiver) => {
+        return new Proxy<ConvertRPCRouteMethod<T>>({} as ConvertRPCRouteMethod<T> , {
+          get: (target, prop: string) => {
             if (!this.isStarted)
-              throw new RPCError(RPCErrorCode.ERR_RPC_PROVIDER_NOT_AVAILABLE, `ERR_RPC_PROVIDER_NOT_AVAILABLE`);
+              throw new RPCError(RPCErrorCode.ERR_RPC_PROVIDER_NOT_AVAILABLE, 'ERR_RPC_PROVIDER_NOT_AVAILABLE');
 
             return async (body: unknown, options: IRequestOptions = {}, raw = false) => {
-              const sender = Utility.randomOne([...this.senders_].map(([id, s]) => {
+              const sender = Utility.randomOne([...this.senders_].map(([_, s]) => {
                 return s;
               }).filter((s) => {
                 return s.connector.state === ConnectorState.READY && (!toId || s.targetId === toId) && s.connector.isAvailable() && !s.isBusy;
@@ -97,13 +98,13 @@ class Provider<T extends Route = any> {
         });
       },
       notify: (fromId?: string | null, toId?: string | null) => {
-        return new Proxy<ConvertRouteMethod<T>>({} as any, {
-          get: (target, prop: string, receiver) => {
+        return new Proxy<ConvertRouteMethod<T>>({} as ConvertRPCRouteMethod<T>, {
+          get: (target, prop: string) => {
             if (!this.isStarted)
-              throw new RPCError(RPCErrorCode.ERR_RPC_PROVIDER_NOT_AVAILABLE, `ERR_RPC_PROVIDER_NOT_AVAILABLE`);
+              throw new RPCError(RPCErrorCode.ERR_RPC_PROVIDER_NOT_AVAILABLE, 'ERR_RPC_PROVIDER_NOT_AVAILABLE');
 
             return async (body: unknown, options: IRequestOptions = {}) => {
-              const sender = Utility.randomOne([...this.senders_].map(([id, s]) => {
+              const sender = Utility.randomOne([...this.senders_].map(([_, s]) => {
                 return s;
               }).filter(s => {
                 return s.connector.state === ConnectorState.READY && (!toId || s.listenerId === toId) && s.connector.isAvailable();
@@ -124,17 +125,17 @@ class Provider<T extends Route = any> {
               await sender.connector.sendNotify(notify, fromId);
             };
           }
-        })
+        });
       },
       broadcast: (fromId?: string) => {
-        return new Proxy<ConvertRouteMethod<T>>({} as any, {
-          get: (target, prop: string, receiver) => {
+        return new Proxy<ConvertRouteMethod<T>>({} as ConvertRouteMethod<T>, {
+          get: (target, prop: string) => {
             if (!this.isStarted)
-              throw new RPCError(RPCErrorCode.ERR_RPC_PROVIDER_NOT_AVAILABLE, `ERR_RPC_PROVIDER_NOT_AVAILABLE`);
+              throw new RPCError(RPCErrorCode.ERR_RPC_PROVIDER_NOT_AVAILABLE, 'ERR_RPC_PROVIDER_NOT_AVAILABLE');
 
             return async (body: unknown, options?: IRequestOptions) => {
               const targetSet = new Set();
-              const senders = [...this.senders_].map(([id, s]) => {
+              const senders = [...this.senders_].map(([_, s]) => {
                 return s;
               }).filter(s => {
                 const available = s.connector.state === ConnectorState.READY && !targetSet.has(s.listenerId) && s.connector.isAvailable();
@@ -144,23 +145,23 @@ class Provider<T extends Route = any> {
                 return available;
               });
 
-              if (!options)
-                options = {};
-
               await Promise.all(senders.map((s) => {
+                if (!options)
+                  options = {};
+
                 const notify = new Notify({
                   method: prop,
                   payload: body,
                   path: `${this.name_}/${prop}`,
-                  headers: options!.headers || {},
+                  headers: options.headers || {},
                 });
                 return s.connector.sendNotify(notify, fromId);
-              }))
+              }));
             };
           }
-        })
+        });
       }
-    }
+    };
   }
 
   async shutdown() {
@@ -173,7 +174,7 @@ class Provider<T extends Route = any> {
       }));
     }).catch((err: Error) => {
       if (err.message === 'ERR_REF_NEGATIVE')
-        Runtime.frameLogger.warn(`provider.${this.name_}`, { event: 'duplicate-stop' });
+        Runtime.frameLogger.warn(`provider.${this.name_}`, {event: 'duplicate-stop'});
     });
   }
 
@@ -193,7 +194,7 @@ class Provider<T extends Route = any> {
           continue;
         const service = this.serviceMataData_.get(info.targetId);
         if (!service)
-          continue;;
+          continue;
         const sender = this.senders_.get(info.id);
         if (!sender && service.name === this.name_ && this.filter_.isSatisfy(info.labels)) {
           this.createSender(info);
@@ -249,22 +250,26 @@ class Provider<T extends Route = any> {
 
         switch (state) {
           case ListenerState.READY:
-            await sender.connector.start(meta).catch(err => {
+            await sender.connector.start(meta).catch((err: ExError) => {
               if (err instanceof AbortError)
                 return;
-              Runtime.frameLogger.error(this.logCategory, err, { event: 'sender-started-failed', error: Logger.errorMessage(err), name: this.name_ });
+              Runtime.frameLogger.error(this.logCategory, err, {event: 'sender-started-error', error: Logger.errorMessage(err), name: this.name_});
             });
             break;
           case ListenerState.STOPPING:
           case ListenerState.STOPPED:
           case ListenerState.ERROR:
-            this.removeSender(id);
+            this.removeSender(id).catch((err: ExError) => {
+              Runtime.frameLogger.error(this.logCategory, err, {event: 'remove-sender-error', error: Logger.errorMessage(err), name: this.name_});
+            });
             break;
         }
       });
       Runtime.discovery.listenerEmitter.on(DiscoveryListenerEvent.ListenerDeleted, async (id) => {
         this.listenerMetaData_.delete(id);
-        this.removeSender(id);
+        this.removeSender(id).catch((err: ExError) => {
+          Runtime.frameLogger.error(this.logCategory, err, {event: 'remove-sender-error', error: Logger.errorMessage(err), name: this.name_});
+        });
       });
 
       this.startCtx_ = null;
@@ -288,7 +293,7 @@ class Provider<T extends Route = any> {
   }
 
   private get senderList_() {
-    return [...this.senders_].map(([id, sender]) => sender);
+    return [...this.senders_].map(([_, sender]) => sender);
   }
 
   private async removeSender(id: string) {
@@ -296,11 +301,11 @@ class Provider<T extends Route = any> {
     if (!sender)
       return;
 
-    Runtime.frameLogger.info(this.logCategory, { event: 'remove-sender', name: this.name_, id });
+    Runtime.frameLogger.info(this.logCategory, {event: 'remove-sender', name: this.name_, id});
     this.senders_.delete(id);
-    await sender.connector.off().catch(err => {
-      Runtime.frameLogger.error(this.logCategory, err, { event: 'sender-stop-failed', error: Logger.errorMessage(err), name: this.name_ });
-    });;
+    await sender.connector.off().catch((err: ExError) => {
+      Runtime.frameLogger.error(this.logCategory, err, {event: 'sender-stop-failed', error: Logger.errorMessage(err), name: this.name_});
+    });
   }
 
   private async reconnect(meta: IListenerMetaData) {
@@ -309,17 +314,19 @@ class Provider<T extends Route = any> {
   }
 
   private createSender(endpoint: IListenerMetaData) {
-    if (this.senders_.has(endpoint.id)) {
-      const existed = this.senders_.get(endpoint.id);
+    const existed = this.senders_.get(endpoint.id);
+    if (existed) {
       Runtime.frameLogger.debug(this.logCategory, {
         event: 'remove-exited-sender',
         listener: this.formatLogListener(endpoint),
-        targetId: existed!.targetId,
-        state: existed!.connector.state,
+        targetId: existed.targetId,
+        state: existed.connector.state,
         name: this.name_
       });
 
-      this.removeSender(endpoint.id);
+      this.removeSender(endpoint.id).catch((err: ExError) => {
+        Runtime.frameLogger.error(this.logCategory, err, {event: 'remove-sender-error', error: Logger.errorMessage(err), name: this.name_});
+      });
     }
 
     if (!endpoint.targetId)
@@ -338,27 +345,31 @@ class Provider<T extends Route = any> {
       switch(state) {
         case ConnectorState.STOPPED:
         case ConnectorState.ERROR:
-          this.removeSender(sender.listenerId);
+          this.removeSender(sender.listenerId).catch((err: ExError) => {
+            Runtime.frameLogger.error(this.logCategory, err, {event: 'remove-sender-error', error: Logger.errorMessage(err), name: this.name_});
+          });
           const listenerMeta = this.listenerMetaData_.get(sender.listenerId);
           if (listenerMeta && listenerMeta.state === ListenerState.READY) {
             // 这个sender意外停止
-            this.reconnect(listenerMeta);
+            this.reconnect(listenerMeta).catch((err: ExError) => {
+              Runtime.frameLogger.error(this.logCategory, err, {event: 'reconnect-sender-error', error: Logger.errorMessage(err), name: this.name_});
+            });
           }
           break;
       }
     });
 
-    Runtime.frameLogger.success(this.logCategory, { event: 'sender-created', listener: this.formatLogListener(endpoint), targetId: sender.targetId, name: this.name_ });
+    Runtime.frameLogger.success(this.logCategory, {event: 'sender-created', listener: this.formatLogListener(endpoint), targetId: sender.targetId, name: this.name_});
 
     this.senders_.set(endpoint.id, sender);
     if (this.routeCallback_)
       sender.connector.enableResponse(this.routeCallback_);
 
     if (endpoint.state === ListenerState.READY) {
-      sender.connector.start(endpoint).catch(err => {
+      sender.connector.start(endpoint).catch((err: Error) => {
         if (err instanceof AbortError)
           return;
-        Runtime.frameLogger.error(this.logCategory, err, { event: 'sender-started-failed', error: Logger.errorMessage(err), name: this.name_ });
+        Runtime.frameLogger.error(this.logCategory, err, {event: 'sender-started-failed', error: Logger.errorMessage(err), name: this.name_});
       });
     }
 
@@ -370,22 +381,22 @@ class Provider<T extends Route = any> {
   }
 
   private formatLogListener(listener: IListenerInfo) {
-    return { protocol: listener.protocol, endpoint: listener.endpoint };
+    return {protocol: listener.protocol, endpoint: listener.endpoint};
   }
 
   private name_: string;
-  private senders_: Map<string /*endpoint id*/, RPCSender>;
+  private senders_: Map<string /* endpoint id*/, RPCSender>;
   private caller_: {
-    rpc: (fromId?: string | null, toId?: string | null) => ConvertRPCRouteMethod<T>,
-    notify: (fromId?: string | null, toId?: string | null) => ConvertRouteMethod<T>,
-    broadcast: (fromId?: string) => ConvertRouteMethod<T>,
+    rpc: (fromId?: string | null, toId?: string | null) => ConvertRPCRouteMethod<T>;
+    notify: (fromId?: string | null, toId?: string | null) => ConvertRouteMethod<T>;
+    broadcast: (fromId?: string) => ConvertRouteMethod<T>;
   };
   private filter_: LabelFilter;
   private routeCallback_: ListenerCallback | undefined;
   private ref_: Ref<void>;
-  private listenerMetaData_: Map<string /*endpoint id*/, IListenerMetaData>;
-  private serviceMataData_: Map<string /*service id*/, IServiceMetaData>;
+  private listenerMetaData_: Map<string /* endpoint id*/, IListenerMetaData>;
+  private serviceMataData_: Map<string /* service id*/, IServiceMetaData>;
   private startCtx_: Context | null;
 }
 
-export {Provider}
+export {Provider};
