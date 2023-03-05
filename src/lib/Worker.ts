@@ -62,7 +62,8 @@ abstract class Worker {
     await this.lifeCycle_.setState(WorkerState.STOPPED);
   }
 
-  async runCommand() {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  async runCommand(...args: unknown[]) {
     return false;
   }
 
@@ -152,20 +153,6 @@ abstract class Worker {
     Runtime.frameLogger.info(this.logCategory, {event: 'component-disconnected', id: this.id, name: this.name, component: name});
   }
 
-  public async setBusy() {
-    if (this.state !== WorkerState.READY)
-      return;
-    await this.lifeCycle_.setState(WorkerState.BUSY);
-    Runtime.frameLogger.info(this.logCategory, {event: 'set-busy'});
-  }
-
-  public async cancelBusy() {
-    if (this.state !== WorkerState.BUSY)
-      return;
-    await this.lifeCycle_.setState(WorkerState.READY);
-    Runtime.frameLogger.info(this.logCategory, {event: 'cancel-busy'});
-  }
-
   protected onError(err: Error) {
     this.lifeCycle_.setState(WorkerState.ERROR, err).catch(Utility.null);
     throw err;
@@ -211,8 +198,6 @@ abstract class Worker {
   protected get logCategory() {
     return `worker.${this.name}`;
   }
-
-  // get runData() {}
 
   protected lifeCycle_: LifeCycle<WorkerState>;
   protected executor_: Executor;

@@ -44,7 +44,9 @@ abstract class Discovery {
   }
 
   // 获取所有节点信息（本地与远端）
+  abstract getAllServiceList(): Promise<IServiceMetaData[]>;
   abstract getServiceList(name: string, ): Promise<IServiceMetaData[]>;
+  abstract getAllEndpointList(): Promise<IListenerMetaData[]>;
   abstract getEndpointList(service: string, ): Promise<IListenerMetaData[]>;
   abstract getNodeList(): Promise<INodeMetaData[]>;
 

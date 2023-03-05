@@ -72,6 +72,7 @@ class Node extends Service {
     return {
       services: Runtime.services.map((service) => service.runData),
       workers: Runtime.workers.map((worker) => worker.metaData),
+      providers: Runtime.pvdManager.getAllProviders().map((provider) => provider.metaData),
       node: Runtime.node.nodeStateData,
     };
   }

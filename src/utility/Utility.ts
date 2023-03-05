@@ -3,6 +3,15 @@ type NonUndefined<T> = T extends undefined ? never : T;
 class Utility {
   static null() {}
 
+  static hideKeys<T extends { [key: string] : unknown }>(obj: T, keys: (keyof T)[]) {
+    const result: Partial<T> = {};
+    Object.entries(obj).forEach(([key, value]: [keyof T, unknown]) => {
+      if (!keys.includes(key))
+        result[key] = value as T[keyof T];
+    });
+    return result;
+  }
+
   static isMeaningful<T>(object: T): object is NonUndefined<T> {
     if (typeof object === 'number')
       return !isNaN(object);
@@ -37,6 +46,20 @@ class Utility {
   static randomOne<T>(array: T[]) {
     const index = this.randomInt(0, array.length);
     return array[index];
+  }
+
+  static randomOneByWeight<T>(array: T[], weighter: (ele: T) => number) {
+    const weightList = array.map((ele) => weighter(ele));
+    const totalWeight = weightList.reduce((pre, ele) => pre + ele, 0);
+    const resultWeight = this.randomInt(0, totalWeight);
+    let currentWeight = 0;
+    for (const [idx, ele] of array.entries()) {
+      currentWeight += weightList[idx];
+      if (currentWeight > resultWeight) {
+        return ele;
+      }
+    }
+    return null;
   }
 
   static formatLogTimeString() {
@@ -160,6 +183,10 @@ class ArrayMap<K, T> extends Map<K, T[]> {
       this.set(k, pre);
     }
     pre.push(value);
+  }
+
+  sureGet(k: K) {
+    return this.get(k) || [] as T[];
   }
 }
 

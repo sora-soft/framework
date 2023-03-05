@@ -3,7 +3,7 @@ import {LifeCycle} from '../../utility/LifeCycle';
 import {v4 as uuid} from 'uuid';
 import {IListenerInfo, IRawReqPacket, IRawResPacket} from '../../interface/rpc';
 import {IEventEmitter} from '../../interface/event';
-import {LifeCycleEvent, ListenerEvent} from '../../Event';
+import {LifeCycleEvent, ListenerEvent, ListenerWeightEvent} from '../../Event';
 import {ILabels} from '../../interface/config';
 import {EventEmitter} from 'events';
 import {Connector} from './Connector';
@@ -17,16 +17,22 @@ export interface IListenerEvent {
   [ListenerEvent.LostConnect]: (session: string, connector: Connector, ...args: any[]) => void;
 }
 
+export interface IListenerWeightEvent {
+  [ListenerWeightEvent.WeightChange]: (to: number, from: number) => void;
+}
+
 export type ListenerCallback<Req=unknown, Res=unknown> = (data: IRawReqPacket<Req>, session: string, connector: Connector) => Promise<IRawResPacket<Res> | null>;
 
 abstract class Listener {
   constructor(callback: ListenerCallback, labels: ILabels = {}) {
-    this.lifeCycle_ = new LifeCycle(ListenerState.INIT);
+    this.lifeCycle_ = new LifeCycle(ListenerState.INIT, false);
     this.callback_ = callback;
     this.id_ = uuid();
     this.labels_ = labels;
     this.connectionEmitter_ = new EventEmitter();
+    this.weightEmitter_ = new EventEmitter();
     this.connectors_ = new Map();
+    this.weight_ = 100;
   }
 
   protected abstract listen(context: Context): Promise<IListenerInfo>;
@@ -77,6 +83,14 @@ abstract class Listener {
     return this.connectors_.get(session);
   }
 
+  public setWeight(weight: number) {
+    if (weight < 0)
+      throw TypeError('listener weight should larger than 0');
+    const origin = this.weight;
+    this.weight_ = weight;
+    this.weightEmitter_.emit(ListenerWeightEvent.WeightChange, weight, origin);
+  }
+
   private onError(err: Error) {
     void this.lifeCycle_.setState(ListenerState.ERROR, err);
     throw err;
@@ -90,8 +104,16 @@ abstract class Listener {
     return this.lifeCycle_.emitter;
   }
 
+  get weightEventEmiiter() {
+    return this.weightEmitter_;
+  }
+
   get state() {
     return this.lifeCycle_.state;
+  }
+
+  get weight() {
+    return this.weight_;
   }
 
   get id() {
@@ -116,6 +138,7 @@ abstract class Listener {
   abstract get version (): string;
 
   protected connectionEmitter_: IEventEmitter<IListenerEvent>;
+  protected weightEmitter_: IEventEmitter<IListenerWeightEvent>;
   protected connectors_: Map<string, Connector>;
   protected lifeCycle_: LifeCycle<ListenerState>;
   protected callback_: ListenerCallback;
@@ -123,6 +146,7 @@ abstract class Listener {
   private id_: string;
   private labels_: ILabels;
   private startContext_: Context | null;
+  private weight_: number;
 }
 
 export {Listener};

@@ -1,6 +1,6 @@
 import {Connector} from './Connector';
 import {Route} from './Route';
-import {ConvertRouteMethod, IRequestOptions} from './Provider';
+import {ConvertRouteMethod, IRequestOptions} from './ProviderManager';
 import {Notify} from './Notify';
 import {LifeCycleEvent} from '../../Event';
 import {ConnectorState} from '../../Enum';

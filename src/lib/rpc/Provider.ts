@@ -1,8 +1,8 @@
-import {ListenerState, ConnectorState, WorkerState} from '../../Enum';
+import {ListenerState, ConnectorState} from '../../Enum';
 import {RPCErrorCode} from '../../ErrorCode';
-import {DiscoveryListenerEvent, DiscoveryServiceEvent, LifeCycleEvent} from '../../Event';
-import {IListenerMetaData, IServiceMetaData} from '../../interface/discovery';
-import {IListenerInfo} from '../../interface/rpc';
+import {DiscoveryListenerEvent, LifeCycleEvent} from '../../Event';
+import {IListenerMetaData} from '../../interface/discovery';
+import {IListenerInfo, IProviderMetaData} from '../../interface/rpc';
 import {AbortError} from '../../utility/AbortError';
 import {ExError} from '../../utility/ExError';
 import {LabelFilter} from '../../utility/LabelFilter';
@@ -18,150 +18,16 @@ import {Response} from './Response';
 import {Route} from './Route';
 import {RPCError} from './RPCError';
 import {RPCSender} from './RPCSender';
+import {ConvertRouteMethod, ConvertRPCRouteMethod, IRequestOptions} from './ProviderManager';
+import {ILabels} from '../../interface/config';
 
-export type senderBuilder = (listenerId: string, targetId: string) => RPCSender;
-export interface IRequestOptions {
-  headers?: {
-    [k: string]: any;
-  };
-  timeout?: number;
-}
-
-type ThenArg<T> = T extends PromiseLike<infer U> ? U : T;
-type TypeOfClassMethod<T, M extends keyof T> = T[M] extends (...args: any) => any ? T[M] : never;
-export type RawRouteRPCMethod<T extends Route, K extends keyof T> = (body: Parameters<TypeOfClassMethod<T, K>>[0], options?: IRequestOptions, raw?: true) => Promise<Response<ThenArg<ReturnType<TypeOfClassMethod<T, K>>>>>;
-export type RouteRPCMethod<T extends Route, K extends keyof T> = (body: Parameters<TypeOfClassMethod<T, K>>[0], options?: IRequestOptions, raw?: false) => ReturnType<TypeOfClassMethod<T, K>>;
-export type ConvertRPCRouteMethod<T extends Route> = {
-  [K in keyof T]: RouteRPCMethod<T, K> & RawRouteRPCMethod<T, K>;
-}
-export type RouteMethod<T extends Route, K extends keyof T> = (body: Parameters<TypeOfClassMethod<T, K>>[0], options?: IRequestOptions) => Promise<void>;
-export type ConvertRouteMethod<T extends Route> = {
-  [K in keyof T]: RouteMethod<T, K>
-}
-
-class Provider<T extends Route = any> {
-  static registerSender(protocol: string, builder: senderBuilder) {
-    this.senderBuilder_.set(protocol, builder);
-  }
-
-  protected static senderFactory(protocol: string, listenerId: string, targetId: string) {
-    const builder = this.senderBuilder_.get(protocol);
-    if (!builder)
-      return null;
-    return builder(listenerId, targetId);
-  }
-
-  private static senderBuilder_: Map<string, senderBuilder> = new Map();
-
+class Provider<T extends Route = Route> {
   constructor(name: string, filter: LabelFilter = new LabelFilter([]), callback?: ListenerCallback) {
     this.name_ = name;
     this.senders_ = new Map();
     this.filter_ = filter;
     this.routeCallback_ = callback;
     this.ref_ = new Ref();
-    this.listenerMetaData_ = new Map();
-    this.serviceMataData_ = new Map();
-
-    this.caller_ = {
-      rpc: (fromId?: string | null, toId?: string | null) => {
-        return new Proxy<ConvertRPCRouteMethod<T>>({} as ConvertRPCRouteMethod<T> , {
-          get: (target, prop: string) => {
-            if (!this.isStarted)
-              throw new RPCError(RPCErrorCode.ERR_RPC_PROVIDER_NOT_AVAILABLE, 'ERR_RPC_PROVIDER_NOT_AVAILABLE');
-
-            return async (body: unknown, options: IRequestOptions = {}, raw = false) => {
-              const sender = Utility.randomOne([...this.senders_].map(([_, s]) => {
-                return s;
-              }).filter((s) => {
-                return s.connector.state === ConnectorState.READY && (!toId || s.targetId === toId) && s.connector.isAvailable() && !s.isBusy;
-              }));
-
-              if (!sender)
-                throw new RPCError(RPCErrorCode.ERR_RPC_SENDER_NOT_FOUND, `ERR_RPC_SENDER_NOT_FOUND, method=${prop}`);
-
-              if (!options)
-                options = {};
-
-              const request = new Request({
-                method: prop,
-                payload: body,
-                path: `${this.name_}/${prop}`,
-                headers: options.headers || {},
-              });
-              const res = await sender.connector.sendRpc(request, fromId, options.timeout);
-              const response = new Response(res);
-              if (raw)
-                return response;
-              return response.payload.result;
-            };
-          }
-        });
-      },
-      notify: (fromId?: string | null, toId?: string | null) => {
-        return new Proxy<ConvertRouteMethod<T>>({} as ConvertRPCRouteMethod<T>, {
-          get: (target, prop: string) => {
-            if (!this.isStarted)
-              throw new RPCError(RPCErrorCode.ERR_RPC_PROVIDER_NOT_AVAILABLE, 'ERR_RPC_PROVIDER_NOT_AVAILABLE');
-
-            return async (body: unknown, options: IRequestOptions = {}) => {
-              const sender = Utility.randomOne([...this.senders_].map(([_, s]) => {
-                return s;
-              }).filter(s => {
-                return s.connector.state === ConnectorState.READY && (!toId || s.listenerId === toId) && s.connector.isAvailable();
-              }));
-
-              if (!sender)
-                throw new RPCError(RPCErrorCode.ERR_RPC_SENDER_NOT_FOUND, `ERR_RPC_SENDER_NOT_FOUND, method=${prop}`);
-
-              if (!options)
-                options = {};
-
-              const notify = new Notify({
-                method: prop,
-                payload: body,
-                path: `${this.name_}/${prop}`,
-                headers: options.headers || {},
-              });
-              await sender.connector.sendNotify(notify, fromId);
-            };
-          }
-        });
-      },
-      broadcast: (fromId?: string) => {
-        return new Proxy<ConvertRouteMethod<T>>({} as ConvertRouteMethod<T>, {
-          get: (target, prop: string) => {
-            if (!this.isStarted)
-              throw new RPCError(RPCErrorCode.ERR_RPC_PROVIDER_NOT_AVAILABLE, 'ERR_RPC_PROVIDER_NOT_AVAILABLE');
-
-            return async (body: unknown, options?: IRequestOptions) => {
-              const targetSet = new Set();
-              const senders = [...this.senders_].map(([_, s]) => {
-                return s;
-              }).filter(s => {
-                const available = s.connector.state === ConnectorState.READY && !targetSet.has(s.listenerId) && s.connector.isAvailable();
-                if (available) {
-                  targetSet.add(s.listenerId);
-                }
-                return available;
-              });
-
-              await Promise.all(senders.map((s) => {
-                if (!options)
-                  options = {};
-
-                const notify = new Notify({
-                  method: prop,
-                  payload: body,
-                  path: `${this.name_}/${prop}`,
-                  headers: options.headers || {},
-                });
-                return s.connector.sendNotify(notify, fromId);
-              }));
-            };
-          }
-        });
-      }
-    };
   }
 
   async shutdown() {
@@ -182,74 +48,29 @@ class Provider<T extends Route = any> {
     await this.ref_.add(async () => {
       this.startCtx_ = new Context(ctx);
 
-      const services = await Runtime.discovery.getServiceList(this.name_);
-      for (const info of services) {
-        this.serviceMataData_.set(info.id, info);
-      }
+      await Runtime.pvdManager.addProvider(this);
 
-      const endpoints = await Runtime.discovery.getEndpointList(this.name_);
-      for (const info of endpoints) {
-        this.listenerMetaData_.set(info.id, info);
-        if (!info.targetId)
-          continue;
-        const service = this.serviceMataData_.get(info.targetId);
-        if (!service)
-          continue;
-        const sender = this.senders_.get(info.id);
-        if (!sender && service.name === this.name_ && this.filter_.isSatisfy(info.labels)) {
-          this.createSender(info);
-        }
-      }
-
-      // TODO: 这里应该由一个统一中心负责监听，而不是每个provider各自监听
-      Runtime.discovery.serviceEmitter.on(DiscoveryServiceEvent.ServiceStateUpdate, async (id, state, pre, meta) => {
-        this.serviceMataData_.set(id, meta);
-        switch (state) {
-          case WorkerState.BUSY:
-            for (const sender of this.senderList_) {
-              if (sender.targetId === id) {
-                sender.isBusy = true;
-              }
-            }
+      Runtime.pvdManager.addEndpointEventHandler(this.name, this.filter_, async (id, event, meta) => {
+        switch(event) {
+          case DiscoveryListenerEvent.ListenerCreated:
+            this.createSender(meta);
             break;
-          case WorkerState.READY:
-            for (const sender of this.senderList_) {
-              if (sender.targetId === id) {
-                sender.isBusy = false;
-              }
-            }
+          case DiscoveryListenerEvent.ListenerDeleted:
+            this.removeSender(id).catch((err: ExError) => {
+              Runtime.frameLogger.error(this.logCategory, err, {event: 'remove-sender-error', error: Logger.errorMessage(err), name: this.name_});
+            });
             break;
-          case WorkerState.ERROR:
-          case WorkerState.STOPPING:
-          case WorkerState.STOPPED: {
-            // 由listener触发删除Sender
-            break;
-          }
         }
       });
-      Runtime.discovery.serviceEmitter.on(DiscoveryServiceEvent.ServiceDeleted, async (id) => {
-        this.serviceMataData_.delete(id);
-      });
 
-      Runtime.discovery.listenerEmitter.on(DiscoveryListenerEvent.ListenerCreated, async (info) => {
-        this.listenerMetaData_.set(info.id, info);
-        if (info.service === this.name_ && this.filter_.isSatisfy(info.labels))
-          this.createSender(info);
-      });
-      Runtime.discovery.listenerEmitter.on(DiscoveryListenerEvent.ListenerStateUpdate, async (id, state, pre, meta) => {
-        this.listenerMetaData_.set(id, meta);
-        let sender = this.senders_.get(id);
-        if (!sender && state === ListenerState.READY) {
-          if (meta.service === this.name_ && this.filter_.isSatisfy(meta.labels))
-            sender = this.createSender(meta);
-          return;
-        }
-
+      Runtime.pvdManager.addEndpointUpateHandler(this.name, this.filter_, async (id, state, meta) => {
+        const sender = this.senders_.get(id);
         if (!sender)
           return;
 
         switch (state) {
           case ListenerState.READY:
+            sender.weight = meta.weight;
             await sender.connector.start(meta).catch((err: ExError) => {
               if (err instanceof AbortError)
                 return;
@@ -265,12 +86,6 @@ class Provider<T extends Route = any> {
             break;
         }
       });
-      Runtime.discovery.listenerEmitter.on(DiscoveryListenerEvent.ListenerDeleted, async (id) => {
-        this.listenerMetaData_.delete(id);
-        this.removeSender(id).catch((err: ExError) => {
-          Runtime.frameLogger.error(this.logCategory, err, {event: 'remove-sender-error', error: Logger.errorMessage(err), name: this.name_});
-        });
-      });
 
       this.startCtx_ = null;
     });
@@ -278,10 +93,6 @@ class Provider<T extends Route = any> {
 
   get name() {
     return this.name_;
-  }
-
-  get caller() {
-    return this.caller_;
   }
 
   get senders() {
@@ -292,28 +103,140 @@ class Provider<T extends Route = any> {
     return this.ref_.count > 0;
   }
 
-  private get senderList_() {
-    return [...this.senders_].map(([_, sender]) => sender);
+  get rpc() {
+    return (fromId?: string | null, toId?: string | null) => {
+      return new Proxy<ConvertRPCRouteMethod<T>>({} as ConvertRPCRouteMethod<T>, {
+        get: (target, prop: string) => {
+          if (!this.isStarted)
+            throw new RPCError(
+              RPCErrorCode.ERR_RPC_PROVIDER_NOT_AVAILABLE,
+              'ERR_RPC_PROVIDER_NOT_AVAILABLE'
+            );
+
+          return async (
+            body: unknown,
+            options: IRequestOptions = {},
+            raw = false
+          ) => {
+            const sender = Utility.randomOneByWeight([...this.senders_].map(([_, s]) => {
+              return s;
+            }).filter((s) => {
+              return s.connector.state === ConnectorState.READY && (!toId || s.targetId === toId) && s.connector.isAvailable();
+            }), (ele) => ele.weight);
+
+            if (!sender)
+              throw new RPCError(RPCErrorCode.ERR_RPC_SENDER_NOT_FOUND,`ERR_RPC_SENDER_NOT_FOUND, method=${prop}`);
+
+            if (!options) options = {};
+
+            const request = new Request({
+              method: prop,
+              payload: body,
+              path: `${this.name_}/${prop}`,
+              headers: options.headers || {},
+            });
+            const res = await sender.connector.sendRpc(
+              request,
+              fromId,
+              options.timeout
+            );
+            const response = new Response(res);
+            if (raw) return response;
+            return response.payload.result;
+          };
+        },
+      });
+    };
   }
 
-  private async removeSender(id: string) {
-    const sender = this.senders_.get(id);
-    if (!sender)
-      return;
+  get notify() {
+    return (fromId?: string | null, toId?: string | null) => {
+      return new Proxy<ConvertRouteMethod<T>>({} as ConvertRPCRouteMethod<T>, {
+        get: (target, prop: string) => {
+          if (!this.isStarted)
+            throw new RPCError(
+              RPCErrorCode.ERR_RPC_PROVIDER_NOT_AVAILABLE,
+              'ERR_RPC_PROVIDER_NOT_AVAILABLE'
+            );
 
-    Runtime.frameLogger.info(this.logCategory, {event: 'remove-sender', name: this.name_, id});
-    this.senders_.delete(id);
-    await sender.connector.off().catch((err: ExError) => {
-      Runtime.frameLogger.error(this.logCategory, err, {event: 'sender-stop-failed', error: Logger.errorMessage(err), name: this.name_});
-    });
+          return async (body: unknown, options: IRequestOptions = {}) => {
+            const sender = Utility.randomOne(
+              [...this.senders_]
+                .map(([_, s]) => {
+                  return s;
+                })
+                .filter((s) => {
+                  return (
+                    s.connector.state === ConnectorState.READY &&
+                    (!toId || s.listenerId === toId) &&
+                    s.connector.isAvailable()
+                  );
+                })
+            );
+
+            if (!sender)
+              throw new RPCError(
+                RPCErrorCode.ERR_RPC_SENDER_NOT_FOUND,
+                `ERR_RPC_SENDER_NOT_FOUND, method=${prop}`
+              );
+
+            if (!options) options = {};
+
+            const notify = new Notify({
+              method: prop,
+              payload: body,
+              path: `${this.name_}/${prop}`,
+              headers: options.headers || {},
+            });
+            await sender.connector.sendNotify(notify, fromId);
+          };
+        },
+      });
+    };
   }
 
-  private async reconnect(meta: IListenerMetaData) {
-    Runtime.frameLogger.info(this.logCategory, {event: 'reconnect-sender', name: this.name, id: meta.id});
-    this.createSender(meta);
+  get boradcast() {
+    return (fromId?: string) => {
+      return new Proxy<ConvertRouteMethod<T>>({} as ConvertRouteMethod<T>, {
+        get: (target, prop: string) => {
+          if (!this.isStarted)
+            throw new RPCError(
+              RPCErrorCode.ERR_RPC_PROVIDER_NOT_AVAILABLE,
+              'ERR_RPC_PROVIDER_NOT_AVAILABLE'
+            );
+
+          return async (body: unknown, options?: IRequestOptions) => {
+            const targetSet = new Set();
+            const senders = [...this.senders_].map(([_, s]) => {
+              return s;
+            }).filter(s => {
+              const available = s.connector.state === ConnectorState.READY && !targetSet.has(s.listenerId) && s.connector.isAvailable();
+              if (available) {
+                targetSet.add(s.listenerId);
+              }
+              return available;
+            });
+
+            await Promise.all(
+              senders.map((s) => {
+                if (!options) options = {};
+
+                const notify = new Notify({
+                  method: prop,
+                  payload: body,
+                  path: `${this.name_}/${prop}`,
+                  headers: options.headers || {},
+                });
+                return s.connector.sendNotify(notify, fromId);
+              })
+            );
+          };
+        },
+      });
+    };
   }
 
-  private createSender(endpoint: IListenerMetaData) {
+  createSender(endpoint: IListenerMetaData) {
     const existed = this.senders_.get(endpoint.id);
     if (existed) {
       Runtime.frameLogger.debug(this.logCategory, {
@@ -321,7 +244,7 @@ class Provider<T extends Route = any> {
         listener: this.formatLogListener(endpoint),
         targetId: existed.targetId,
         state: existed.connector.state,
-        name: this.name_
+        name: this.name_,
       });
 
       this.removeSender(endpoint.id).catch((err: ExError) => {
@@ -332,13 +255,9 @@ class Provider<T extends Route = any> {
     if (!endpoint.targetId)
       return;
 
-    const sender = Provider.senderFactory(endpoint.protocol, endpoint.id, endpoint.targetId);
+    const sender = Runtime.pvdManager.senderFactory(endpoint.protocol, endpoint.id, endpoint.targetId, endpoint.weight);
     if (!sender)
       return;
-
-    const serviceMeta = this.serviceMataData_.get(endpoint.targetId);
-    if (serviceMeta && serviceMeta.state === WorkerState.BUSY)
-      sender.isBusy = true;
 
     sender.connector.stateEmitter.on(LifeCycleEvent.StateChangeTo, (state) => {
       Runtime.frameLogger.info(this.logCategory, {event: 'sender-state-change', id: sender.listenerId, state});
@@ -348,10 +267,12 @@ class Provider<T extends Route = any> {
           this.removeSender(sender.listenerId).catch((err: ExError) => {
             Runtime.frameLogger.error(this.logCategory, err, {event: 'remove-sender-error', error: Logger.errorMessage(err), name: this.name_});
           });
-          const listenerMeta = this.listenerMetaData_.get(sender.listenerId);
-          if (listenerMeta && listenerMeta.state === ListenerState.READY) {
+          if (Runtime.pvdManager.isEndpointRunning(sender.targetId)) {
+            const meta = Runtime.pvdManager.getEndpoingMeta(sender.targetId);
+            if (!meta)
+              break;
             // 这个sender意外停止
-            this.reconnect(listenerMeta).catch((err: ExError) => {
+            this.reconnect(meta).catch((err: ExError) => {
               Runtime.frameLogger.error(this.logCategory, err, {event: 'reconnect-sender-error', error: Logger.errorMessage(err), name: this.name_});
             });
           }
@@ -359,7 +280,12 @@ class Provider<T extends Route = any> {
       }
     });
 
-    Runtime.frameLogger.success(this.logCategory, {event: 'sender-created', listener: this.formatLogListener(endpoint), targetId: sender.targetId, name: this.name_});
+    Runtime.frameLogger.success(this.logCategory, {
+      event: 'sender-created',
+      listener: this.formatLogListener(endpoint),
+      targetId: sender.targetId,
+      name: this.name_,
+    });
 
     this.senders_.set(endpoint.id, sender);
     if (this.routeCallback_)
@@ -367,13 +293,56 @@ class Provider<T extends Route = any> {
 
     if (endpoint.state === ListenerState.READY) {
       sender.connector.start(endpoint).catch((err: Error) => {
-        if (err instanceof AbortError)
-          return;
+        if (err instanceof AbortError) return;
         Runtime.frameLogger.error(this.logCategory, err, {event: 'sender-started-failed', error: Logger.errorMessage(err), name: this.name_});
       });
     }
 
     return sender;
+  }
+
+  async removeSender(id: string) {
+    const sender = this.senders_.get(id);
+    if (!sender) return;
+
+    Runtime.frameLogger.info(this.logCategory, {event: 'remove-sender', name: this.name_, id});
+    this.senders_.delete(id);
+    await sender.connector.off().catch((err: ExError) => {
+      Runtime.frameLogger.error(this.logCategory, err, {event: 'sender-stop-failed', error: Logger.errorMessage(err), name: this.name_});
+    });
+  }
+
+  isSatisfy(labels: ILabels) {
+    return this.filter_.isSatisfy(labels);
+  }
+
+  getSender(targetId: string) {
+    for (const sender of this.senderList_) {
+      if (sender.targetId === targetId)
+        return sender;
+    }
+    return null;
+  }
+
+  get metaData(): IProviderMetaData {
+    return {
+      name: this.name,
+      filter: this.filter_.filter,
+      senders: this.senderList_.map(sender => sender.metaData),
+    };
+  }
+
+  private get senderList_() {
+    return [...this.senders_].map(([_, sender]) => sender);
+  }
+
+  private async reconnect(meta: IListenerMetaData) {
+    Runtime.frameLogger.info(this.logCategory, {
+      event: 'reconnect-sender',
+      name: this.name,
+      id: meta.id,
+    });
+    this.createSender(meta);
   }
 
   private get logCategory() {
@@ -386,16 +355,9 @@ class Provider<T extends Route = any> {
 
   private name_: string;
   private senders_: Map<string /* endpoint id*/, RPCSender>;
-  private caller_: {
-    rpc: (fromId?: string | null, toId?: string | null) => ConvertRPCRouteMethod<T>;
-    notify: (fromId?: string | null, toId?: string | null) => ConvertRouteMethod<T>;
-    broadcast: (fromId?: string) => ConvertRouteMethod<T>;
-  };
   private filter_: LabelFilter;
   private routeCallback_: ListenerCallback | undefined;
   private ref_: Ref<void>;
-  private listenerMetaData_: Map<string /* endpoint id*/, IListenerMetaData>;
-  private serviceMataData_: Map<string /* service id*/, IServiceMetaData>;
   private startCtx_: Context | null;
 }
 

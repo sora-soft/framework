@@ -158,41 +158,41 @@ module.exports = {
         'distinctGroup': false,
         'pathGroupsExcludedImportTypes': [],
         'pathGroups': [{
-            'pattern': './',
-            'patternOptions': {
-              'nocomment': true,
-              'dot': true
-            },
-            'group': 'sibling',
-            'position': 'before'
+          'pattern': './',
+          'patternOptions': {
+            'nocomment': true,
+            'dot': true
           },
-          {
-            'pattern': '.',
-            'patternOptions': {
-              'nocomment': true,
-              'dot': true
-            },
-            'group': 'sibling',
-            'position': 'before'
+          'group': 'sibling',
+          'position': 'before'
+        },
+        {
+          'pattern': '.',
+          'patternOptions': {
+            'nocomment': true,
+            'dot': true
           },
-          {
-            'pattern': '..',
-            'patternOptions': {
-              'nocomment': true,
-              'dot': true
-            },
-            'group': 'parent',
-            'position': 'before'
+          'group': 'sibling',
+          'position': 'before'
+        },
+        {
+          'pattern': '..',
+          'patternOptions': {
+            'nocomment': true,
+            'dot': true
           },
-          {
-            'pattern': '../',
-            'patternOptions': {
-              'nocomment': true,
-              'dot': true
-            },
-            'group': 'parent',
-            'position': 'before'
-          }
+          'group': 'parent',
+          'position': 'before'
+        },
+        {
+          'pattern': '../',
+          'patternOptions': {
+            'nocomment': true,
+            'dot': true
+          },
+          'group': 'parent',
+          'position': 'before'
+        }
         ]
       }
     ],
@@ -200,6 +200,7 @@ module.exports = {
     'jsdoc/check-indentation': 'error',
     'jsdoc/newline-after-description': 'error',
     'max-classes-per-file': 'off',
+    'indent': ['error', 2, {'SwitchCase': 1}],
     'max-len': 'off',
     'new-parens': 'error',
     'no-bitwise': 'error',

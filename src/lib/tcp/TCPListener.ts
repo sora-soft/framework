@@ -55,7 +55,7 @@ class TCPListener extends Listener {
     if (this.options_.port)
       this.usePort_ = this.options_.port;
 
-    await util.promisify<number, string>(this.server_.listen)(this.usePort_, this.options_.host);
+    await util.promisify<number, string>(this.server_.listen.bind(this.server_) as (port: number, host: string) => void)(this.usePort_, this.options_.host);
 
     this.server_.on('error', (err: ExError) => {this.onServerError(err);});
 
@@ -104,7 +104,7 @@ class TCPListener extends Listener {
 
   protected async shutdown() {
     // 要等所有 socket 由对方关闭
-    await util.promisify(this.server_.close)();
+    await util.promisify(this.server_.close.bind(this.server_) as () => void)();
   }
 
   private onSocketConnect(socket: net.Socket) {

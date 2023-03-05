@@ -1,4 +1,5 @@
-import {ErrorLevel, OPCode} from '../Enum';
+import {ConnectorState, ErrorLevel, OPCode} from '../Enum';
+import {ILabelData} from '../utility/LabelFilter';
 import {ILabels} from './config';
 
 export type IRawNetPacket<T = unknown> = IRawReqPacket<T> | IRawResPacket<unknown> | IRawOperationPacket;
@@ -59,4 +60,17 @@ export type ConnectorPingOptions = IConnectorPingOptions | IConnectorNoPingOptio
 
 export interface IConnectorOptions {
   ping: ConnectorPingOptions;
+}
+
+export interface ISenderMetaData {
+  id: string;
+  state: ConnectorState;
+  targetId: string;
+  weight: number;
+}
+
+export interface IProviderMetaData {
+  name: string;
+  filter: ILabelData[];
+  senders: ISenderMetaData[];
 }

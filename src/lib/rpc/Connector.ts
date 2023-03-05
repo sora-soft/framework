@@ -44,11 +44,12 @@ abstract class Connector {
 
   protected abstract connect(target: IListenerInfo, context: Context): Promise<void>;
   public async start(target: IListenerInfo, context?: Context) {
-    this.startContext_ = new Context(context);
     if (this.lifeCycle_.state > ConnectorState.INIT)
       return;
+    this.startContext_ = new Context(context);
 
     this.target_ = target;
+    await this.startContext_.await(this.lifeCycle_.setState(ConnectorState.CONNECTING));
     await this.connect(target, this.startContext_).catch((err: ExError) => {
       this.onError(err);
     });
@@ -202,8 +203,8 @@ abstract class Connector {
           }
 
           const rpcId = data.headers[RPCHeader.RPC_ID_HEADER] as number | undefined;
-          if (Utility.isUndefined(rpcId))
-            throw new RPCError(RPCErrorCode.ERR_RPC_ID_NOT_FOUND, 'ERR_RPC_ID_NOT_FOUND');
+          // if (Utility.isUndefined(rpcId))
+          //   throw new RPCError(RPCErrorCode.ERR_RPC_ID_NOT_FOUND, 'ERR_RPC_ID_NOT_FOUND');
 
           try {
             let response: IRawResPacket<unknown> | null = null;

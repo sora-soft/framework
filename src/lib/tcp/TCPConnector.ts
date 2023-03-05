@@ -6,7 +6,6 @@ import {Utility} from '../../utility/Utility';
 import {TCPUtility} from './TCPUtility';
 import {RPCError} from '../rpc/RPCError';
 import {RPCErrorCode} from '../../ErrorCode';
-import {Provider} from '../rpc/Provider';
 import {ConnectorState} from '../../Enum';
 import {Retry} from '../../utility/Retry';
 import {Runtime} from '../Runtime';
@@ -20,8 +19,8 @@ import {ExError} from '../../utility/ExError';
 
 class TCPConnector extends Connector {
   static register() {
-    Provider.registerSender('tcp', (listenerId: string, targetId: string) => {
-      return new RPCSender(listenerId, targetId, new TCPConnector());
+    Runtime.pvdManager.registerSender('tcp', (listenerId: string, targetId: string, weight: number) => {
+      return new RPCSender(listenerId, targetId, new TCPConnector(), weight);
     });
   }
 
@@ -137,7 +136,7 @@ class TCPConnector extends Connector {
     if (!this.socket_)
       throw new RPCError(RPCErrorCode.ERR_RPC_TUNNEL_NOT_AVAILABLE, `ERR_RPC_TUNNEL_NOT_AVAILABLE, endpoint=${this.target_.endpoint}`);
 
-    await util.promisify<Buffer, void>(this.socket_.write)(data).catch((err: Error) => {
+    await util.promisify<Buffer, void>(this.socket_.write.bind(this.socket_) as (buf: Buffer) => void)(data).catch((err: Error) => {
       throw new RPCError(RPCErrorCode.ERR_RPC_SENDER_INNER, `ERR_RPC_SENDER_INNER, err=${err.message}`);
     });
   }

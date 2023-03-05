@@ -11,7 +11,6 @@
     "downlevelIteration": true,
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
-    "resolveJsonModule": true,
     "plugins": [{
       "transform": "typescript-is/lib/transform-inline/transformer"
     }, {

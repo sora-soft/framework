@@ -1,8 +1,10 @@
 import {ListenerState, WorkerState} from '../Enum';
-import {LifeCycleEvent} from '../Event';
+import {LifeCycleEvent, ListenerWeightEvent} from '../Event';
 import {ILabels, IServiceOptions} from '../interface/config';
 import {IServiceMetaData, IServiceRunData} from '../interface/discovery';
 import {ExError} from '../utility/ExError';
+import {QueueExecutor} from '../utility/QueueExecutor';
+import {Utility} from '../utility/Utility';
 import {Context} from './Context';
 import {Logger} from './logger/Logger';
 import {Listener} from './rpc/Listener';
@@ -17,6 +19,8 @@ abstract class Service extends Worker {
       this.options_.labels = {};
 
     this.listenerPool_ = new Map();
+    this.discoveryExecutor_ = new QueueExecutor();
+    this.discoveryExecutor_.start();
 
     this.lifeCycle_.emitter.on(LifeCycleEvent.StateChangeTo, (state: WorkerState) => {
 
@@ -56,44 +60,22 @@ abstract class Service extends Worker {
 
     Runtime.frameLogger.info(this.logCategory, {event: 'install-listener', name: this.name, id: this.id, meta: listener.metaData, version: listener.version});
 
-    {
-      const labels = {
-        ...this.metaData.labels,
-        ...listener.labels,
-      };
+    await ctx.await(this.registerEndpoint(listener));
 
-      await ctx.await(Runtime.discovery.registerEndpoint({
-        ...listener.metaData,
-        id: listener.id,
-        state: listener.state,
-        targetId: this.id,
-        labels,
-      }));
-    }
+    listener.weightEventEmiiter.on(ListenerWeightEvent.WeightChange, async () => {
+      await this.registerEndpoint(listener);
+    });
 
     listener.stateEventEmitter.on(LifeCycleEvent.StateChange, async (pre, state, err: Error) => {
-      const labels = {
-        ...this.metaData.labels,
-        ...listener.labels,
-      };
-
-      Runtime.discovery.registerEndpoint({
-        ...listener.metaData,
-        id: listener.id,
-        state: listener.state,
-        targetId: this.id,
-        labels,
-      }).catch((e: ExError) => {
-        Runtime.frameLogger.error('service', e, {event: 'register-service-endpoint', error: Logger.errorMessage(e)});
-      });
-
+      await this.registerEndpoint(listener);
       switch (state) {
-        case ListenerState.ERROR:
+        case ListenerState.ERROR: {
           Runtime.frameLogger.error(this.logCategory, err, {event: 'listener-err', name: this.name, id: this.id, listenerId: listener.id, preState: pre, error: Logger.errorMessage(err)});
           this.uninstallListener(listener.id).catch((e: ExError) => {
             Runtime.frameLogger.error('service', e, {event: 'uninstall-listener', error: Logger.errorMessage(e)});
           });
           break;
+        }
       }
     });
 
@@ -105,20 +87,18 @@ abstract class Service extends Worker {
 
   }
 
+  public async registerEndpoint(listener: Listener) {
+    await this.discoveryExecutor_.doJob(async () => {
+      await Runtime.discovery.registerEndpoint(this.getListenerMetaData(listener));
+    }).catch((e: ExError) => {
+      Runtime.frameLogger.error('service', e, {event: 'register-endpoint', error: Logger.errorMessage(e)});
+      throw e;
+    });
+  }
+
   public async registerEndpoints() {
     for (const [_, listener] of this.listenerPool_.entries()) {
-      const labels = {
-        ...this.metaData.labels,
-        ...listener.labels,
-      };
-
-      await Runtime.discovery.registerEndpoint({
-        ...listener.metaData,
-        id: listener.id,
-        state: listener.state,
-        targetId: this.id,
-        labels,
-      });
+      this.registerEndpoint(listener).catch(Utility.null);
     }
   }
 
@@ -134,7 +114,26 @@ abstract class Service extends Worker {
 
     Runtime.frameLogger.success(this.logCategory, {event: 'listener-stopped', name: this.name, id: this.id, meta: listener.metaData});
 
-    await Runtime.discovery.unregisterEndPoint(id);
+    await this.discoveryExecutor_.doJob(async () => {
+      await Runtime.discovery.unregisterEndPoint(id);
+    });
+  }
+
+  protected getListenerMetaData(listener: Listener) {
+    const labels = {
+      ...this.metaData.labels,
+      ...listener.labels,
+    };
+
+    return {
+      ...listener.metaData,
+      id: listener.id,
+      state: listener.state,
+      targetId: this.id,
+      targetName: this.name,
+      weight: listener.weight,
+      labels,
+    };
   }
 
   get metaData(): IServiceMetaData {
@@ -155,6 +154,7 @@ abstract class Service extends Worker {
           ...listener.metaData,
           id: listener.id,
           state: listener.state,
+          weight: listener.weight,
         };
       })
     };
@@ -169,6 +169,7 @@ abstract class Service extends Worker {
   }
 
   private listenerPool_: Map<string/* id*/, Listener>;
+  private discoveryExecutor_: QueueExecutor;
   private options_: IServiceOptions;
 }
 

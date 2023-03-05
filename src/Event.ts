@@ -29,6 +29,10 @@ export enum ListenerEvent {
   LostConnect = 'lost-connection',
 }
 
+export enum ListenerWeightEvent {
+  WeightChange = 'weight-change',
+}
+
 export enum RetryEvent {
   Error = 'retry-error',
   MaxRetryTime = 'max-retry-time',

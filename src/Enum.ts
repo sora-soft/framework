@@ -2,7 +2,6 @@ export enum WorkerState {
   INIT = 1,
   PENDING,
   READY,
-  BUSY,
   STOPPING,
   STOPPED,
   ERROR = 100,
@@ -28,6 +27,7 @@ export enum OPCode {
 
 export enum ConnectorState {
   INIT = 1,
+  CONNECTING,
   READY,
   STOPPING,
   STOPPED,

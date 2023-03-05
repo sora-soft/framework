@@ -15,12 +15,14 @@ import {Node} from './Node';
 import {RPCLogger} from './rpc/RPCLogger';
 import {Service} from './Service';
 import {Worker} from './Worker';
+import {ProviderManager} from './rpc/ProviderManager';
 
 // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-var-requires
-import pkg = require('../../package.json');
+const pkg = require('../../package.json');
 
 class Runtime {
-  static version = pkg.version;
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+  static version = pkg.version as string;
 
   static get frameLogger() {
     return this.frameLogger_;
@@ -71,6 +73,10 @@ class Runtime {
       this.frameLogger_.fatal('runtime', err, {event: 'connect-discovery', error: Logger.errorMessage(err)});
       process.exit(1);
     });
+
+    this.pvdManager_ = new ProviderManager(discovery);
+    await this.pvdManager_.start(context);
+
     this.node_ = node;
     await this.installService(node, context).catch((err: ExError) => {
       if (err instanceof AbortError)
@@ -253,6 +259,10 @@ class Runtime {
     return this.discovery_;
   }
 
+  static get pvdManager() {
+    return this.pvdManager_;
+  }
+
   static get scope() {
     return this.scope_;
   }
@@ -267,6 +277,7 @@ class Runtime {
 
   private static node_: Node;
   private static discovery_: Discovery;
+  private static pvdManager_: ProviderManager;
   private static scope_: string;
   private static services_: Map<string, Service> = new Map();
   private static workers_: Map<string, Worker> = new Map();

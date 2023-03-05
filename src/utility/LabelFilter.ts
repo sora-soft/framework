@@ -27,6 +27,10 @@ class LabelFilter {
     });
   }
 
+  get filter() {
+    return this.filters_;
+  }
+
   private filters_: ILabelData[];
 }
 

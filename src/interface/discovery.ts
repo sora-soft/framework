@@ -14,7 +14,7 @@ export interface IServiceMetaData extends IWorkerMetaData {
 }
 
 export interface IServiceRunData extends IServiceMetaData {
-  listeners: IListenerMetaData[];
+  listeners: Omit<IListenerMetaData, 'targetName' | 'targetId'>[];
 }
 
 export interface INodeMetaData {
@@ -22,14 +22,16 @@ export interface INodeMetaData {
   host: string;
   pid: number;
   state: WorkerState;
-  endpoint: IListenerMetaData;
+  endpoint: Omit<IListenerMetaData, 'targetName' | 'targetId' | 'weight'>;
 }
 
 export interface IListenerMetaData extends IListenerInfo {
   id: string;
   state: ListenerState;
-  targetId?: string;
+  targetId: string;
+  targetName: string;
   labels: ILabels;
+  weight: number;
 }
 
 export interface IListenerEventData extends IListenerMetaData {

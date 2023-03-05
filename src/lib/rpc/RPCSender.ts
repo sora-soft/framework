@@ -1,11 +1,12 @@
+import {ISenderMetaData} from '../../interface/rpc';
 import {Connector} from './Connector';
 
 class RPCSender {
-  constructor(listenerId: string, targetId: string, connector: Connector) {
+  constructor(listenerId: string, targetId: string, connector: Connector, weight: number) {
     this.listenerId_ = listenerId;
     this.targetId_ = targetId;
-    this.isBusy_ = false;
     this.connector_ = connector;
+    this.weight_ = weight;
   }
 
   get listenerId() {
@@ -20,18 +21,27 @@ class RPCSender {
     return this.connector_;
   }
 
-  get isBusy() {
-    return this.isBusy_;
+  set weight(value: number) {
+    this.weight_ = value;
   }
 
-  set isBusy(value: boolean) {
-    this.isBusy_ = value;
+  get weight() {
+    return this.weight_;
+  }
+
+  get metaData(): ISenderMetaData {
+    return {
+      id: this.listenerId_,
+      targetId: this.targetId_,
+      weight: this.weight_,
+      state: this.connector_.state,
+    };
   }
 
   private listenerId_: string;
   private targetId_: string;
   private connector_: Connector;
-  private isBusy_: boolean;
+  private weight_: number;
 }
 
 export {RPCSender};

@@ -45,7 +45,8 @@ class ConsoleOutput extends LoggerOutput {
       wrapper = chalk.white;
     }
 
-    process.stdout.write(wrapper(`${data.timeString},${data.level},${data.identify},${data.category},${data.position},${data.content}`));
+    // eslint-disable-next-line no-console
+    console.log(wrapper(`${data.timeString},${data.level},${data.identify},${data.category},${data.position},${data.content}`));
   }
 
   protected consoleOptions_: IConsoleOutputOptions;
