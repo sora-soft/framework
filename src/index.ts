@@ -20,6 +20,7 @@ export * from './lib/rpc/Broadcaster';
 export * from './lib/rpc/Listener';
 export * from './lib/rpc/Notify';
 export * from './lib/rpc/Provider';
+export * from './lib/rpc/ProviderManager';
 export * from './lib/rpc/RPCError';
 export * from './lib/rpc/RPCLogger';
 export * from './lib/rpc/RawPacket';
