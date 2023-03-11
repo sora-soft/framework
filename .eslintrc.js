@@ -104,6 +104,10 @@ module.exports = {
     ],
     '@typescript-eslint/typedef': 'off',
     '@typescript-eslint/unified-signatures': 'error',
+    'comma-spacing': ['error', {
+      'before': false,
+      'after': true,
+    }],
     'brace-style': [
       'error',
       '1tbs',

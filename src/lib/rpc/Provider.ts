@@ -125,7 +125,7 @@ class Provider<T extends Route = Route> {
             }), (ele) => ele.weight);
 
             if (!sender)
-              throw new RPCError(RPCErrorCode.ERR_RPC_SENDER_NOT_FOUND,`ERR_RPC_SENDER_NOT_FOUND, method=${prop}`);
+              throw new RPCError(RPCErrorCode.ERR_RPC_SENDER_NOT_FOUND, `ERR_RPC_SENDER_NOT_FOUND, method=${prop}`);
 
             if (!options) options = {};
 
