@@ -30,6 +30,8 @@ class TCPConnector extends Connector {
         enabled: true,
       },
     });
+    this.cache_ = Buffer.alloc(0);
+    this.currentPacketLength_ = 0;
     if (socket) {
       this.socket_ = socket;
       this.bindSocketEvent(socket);
@@ -94,7 +96,9 @@ class TCPConnector extends Connector {
 
   private bindSocketEvent(socket: net.Socket) {
     socket.on('data', (data: Buffer) => {
-      this.onSocketData(socket)(data).catch((err: ExError) => {
+      if (this.socket_ !== socket)
+        return;
+      this.onSocketData(data).catch((err: ExError) => {
         Runtime.rpcLogger.error('connector.tcp', err, {event: 'on-data-error', error: Logger.errorMessage(err)});
       });
     });
@@ -141,48 +145,41 @@ class TCPConnector extends Connector {
     });
   }
 
-  private onSocketData(socket: net.Socket) {
-    let packetLength = 0;
-    let cache = Buffer.alloc(0);
+  private async onSocketData(data: Buffer) {
+    this.cache_ = Buffer.concat([this.cache_, data], this.cache_.length + data.length);
 
-    return async (data: Buffer) => {
-      if (this.socket_ !== socket)
-        return;
-
-      cache = Buffer.concat([cache, data]);
-
-      while (cache.length >= packetLength && cache.length) {
-        if (!packetLength) {
-          packetLength = cache.readUInt32BE();
-          cache = cache.slice(4);
-        }
-
-        if (cache.length < packetLength)
-          break;
-
-        const content = cache.slice(0, packetLength);
-        cache = cache.slice(packetLength);
-        packetLength = 0;
-        const packet: IRawNetPacket | null = await TCPUtility.decodeMessage<IRawNetPacket<unknown>>(content).catch((err: ExError) => {
-          Runtime.frameLogger.error('connector.tcp', err, {event: 'connector-decode-message', error: Logger.errorMessage(err)});
-          return null;
-        });
-
-        if (!packet) {
-          return;
-        }
-
-        if (!is<IRawNetPacket>(packet)) {
-          const err = new RPCError(RPCErrorCode.ERR_RPC_BODY_PARSE_FAILED, 'ERR_RPC_BODY_PARSE_FAILED');
-          Runtime.frameLogger.error('connector.websocket', err, {event: 'connector-body-invalid', packet});
-        }
-
-        await this.handleIncomeMessage(packet, this.session, this);
+    while (this.cache_.length >= this.currentPacketLength_ && this.cache_.length) {
+      if (!this.currentPacketLength_) {
+        this.currentPacketLength_ = this.cache_.readUInt32BE();
+        this.cache_ = this.cache_.slice(4);
       }
-    };
+
+      if (this.cache_.length < this.currentPacketLength_)
+        break;
+
+      const content = this.cache_.slice(0, this.currentPacketLength_);
+      this.cache_ = this.cache_.slice(this.currentPacketLength_);
+      this.currentPacketLength_ = 0;
+      const packet: IRawNetPacket | null = await TCPUtility.decodeMessage<IRawNetPacket<unknown>>(content).catch((err: ExError) => {
+        Runtime.frameLogger.error('connector.tcp', err, {event: 'connector-decode-message', error: Logger.errorMessage(err)});
+        return null;
+      });
+      if (!packet) {
+        return;
+      }
+
+      if (!is<IRawNetPacket>(packet)) {
+        const err = new RPCError(RPCErrorCode.ERR_RPC_BODY_PARSE_FAILED, 'ERR_RPC_BODY_PARSE_FAILED');
+        Runtime.frameLogger.error('connector.websocket', err, {event: 'connector-body-invalid', packet});
+      }
+
+      await this.handleIncomeMessage(packet, this.session, this);
+    }
   }
 
   private socket_: net.Socket | null;
+  private cache_: Buffer;
+  private currentPacketLength_: number;
 }
 
 export {TCPConnector};
