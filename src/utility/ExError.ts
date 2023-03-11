@@ -5,7 +5,9 @@ class ExError extends Error {
     if (err instanceof ExError) {
       return err;
     } else {
-      return new ExError('ERR_UNKNOWN', 'ERR_UNKNOWN', err.message, ErrorLevel.UNEXPECTED);
+      const exError = new ExError('ERR_UNKNOWN', 'ERR_UNKNOWN', err.message, ErrorLevel.UNEXPECTED);
+      exError.stack = err.stack;
+      return exError;
     }
   }
 
