@@ -15,8 +15,6 @@ abstract class Service extends Worker {
   constructor(name: string, options: IServiceOptions) {
     super(name);
     this.options_ = options;
-    if (!this.options_.labels)
-      this.options_.labels = {};
 
     this.listenerPool_ = new Map();
     this.discoveryExecutor_ = new QueueExecutor();

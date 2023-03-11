@@ -1,24 +1,24 @@
 export interface ITCPListenerOptions {
-  portRange?: number[];
-  port?: number;
-  host: string;
-  exposeHost?: string;
+  readonly portRange?: number[];
+  readonly port?: number;
+  readonly host: string;
+  readonly exposeHost?: string;
 }
 
 export interface INodeOptions extends IServiceOptions {
-  api: ITCPListenerOptions;
+  readonly api: ITCPListenerOptions;
 }
 
 export interface ILabels {
-  [key: string]: string;
+  readonly [key: string]: string;
 }
 
 export interface IServiceOptions {
-  labels?: ILabels;
+  readonly labels?: ILabels;
 }
 
 export interface IWorkerOptions {}
 
 export interface IRuntimeOptions {
-  scope: string;
+  readonly scope: string;
 }
