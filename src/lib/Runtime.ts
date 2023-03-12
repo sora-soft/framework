@@ -177,7 +177,6 @@ class Runtime {
       throw new AbortError(AbortErrorCode.ERR_ABORT);
 
     await service.start(context).catch((err: ExError) => {
-      console.trace();
       if (err instanceof AbortError)
         throw err;
       this.frameLogger_.error('runtime', err, {event: 'install-service-start', error: Logger.errorMessage(err), name: service.name, id: service.id});
