@@ -154,6 +154,7 @@ abstract class Worker {
   }
 
   protected onError(err: Error) {
+    this.abortStartup();
     this.lifeCycle_.setState(WorkerState.ERROR, err).catch(Utility.null);
     throw err;
   }
