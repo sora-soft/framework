@@ -63,16 +63,15 @@ class TCPListener extends Listener {
   }
 
   protected listenRange(min: number, max: number) {
+    this.usePort_ = min;
     return new Promise<IListenerInfo>((resolve, reject) => {
-      this.usePort_ = min + Utility.randomInt(0, 5);
-
       const onError = async (err: ExError) => {
         if (err.code === 'EADDRINUSE') {
-          if (this.usePort_ + 5 > max) {
+          this.usePort_ = this.usePort_ + Utility.randomInt(0, 5);
+          if (this.usePort_ > max) {
             reject(new TCPError(TCPErrorCode.ERR_NO_AVAILABLE_PORT, 'ERR_NO_AVAILABLE_PORT'));
           }
 
-          this.usePort_ = this.usePort_ + Utility.randomInt(0, 5);
           await Time.timeout(100);
 
           this.server_.listen(this.usePort_, this.options_.host);
