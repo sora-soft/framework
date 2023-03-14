@@ -30,14 +30,26 @@ class Broadcaster<T extends Route> {
         case ConnectorState.ERROR:
         case ConnectorState.STOPPING:
         case ConnectorState.STOPPED:
-          this.unregisterConnector(connector.session);
+          this.removeConnector(connector.session);
           break;
       }
     });
   }
 
-  unregisterConnector(session: string) {
+  removeConnector(session: string) {
     this.connectors_.delete(session);
+  }
+
+  unregisterConnector(method: string, session: string) {
+    const handler = this.connectors_.get(session);
+    if (!handler) {
+      return;
+    }
+
+    handler.methods.delete(method);
+
+    if (!handler.methods.size)
+      this.connectors_.delete(session);
   }
 
   notify(fromId?: string, toSession?: string[]): ConvertRouteMethod<T> {

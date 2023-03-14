@@ -188,6 +188,16 @@ class ArrayMap<K, T> extends Map<K, T[]> {
   sureGet(k: K) {
     return this.get(k) || [] as T[];
   }
+
+  remove(k: K, value: T) {
+    const pre = this.get(k);
+    if (!pre)
+      return;
+    const index = pre.indexOf(value);
+    if (index >= 0) {
+      pre.splice(index, 1);
+    }
+  }
 }
 
 export {Utility, NodeTime, UnixTime, ArrayMap};

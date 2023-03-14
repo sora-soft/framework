@@ -4,6 +4,7 @@ import {IEventEmitter} from '../../interface/event';
 import {IListenerEventData, IListenerMetaData, INodeMetaData, IServiceMetaData} from '../../interface/discovery';
 import {ListenerState, WorkerState} from '../../Enum';
 import {Context} from '../Context';
+import {Election} from '../Election';
 
 export interface IServiceEvent {
   [DiscoveryServiceEvent.ServiceCreated]: (info: IServiceMetaData) => void;
@@ -60,6 +61,9 @@ abstract class Discovery {
   abstract unregisterService(id: string): Promise<void>;
   abstract unregisterEndPoint(id: string): Promise<void>;
   abstract unregisterNode(id: string): Promise<void>;
+
+  // 创建选举机
+  abstract createElection<T>(name: T): Election<T>;
 
   protected abstract startup(context: Context): Promise<void>;
   protected abstract shutdown(): Promise<void>;

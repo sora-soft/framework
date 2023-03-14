@@ -1,6 +1,7 @@
 import {RPCHeader} from '../../Const';
 import {FrameworkErrorCode} from '../../ErrorCode';
 import {IServiceOptions, IWorkerOptions} from '../../interface/config';
+import {INodeRunData} from '../../interface/node';
 import {ExError} from '../../utility/ExError';
 import {Context} from '../Context';
 import {FrameworkError} from '../FrameworkError';
@@ -79,11 +80,20 @@ class NodeHandler extends Route {
   }
 
   @Route.method
-  async registerRunningDataNotify(body: void, request: Request<{}>) {
+  async registerRunningDataNotify(body: void, request: Request<{}>): Promise<INodeRunData> {
+    const session = request.getHeader<string>(RPCHeader.RPC_SESSION_HEADER);
+    if (!session)
+      throw new FrameworkError(FrameworkErrorCode.ERR_SESSION_NOT_FOUND, 'ERR_SESSION_NOT_FOUND');
+    this.node_.registerBroadcaster('notifyNodeState', session);
+    return this.node_.nodeRunData;
+  }
+
+  @Route.method
+  async unregisterRunningDataNotify(body: void, request: Request<{}>) {
     const session = request.getHeader<string>(RPCHeader.RPC_SESSION_HEADER);
     if (!session)
       return {};
-    this.node_.registerBroadcaster('notifyNodeState', session);
+    this.node_.unregisterBroadcaster('notifyNodeState', session);
     return {};
   }
 

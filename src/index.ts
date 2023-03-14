@@ -11,6 +11,7 @@ export * from './interface/util';
 export * from './lib/discovery/Discovery';
 
 export * from './lib/handler/NodeNotifyHandler';
+export * from './lib/handler/NodeHandler';
 
 export * from './lib/logger/Logger';
 export * from './lib/logger/ConsoleOutput';
@@ -43,6 +44,9 @@ export * from './lib/Runtime';
 export * from './lib/Service';
 export * from './lib/Worker';
 export * from './lib/Context';
+export * from './lib/Election';
+export * from './lib/SingletonWorker';
+export * from './lib/SingletonService';
 
 export * from './utility/AbortError';
 export * from './utility/ExError';

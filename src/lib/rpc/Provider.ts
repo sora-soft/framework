@@ -1,6 +1,6 @@
 import {ListenerState, ConnectorState} from '../../Enum';
 import {RPCErrorCode} from '../../ErrorCode';
-import {DiscoveryListenerEvent, LifeCycleEvent} from '../../Event';
+import {DiscoveryListenerEvent, LifeCycleEvent, ProviderEvent} from '../../Event';
 import {IListenerMetaData} from '../../interface/discovery';
 import {IListenerInfo, IProviderMetaData} from '../../interface/rpc';
 import {AbortError} from '../../utility/AbortError';
@@ -18,16 +18,25 @@ import {Response} from './Response';
 import {Route} from './Route';
 import {RPCError} from './RPCError';
 import {RPCSender} from './RPCSender';
-import {ConvertRouteMethod, ConvertRPCRouteMethod, IRequestOptions} from './ProviderManager';
+import {ConvertRouteMethod, ConvertRPCRouteMethod, IRequestOptions, ProviderManager} from './ProviderManager';
 import {ILabels} from '../../interface/config';
+import {IEventEmitter} from '../../interface/event';
+import EventEmitter = require('events');
+
+export interface IProviderEvent {
+  [ProviderEvent.NewSender]: (sender: RPCSender) => void;
+  [ProviderEvent.RemoveSender]: (id: string) => void;
+}
 
 class Provider<T extends Route = Route> {
-  constructor(name: string, filter: LabelFilter = new LabelFilter([]), callback?: ListenerCallback) {
+  constructor(name: string, filter: LabelFilter = new LabelFilter([]), manager: ProviderManager | null = null, callback?: ListenerCallback) {
     this.name_ = name;
     this.senders_ = new Map();
     this.filter_ = filter;
     this.routeCallback_ = callback;
     this.ref_ = new Ref();
+    this.manager_ = manager;
+    this.senderEmitter_ = new EventEmitter();
   }
 
   async shutdown() {
@@ -35,9 +44,13 @@ class Provider<T extends Route = Route> {
       this.startCtx_?.abort();
       this.startCtx_ = null;
 
+      this.pvdManager.removeEndpointEventHandler(this.name_, this.endpointEventHandlerid_);
+      this.pvdManager.removeEndpointUpdateHandler(this.name_, this.endpointUpdateHandlerId_);
+
       await Promise.all([...this.senders_].map(async ([_, sender]) => {
         await sender.connector.off();
       }));
+
     }).catch((err: Error) => {
       if (err.message === 'ERR_REF_NEGATIVE')
         Runtime.frameLogger.warn(`provider.${this.name_}`, {event: 'duplicate-stop'});
@@ -48,9 +61,9 @@ class Provider<T extends Route = Route> {
     await this.ref_.add(async () => {
       this.startCtx_ = new Context(ctx);
 
-      await Runtime.pvdManager.addProvider(this);
+      await this.pvdManager.addProvider(this);
 
-      Runtime.pvdManager.addEndpointEventHandler(this.name, this.filter_, async (id, event, meta) => {
+      this.endpointEventHandlerid_ = this.pvdManager.addEndpointEventHandler(this.name, this.filter_, async (id, event, meta) => {
         switch(event) {
           case DiscoveryListenerEvent.ListenerCreated:
             this.createSender(meta);
@@ -63,7 +76,7 @@ class Provider<T extends Route = Route> {
         }
       });
 
-      Runtime.pvdManager.addEndpointUpateHandler(this.name, this.filter_, async (id, state, meta) => {
+      this.endpointUpdateHandlerId_ = this.pvdManager.addEndpointUpateHandler(this.name, this.filter_, async (id, state, meta) => {
         const sender = this.senders_.get(id);
         if (!sender)
           return;
@@ -131,7 +144,7 @@ class Provider<T extends Route = Route> {
 
             const request = new Request({
               method: prop,
-              payload: body,
+              payload: body || {},
               path: `${this.name_}/${prop}`,
               headers: options.headers || {},
             });
@@ -255,7 +268,7 @@ class Provider<T extends Route = Route> {
     if (!endpoint.targetId)
       return;
 
-    const sender = Runtime.pvdManager.senderFactory(endpoint.protocol, endpoint.id, endpoint.targetId, endpoint.weight);
+    const sender = this.pvdManager.senderFactory(endpoint.protocol, endpoint.id, endpoint.targetId, endpoint.weight);
     if (!sender)
       return;
 
@@ -267,8 +280,8 @@ class Provider<T extends Route = Route> {
           this.removeSender(sender.listenerId).catch((err: ExError) => {
             Runtime.frameLogger.error(this.logCategory, err, {event: 'remove-sender-error', error: Logger.errorMessage(err), name: this.name_});
           });
-          if (Runtime.pvdManager.isEndpointRunning(sender.targetId)) {
-            const meta = Runtime.pvdManager.getEndpoingMeta(sender.targetId);
+          if (this.pvdManager.isEndpointRunning(sender.targetId)) {
+            const meta = this.pvdManager.getEndpoingMeta(sender.targetId);
             if (!meta)
               break;
             // 这个sender意外停止
@@ -298,6 +311,8 @@ class Provider<T extends Route = Route> {
       });
     }
 
+    this.senderEmitter_.emit(ProviderEvent.NewSender, sender);
+
     return sender;
   }
 
@@ -307,6 +322,9 @@ class Provider<T extends Route = Route> {
 
     Runtime.frameLogger.info(this.logCategory, {event: 'remove-sender', name: this.name_, id});
     this.senders_.delete(id);
+
+    this.senderEmitter_.emit(ProviderEvent.RemoveSender, id);
+
     await sender.connector.off().catch((err: ExError) => {
       Runtime.frameLogger.error(this.logCategory, err, {event: 'sender-stop-failed', error: Logger.errorMessage(err), name: this.name_});
     });
@@ -332,6 +350,10 @@ class Provider<T extends Route = Route> {
     };
   }
 
+  get senderEmitter() {
+    return this.senderEmitter_;
+  }
+
   private get senderList_() {
     return [...this.senders_].map(([_, sender]) => sender);
   }
@@ -353,12 +375,20 @@ class Provider<T extends Route = Route> {
     return {protocol: listener.protocol, endpoint: listener.endpoint};
   }
 
+  private get pvdManager() {
+    return this.manager_ || Runtime.pvdManager;
+  }
+
   private name_: string;
   private senders_: Map<string /* endpoint id*/, RPCSender>;
   private filter_: LabelFilter;
   private routeCallback_: ListenerCallback | undefined;
   private ref_: Ref<void>;
   private startCtx_: Context | null;
+  private endpointUpdateHandlerId_: number;
+  private endpointEventHandlerid_: number;
+  private manager_: ProviderManager | null;
+  protected senderEmitter_: IEventEmitter<IProviderEvent>;
 }
 
 export {Provider};

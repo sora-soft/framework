@@ -62,10 +62,14 @@ class Node extends Service {
   async shutdown() {}
 
   registerBroadcaster(method: keyof INodeNotifyHandler, session: string) {
-    const socket = this.TCPListener_.getConnector(session);
-    if (!socket)
+    const connector = this.TCPListener_.getConnector(session);
+    if (!connector)
       return;
-    this.broadcaster_.registerConnector(method, socket);
+    this.broadcaster_.registerConnector(method, connector);
+  }
+
+  unregisterBroadcaster(method: keyof INodeNotifyHandler, session: string) {
+    this.broadcaster_.unregisterConnector(method, session);
   }
 
   get nodeRunData(): INodeRunData {

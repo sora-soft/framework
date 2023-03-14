@@ -5,7 +5,7 @@ import {ExError} from '../../utility/ExError';
 import {LabelFilter} from '../../utility/LabelFilter';
 import {ArrayMap} from '../../utility/Utility';
 import {Context} from '../Context';
-import {Discovery} from '../discovery/Discovery';
+import {Discovery, IDiscoveryListenerEvent} from '../discovery/Discovery';
 import {Logger} from '../logger/Logger';
 import {Runtime} from '../Runtime';
 import {Provider} from './Provider';
@@ -21,14 +21,15 @@ export interface IRequestOptions {
   timeout?: number;
 }
 
+export type UndefinedToVoid<T> = T extends undefined ? void : T;
 export type ThenArg<T> = T extends PromiseLike<infer U> ? U : T;
 export type TypeOfClassMethod<T, M extends keyof T> = T[M] extends (...args: any) => any ? T[M] : never;
-export type RawRouteRPCMethod<T extends Route, K extends keyof T> = (body: Parameters<TypeOfClassMethod<T, K>>[0], options?: IRequestOptions, raw?: true) => Promise<Response<ThenArg<ReturnType<TypeOfClassMethod<T, K>>>>>;
-export type RouteRPCMethod<T extends Route, K extends keyof T> = (body: Parameters<TypeOfClassMethod<T, K>>[0], options?: IRequestOptions, raw?: false) => ReturnType<TypeOfClassMethod<T, K>>;
+export type RawRouteRPCMethod<T extends Route, K extends keyof T> = (body: UndefinedToVoid<Parameters<TypeOfClassMethod<T, K>>[0]>, options?: IRequestOptions, raw?: true) => Promise<Response<ThenArg<ReturnType<TypeOfClassMethod<T, K>>>>>;
+export type RouteRPCMethod<T extends Route, K extends keyof T> = (body: UndefinedToVoid<Parameters<TypeOfClassMethod<T, K>>[0]>, options?: IRequestOptions, raw?: false) => ReturnType<TypeOfClassMethod<T, K>>;
 export type ConvertRPCRouteMethod<T extends Route> = {
   [K in keyof T]: RouteRPCMethod<T, K> & RawRouteRPCMethod<T, K>;
 }
-export type RouteMethod<T extends Route, K extends keyof T> = (body: Parameters<TypeOfClassMethod<T, K>>[0], options?: IRequestOptions) => Promise<void>;
+export type RouteMethod<T extends Route, K extends keyof T> = (body: UndefinedToVoid<Parameters<TypeOfClassMethod<T, K>>[0]>, options?: IRequestOptions) => Promise<void>;
 export type ConvertRouteMethod<T extends Route> = {
   [K in keyof T]: RouteMethod<T, K>
 }
@@ -39,36 +40,9 @@ export type EndpointEventHandler = (id: string, event: DiscoveryListenerEvent, m
 class ProviderManager {
   constructor(discovery: Discovery) {
     this.discovery_ = discovery;
-  }
+    this.handlerId_ = 1;
 
-  addEndpointUpateHandler(targetName: string, filter: LabelFilter, handler: EndpointStateUpdateHandler) {
-    this.endpointStateHandlerMap_.append(targetName, {handle: handler, filter});
-    for (const [id, meta] of this.listenerMetaData_) {
-      if (meta.targetName === targetName && filter.isSatisfy(meta.labels))
-        handler(id, meta.state, meta).catch((err: ExError) => {
-          Runtime.frameLogger.error('provider-manager', err, {event: 'provider-endpoint-state-handler-error', error: Logger.errorMessage(err)});
-        });
-    }
-  }
-
-  addEndpointEventHandler(targetName: string, filter: LabelFilter, handler: EndpointEventHandler) {
-    this.endpointEventHandlerMap_.append(targetName, {handle: handler, filter});
-
-    for (const [id, meta] of this.listenerMetaData_) {
-      if (meta.targetName === targetName && filter.isSatisfy(meta.labels))
-        handler(id, DiscoveryListenerEvent.ListenerCreated, meta).catch((err: ExError) => {
-          Runtime.frameLogger.error('provider-manager', err, {event: 'provider-endpoint-event-handler-error', error: Logger.errorMessage(err)});
-        });
-    }
-  }
-
-  async start(ctx: Context) {
-    const endpoints = await ctx.await(this.discovery_.getAllEndpointList());
-    for (const meta of endpoints) {
-      this.listenerMetaData_.set(meta.id, meta);
-    }
-
-    this.discovery_.listenerEmitter.on(DiscoveryListenerEvent.ListenerCreated, async (meta) => {
+    this.listenerCreateHandler_ = async (meta) => {
       this.listenerMetaData_.set(meta.id, meta);
       const handlers = this.endpointEventHandlerMap_.sureGet(meta.targetName);
       for (const handler of handlers) {
@@ -78,9 +52,9 @@ class ProviderManager {
           });
         }
       }
-    });
+    };
 
-    this.discovery_.listenerEmitter.on(DiscoveryListenerEvent.ListenerStateUpdate, async (id, state, pre, meta) => {
+    this.listenerStateUpdateHandler_ = async (id, state, pre, meta) => {
       this.listenerMetaData_.set(id, meta);
       const handlers = this.endpointStateHandlerMap_.sureGet(meta.targetName);
       for (const handler of handlers) {
@@ -90,8 +64,9 @@ class ProviderManager {
           });
         }
       }
-    });
-    this.discovery_.listenerEmitter.on(DiscoveryListenerEvent.ListenerDeleted, async (id) => {
+    };
+
+    this.listenerDeletedHandler_ = async (id) => {
       const meta = this.listenerMetaData_.get(id);
       if (!meta)
         return;
@@ -105,7 +80,74 @@ class ProviderManager {
           });
         }
       }
-    });
+    };
+  }
+
+  addEndpointUpateHandler(targetName: string, filter: LabelFilter, handler: EndpointStateUpdateHandler) {
+    const handlerId = this.handlerId_ ++;
+    this.endpointStateHandlerMap_.append(targetName, {id: handlerId, handle: handler, filter});
+    for (const [id, meta] of this.listenerMetaData_) {
+      if (meta.targetName === targetName && filter.isSatisfy(meta.labels))
+        handler(id, meta.state, meta).catch((err: ExError) => {
+          Runtime.frameLogger.error('provider-manager', err, {event: 'provider-endpoint-state-handler-error', error: Logger.errorMessage(err)});
+        });
+    }
+    return handlerId;
+  }
+
+  addEndpointEventHandler(targetName: string, filter: LabelFilter, handler: EndpointEventHandler) {
+    const handlerId = this.handlerId_ ++;
+
+    this.endpointEventHandlerMap_.append(targetName, {id: handlerId, handle: handler, filter});
+
+    for (const [id, meta] of this.listenerMetaData_) {
+      if (meta.targetName === targetName && filter.isSatisfy(meta.labels))
+        handler(id, DiscoveryListenerEvent.ListenerCreated, meta).catch((err: ExError) => {
+          Runtime.frameLogger.error('provider-manager', err, {event: 'provider-endpoint-event-handler-error', error: Logger.errorMessage(err)});
+        });
+    }
+    return handlerId;
+  }
+
+  removeEndpointUpdateHandler(targetName: string, id: number) {
+    const array = this.endpointStateHandlerMap_.get(targetName);
+    if (array) {
+      const index = array.findIndex(item => item.id === id);
+      if (index >= 0) {
+        array.splice(index, 1);
+      }
+    }
+  }
+
+  removeEndpointEventHandler(targetName: string, id: number) {
+    const array = this.endpointEventHandlerMap_.get(targetName);
+    if (array) {
+      const index = array.findIndex(item => item.id === id);
+      if (index >= 0) {
+        array.splice(index, 1);
+      }
+    }
+  }
+
+  async start(ctx: Context) {
+    const endpoints = await ctx.await(this.discovery_.getAllEndpointList());
+    for (const meta of endpoints) {
+      this.listenerMetaData_.set(meta.id, meta);
+    }
+
+    this.discovery_.listenerEmitter.on(DiscoveryListenerEvent.ListenerCreated, this.listenerCreateHandler_);
+
+    this.discovery_.listenerEmitter.on(DiscoveryListenerEvent.ListenerStateUpdate, this.listenerStateUpdateHandler_);
+
+    this.discovery_.listenerEmitter.on(DiscoveryListenerEvent.ListenerDeleted, this.listenerDeletedHandler_);
+  }
+
+  async stop() {
+    this.discovery_.listenerEmitter.off(DiscoveryListenerEvent.ListenerCreated, this.listenerCreateHandler_);
+
+    this.discovery_.listenerEmitter.off(DiscoveryListenerEvent.ListenerStateUpdate, this.listenerStateUpdateHandler_);
+
+    this.discovery_.listenerEmitter.off(DiscoveryListenerEvent.ListenerDeleted, this.listenerDeletedHandler_);
   }
 
   registerSender(protocol: string, builder: senderBuilder) {
@@ -121,6 +163,10 @@ class ProviderManager {
 
   async addProvider(provider: Provider) {
     this.providerMap_.append(provider.name, provider);
+  }
+
+  async removeProvider(provider: Provider) {
+    this.providerMap_.remove(provider.name, provider);
   }
 
   getAllProviders() {
@@ -143,8 +189,13 @@ class ProviderManager {
   private listenerMetaData_: Map<string /* endpoint id*/, IListenerMetaData> = new Map();
   private providerMap_: ArrayMap<string /* service name */, Provider> = new ArrayMap();
 
-  private endpointStateHandlerMap_: ArrayMap<string /* service name */, {handle: EndpointStateUpdateHandler; filter: LabelFilter}> = new ArrayMap();
-  private endpointEventHandlerMap_: ArrayMap<string /* service name */, {handle: EndpointEventHandler; filter: LabelFilter}> = new ArrayMap();
+  private endpointStateHandlerMap_: ArrayMap<string /* service name */, {id: number; handle: EndpointStateUpdateHandler; filter: LabelFilter}> = new ArrayMap();
+  private endpointEventHandlerMap_: ArrayMap<string /* service name */, {id: number; handle: EndpointEventHandler; filter: LabelFilter}> = new ArrayMap();
+  private handlerId_: number;
+
+  private listenerCreateHandler_: IDiscoveryListenerEvent[DiscoveryListenerEvent.ListenerCreated];
+  private listenerStateUpdateHandler_: IDiscoveryListenerEvent[DiscoveryListenerEvent.ListenerStateUpdate];
+  private listenerDeletedHandler_: IDiscoveryListenerEvent[DiscoveryListenerEvent.ListenerDeleted];
 }
 
 export {ProviderManager};

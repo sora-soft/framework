@@ -41,3 +41,8 @@ export enum RetryEvent {
 export enum DiscoveryEvent {
   DiscoveryReconnect = 'discovery-reconnect',
 }
+
+export enum ProviderEvent {
+  NewSender = 'new-sender',
+  RemoveSender = 'remove-sender',
+}

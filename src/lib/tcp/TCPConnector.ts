@@ -16,10 +16,11 @@ import {is} from 'typescript-is';
 import {Context} from '../Context';
 import {AbortError} from '../../utility/AbortError';
 import {ExError} from '../../utility/ExError';
+import {ProviderManager} from '../rpc/ProviderManager';
 
 class TCPConnector extends Connector {
-  static register() {
-    Runtime.pvdManager.registerSender('tcp', (listenerId: string, targetId: string, weight: number) => {
+  static register(manager?: ProviderManager) {
+    (manager || Runtime.pvdManager).registerSender('tcp', (listenerId: string, targetId: string, weight: number) => {
       return new RPCSender(listenerId, targetId, new TCPConnector(), weight);
     });
   }

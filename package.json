@@ -15,6 +15,11 @@
     "preCommit": "lint-staged"
   },
   "repository": "git@github.com:sora-soft/framework.git",
+  "type": "module",
+  "exports": {
+    ".": "./dist/index.js",
+    "./*": "./dist/"
+  },
   "keywords": [
     "sora",
     "frame"
@@ -39,27 +44,28 @@
     "@types/node": "^14.14.27",
     "@types/source-map-support": "^0.5.3",
     "@types/uuid": "^8.3.0",
+    "@typescript-eslint/eslint-plugin": "^5.54.0",
+    "@typescript-eslint/parser": "^5.54.0",
     "assert": "^2.0.0",
+    "eslint": "^8.35.0",
+    "eslint-plugin-import": "^2.27.5",
+    "eslint-plugin-jsdoc": "^40.0.1",
+    "eslint-plugin-prefer-arrow": "^1.2.3",
+    "eslint-plugin-unused-imports": "^2.0.0",
+    "husky": "^8.0.3",
+    "lint-staged": "^13.1.2",
     "mocha": "^8.3.0",
     "rimraf": "^3.0.2",
     "ts-mocha": "^8.0.0",
     "ts-node": "^9.1.1",
     "ttypescript": "^1.5.12",
-    "typescript": "^4.1.5",
-    "husky": "^8.0.3",
-    "lint-staged": "^13.1.2",
-    "@typescript-eslint/eslint-plugin": "^5.54.0",
-    "@typescript-eslint/parser": "^5.54.0",
-    "eslint": "^8.35.0",
-    "eslint-plugin-import": "^2.27.5",
-    "eslint-plugin-jsdoc": "^40.0.1",
-    "eslint-plugin-prefer-arrow": "^1.2.3",
-    "eslint-plugin-unused-imports": "^2.0.0"
+    "typescript": "^4.9.0"
   },
   "dependencies": {
     "chalk": "^4.1.0",
     "error-stack-parser": "^2.0.6",
     "reflect-metadata": "^0.1.13",
+    "rxjs": "^7.8.0",
     "source-map-support": "^0.5.19",
     "typescript-is": "^0.18.3",
     "uuid": "^8.3.2"

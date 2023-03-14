@@ -149,6 +149,8 @@ class Runtime {
         this.frameLogger_.error('runtime', err, {event: 'uninstall-service', error: Logger.errorMessage(err), id: this.node.id});
       });
 
+      await this.pvdManager_.stop();
+
       await this.discovery_.disconnect();
 
       await Time.timeout(1000);
