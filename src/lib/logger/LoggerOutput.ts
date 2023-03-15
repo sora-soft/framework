@@ -1,6 +1,6 @@
-import {QueueExecutor} from '../../utility/QueueExecutor';
-import {Utility} from '../../utility/Utility';
-import {ILoggerData, LogLevel} from './Logger';
+import {QueueExecutor} from '../../utility/QueueExecutor.js';
+import {Utility} from '../../utility/Utility.js';
+import {ILoggerData, LogLevel} from './Logger.js';
 
 export interface ILoggerOutputOptions {
   levels?: LogLevel[];

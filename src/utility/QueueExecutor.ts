@@ -1,6 +1,6 @@
-import {Executor, JobExecutor} from './Executor';
-import {ExError} from './ExError';
-import {Utility} from './Utility';
+import {Executor, JobExecutor} from './Executor.js';
+import {ExError} from './ExError.js';
+import {Utility} from './Utility.js';
 
 class QueueExecutor extends Executor {
   public async doJob<T = unknown>(executor: JobExecutor<T>) {

@@ -1,6 +1,6 @@
-import {AbortErrorCode} from '../ErrorCode';
-import {AsyncReject} from '../interface/util';
-import {AbortError} from '../utility/AbortError';
+import {AbortErrorCode} from '../ErrorCode.js';
+import {AsyncReject} from '../interface/util.js';
+import {AbortError} from '../utility/AbortError.js';
 
 export interface IRunningUnit<T = unknown> {
   promise: Promise<T>;

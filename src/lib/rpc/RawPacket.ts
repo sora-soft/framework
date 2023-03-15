@@ -1,8 +1,8 @@
-import {OPCode} from '../../Enum';
-import {RPCErrorCode} from '../../ErrorCode';
-import {IRawNetPacket, IResPayloadPacket} from '../../interface/rpc';
-import {Utility} from '../../utility/Utility';
-import {RPCError} from './RPCError';
+import {OPCode} from '../../Enum.js';
+import {RPCErrorCode} from '../../ErrorCode.js';
+import {IRawNetPacket, IResPayloadPacket} from '../../interface/rpc.js';
+import {Utility} from '../../utility/Utility.js';
+import {RPCError} from './RPCError.js';
 
 class RawPacket<T> {
   constructor(opCode: OPCode) {

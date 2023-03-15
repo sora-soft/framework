@@ -18,7 +18,9 @@
   "type": "module",
   "exports": {
     ".": "./dist/index.js",
-    "./*": "./dist/"
+    "./rxjs": {
+      "import": "./dist/rxjs.js"
+    }
   },
   "keywords": [
     "sora",
@@ -48,6 +50,7 @@
     "@typescript-eslint/parser": "^5.54.0",
     "assert": "^2.0.0",
     "eslint": "^8.35.0",
+    "eslint-plugin-file-extension-in-import-ts": "^1.0.1",
     "eslint-plugin-import": "^2.27.5",
     "eslint-plugin-jsdoc": "^40.0.1",
     "eslint-plugin-prefer-arrow": "^1.2.3",

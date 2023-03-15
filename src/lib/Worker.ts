@@ -1,16 +1,16 @@
-import {WorkerState} from '../Enum';
+import {WorkerState} from '../Enum.js';
 import {v4 as uuid} from 'uuid';
-import {LifeCycle} from '../utility/LifeCycle';
-import {Executor, JobExecutor} from '../utility/Executor';
-import {IWorkerMetaData} from '../interface/discovery';
-import {Runtime} from './Runtime';
-import {Timer} from '../utility/Timer';
-import {Component} from './Component';
-import {Provider} from './rpc/Provider';
-import {Logger} from './logger/Logger';
-import {Context} from './Context';
-import {Utility} from '../utility/Utility';
-import {ExError} from '../utility/ExError';
+import {LifeCycle} from '../utility/LifeCycle.js';
+import {Executor, JobExecutor} from '../utility/Executor.js';
+import {IWorkerMetaData} from '../interface/discovery.js';
+import {Runtime} from './Runtime.js';
+import {Timer} from '../utility/Timer.js';
+import {Component} from './Component.js';
+import {Provider} from './rpc/Provider.js';
+import {Logger} from './logger/Logger.js';
+import {Context} from './Context.js';
+import {Utility} from '../utility/Utility.js';
+import {ExError} from '../utility/ExError.js';
 
 abstract class Worker {
   constructor(name: string) {

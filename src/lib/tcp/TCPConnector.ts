@@ -1,22 +1,22 @@
 import net = require('net');
 import util = require('util');
-import {IListenerInfo, IRawNetPacket} from '../../interface/rpc';
-import {Connector} from '../rpc/Connector';
-import {Utility} from '../../utility/Utility';
-import {TCPUtility} from './TCPUtility';
-import {RPCError} from '../rpc/RPCError';
-import {RPCErrorCode} from '../../ErrorCode';
-import {ConnectorState} from '../../Enum';
-import {Retry} from '../../utility/Retry';
-import {Runtime} from '../Runtime';
-import {Logger} from '../logger/Logger';
-import {RetryEvent} from '../../Event';
-import {RPCSender} from '../rpc/RPCSender';
+import {IListenerInfo, IRawNetPacket} from '../../interface/rpc.js';
+import {Connector} from '../rpc/Connector.js';
+import {Utility} from '../../utility/Utility.js';
+import {TCPUtility} from './TCPUtility.js';
+import {RPCError} from '../rpc/RPCError.js';
+import {RPCErrorCode} from '../../ErrorCode.js';
+import {ConnectorState} from '../../Enum.js';
+import {Retry} from '../../utility/Retry.js';
+import {Runtime} from '../Runtime.js';
+import {Logger} from '../logger/Logger.js';
+import {RetryEvent} from '../../Event.js';
+import {RPCSender} from '../rpc/RPCSender.js';
 import {is} from 'typescript-is';
-import {Context} from '../Context';
-import {AbortError} from '../../utility/AbortError';
-import {ExError} from '../../utility/ExError';
-import {ProviderManager} from '../rpc/ProviderManager';
+import {Context} from '../Context.js';
+import {AbortError} from '../../utility/AbortError.js';
+import {ExError} from '../../utility/ExError.js';
+import {ProviderManager} from '../rpc/ProviderManager.js';
 
 class TCPConnector extends Connector {
   static register(manager?: ProviderManager) {

@@ -1,11 +1,11 @@
 import EventEmitter = require('events');
-import {RetryErrorCode} from '../ErrorCode';
-import {RetryEvent} from '../Event';
-import {IEventEmitter} from '../interface/event';
-import {Context} from '../lib/Context';
-import {AbortError} from './AbortError';
-import {ExError} from './ExError';
-import {Time} from './Time';
+import {RetryErrorCode} from '../ErrorCode.js';
+import {RetryEvent} from '../Event.js';
+import {IEventEmitter} from '../interface/event.js';
+import {Context} from '../lib/Context.js';
+import {AbortError} from './AbortError.js';
+import {ExError} from './ExError.js';
+import {Time} from './Time.js';
 
 export class RetryError extends ExError {
   constructor(code: RetryErrorCode, message: string) {

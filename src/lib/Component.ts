@@ -1,10 +1,10 @@
-import {FrameworkErrorCode} from '../ErrorCode';
-import {ExError} from '../utility/ExError';
-import {Ref} from '../utility/Ref';
-import {Context} from './Context';
-import {FrameworkError} from './FrameworkError';
-import {Logger} from './logger/Logger';
-import {Runtime} from './Runtime';
+import {FrameworkErrorCode} from '../ErrorCode.js';
+import {ExError} from '../utility/ExError.js';
+import {Ref} from '../utility/Ref.js';
+import {Context} from './Context.js';
+import {FrameworkError} from './FrameworkError.js';
+import {Logger} from './logger/Logger.js';
+import {Runtime} from './Runtime.js';
 
 export interface IComponentOptions {}
 

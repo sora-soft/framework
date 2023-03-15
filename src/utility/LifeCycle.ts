@@ -1,10 +1,10 @@
 import EventEmitter = require('events');
-import {FrameworkErrorCode} from '../ErrorCode';
-import {LifeCycleEvent} from '../Event';
-import {IEventEmitter} from '../interface/event';
-import {Context} from '../lib/Context';
-import {FrameworkError} from '../lib/FrameworkError';
-import {ExError} from './ExError';
+import {FrameworkErrorCode} from '../ErrorCode.js';
+import {LifeCycleEvent} from '../Event.js';
+import {IEventEmitter} from '../interface/event.js';
+import {Context} from '../lib/Context.js';
+import {FrameworkError} from '../lib/FrameworkError.js';
+import {ExError} from './ExError.js';
 
 export type LifeCycleHandler = (context: Context, ...args: any) => Promise<void>;
 export type LifeCycleAllHandler<T> = (context: Context, state: T, ...args: any) => Promise<void>;

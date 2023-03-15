@@ -1,18 +1,18 @@
 import os = require('os');
-import {INodeOptions, IServiceOptions, IWorkerOptions} from '../interface/config';
-import {Service} from './Service';
-import {TCPListener} from './tcp/TCPListener';
-import {Route} from './rpc/Route';
-import {NodeHandler} from './handler/NodeHandler';
-import {INodeMetaData} from '../interface/discovery';
-import {Broadcaster} from './rpc/Broadcaster';
-import {INodeNotifyHandler} from './handler/NodeNotifyHandler';
-import {Runtime} from './Runtime';
-import {INodeRunData, ServiceBuilder, WorkerBuilder} from '../interface/node';
-import {Context} from './Context';
-import {ExError} from '../utility/ExError';
-import {Logger} from './logger/Logger';
-import {Utility} from '../utility/Utility';
+import {INodeOptions, IServiceOptions, IWorkerOptions} from '../interface/config.js';
+import {Service} from './Service.js';
+import {TCPListener} from './tcp/TCPListener.js';
+import {Route} from './rpc/Route.js';
+import {NodeHandler} from './handler/NodeHandler.js';
+import {INodeMetaData} from '../interface/discovery.js';
+import {Broadcaster} from './rpc/Broadcaster.js';
+import {INodeNotifyHandler} from './handler/NodeNotifyHandler.js';
+import {Runtime} from './Runtime.js';
+import {INodeRunData, ServiceBuilder, WorkerBuilder} from '../interface/node.js';
+import {Context} from './Context.js';
+import {ExError} from '../utility/ExError.js';
+import {Logger} from './logger/Logger.js';
+import {Utility} from '../utility/Utility.js';
 
 class Node extends Service {
   static registerWorker(name: string, builder: WorkerBuilder) {

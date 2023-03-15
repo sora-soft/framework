@@ -1,5 +1,5 @@
-import {ISenderMetaData} from '../../interface/rpc';
-import {Connector} from './Connector';
+import {ISenderMetaData} from '../../interface/rpc.js';
+import {Connector} from './Connector.js';
 
 class RPCSender {
   constructor(listenerId: string, targetId: string, connector: Connector, weight: number) {

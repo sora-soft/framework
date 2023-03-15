@@ -1,18 +1,18 @@
-import {ExError} from '../utility/ExError';
-import {Context} from './Context';
-import {Election} from './Election';
-import {Logger} from './logger/Logger';
-import {Runtime} from './Runtime';
-import {Worker} from './Worker';
+import {ExError} from '../utility/ExError.js';
+import {Context} from './Context.js';
+import {Election} from './Election.js';
+import {Logger} from './logger/Logger.js';
+import {Runtime} from './Runtime.js';
+import {Worker} from './Worker.js';
 
 abstract class SingletonWorker extends Worker {
   constructor(name: string) {
     super(name);
-    this.election_ = Runtime.discovery.createElection(this.name);
+    this.election_ = Runtime.discovery.createElection(`$worker-${this.name}`);
   }
 
   async start(context?: Context) {
-    await this.election_.campaign(context);
+    await this.election_.campaign(this.id, context);
     return super.start(context);
   }
 
@@ -30,7 +30,7 @@ abstract class SingletonWorker extends Worker {
     return super.onError(err);
   }
 
-  private election_: Election<string>;
+  private election_: Election;
 }
 
 export {SingletonWorker};

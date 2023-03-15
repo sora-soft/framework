@@ -1,4 +1,4 @@
-import {Logger} from './logger/Logger';
+import {Logger} from './logger/Logger.js';
 
 class FrameworkLogger extends Logger {
   constructor() {

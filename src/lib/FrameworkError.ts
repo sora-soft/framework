@@ -1,5 +1,5 @@
-import {FrameworkErrorCode} from '../ErrorCode';
-import {ExError} from '../utility/ExError';
+import {FrameworkErrorCode} from '../ErrorCode.js';
+import {ExError} from '../utility/ExError.js';
 
 class FrameworkError extends ExError {
   constructor(code: FrameworkErrorCode, message: string) {

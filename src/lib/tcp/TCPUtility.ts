@@ -1,8 +1,8 @@
-import {IRawNetPacket, IRawReqPacket, IRawResPacket} from '../../interface/rpc';
+import {IRawNetPacket, IRawReqPacket, IRawResPacket} from '../../interface/rpc.js';
 import zlib = require('zlib')
 import util = require('util')
-import {RPCError} from '../rpc/RPCError';
-import {RPCErrorCode} from '../../ErrorCode';
+import {RPCError} from '../rpc/RPCError.js';
+import {RPCErrorCode} from '../../ErrorCode.js';
 
 class TCPUtility {
   static async encodeMessage(packet: IRawNetPacket | IRawReqPacket | IRawResPacket | Object) {

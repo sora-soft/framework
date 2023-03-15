@@ -1,4 +1,4 @@
-import {ErrorLevel} from '../Enum';
+import {ErrorLevel} from '../Enum.js';
 
 class ExError extends Error {
   static fromError(err: Error | ExError) {

@@ -1,7 +1,7 @@
 {
   "compilerOptions": {
-    "moduleResolution": "node",
-    "module": "commonjs",
+    "moduleResolution": "node16",
+    "module": "Node16",
     "declaration": true,
     "target": "ESNext",
     "outDir": "./dist",
@@ -17,6 +17,7 @@
   },
   "include": [
     "./src/**/*",
+    "./.eslintrc.cjs"
   ],
   "exclude": [
     "dist",

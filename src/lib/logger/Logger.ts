@@ -1,9 +1,9 @@
-import {LoggerOutput} from './LoggerOutput';
+import {LoggerOutput} from './LoggerOutput.js';
 import {parse, StackFrame} from 'error-stack-parser';
 import path = require('path');
-import {Utility} from '../../utility/Utility';
-import {ExError} from '../../utility/ExError';
-import {ErrorLevel} from '../../Enum';
+import {Utility} from '../../utility/Utility.js';
+import {ExError} from '../../utility/ExError.js';
+import {ErrorLevel} from '../../Enum.js';
 
 export interface ILoggerOptions {
   identify: string;

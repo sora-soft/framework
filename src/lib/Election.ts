@@ -1,16 +1,15 @@
 import {BehaviorSubject} from 'rxjs';
-import {Context} from './Context';
+import {Context} from './Context.js';
 
-abstract class Election<T> {
-  constructor(name: string, id: T) {
+abstract class Election {
+  constructor(name: string) {
     this.name_ = name;
-    this.id_ = id;
   }
 
-  abstract campaign(context?: Context): Promise<void>;
+  abstract campaign(id: string, context?: Context): Promise<void>;
   abstract resign(): Promise<void>;
-  abstract isLeader(): Promise<void>;
-  abstract observer(): BehaviorSubject<T>;
+  abstract leader(): Promise<string | undefined>;
+  abstract observer(): BehaviorSubject<string | undefined>;
 
   get name() {
     return this.name_;
@@ -21,7 +20,7 @@ abstract class Election<T> {
   }
 
   private name_: string;
-  private id_: T;
+  private id_: string;
 }
 
 export {Election};

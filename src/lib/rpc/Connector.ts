@@ -1,23 +1,23 @@
 import {is} from 'typescript-is';
-import {RPCHeader} from '../../Const';
-import {OPCode, ConnectorCommand, ConnectorState, ErrorLevel} from '../../Enum';
-import {FrameworkErrorCode, RPCErrorCode} from '../../ErrorCode';
-import {IConnectorOptions, IListenerInfo, IRawNetPacket, IRawOperationPacket, IRawReqPacket, IRawResPacket} from '../../interface/rpc';
-import {AbortError} from '../../utility/AbortError';
-import {Executor} from '../../utility/Executor';
-import {ExError} from '../../utility/ExError';
-import {LifeCycle} from '../../utility/LifeCycle';
-import {TimeoutError} from '../../utility/TimeoutError';
-import {NodeTime, Utility} from '../../utility/Utility';
-import {Waiter} from '../../utility/Waiter';
-import {Context} from '../Context';
-import {FrameworkError} from '../FrameworkError';
-import {Logger} from '../logger/Logger';
-import {Runtime} from '../Runtime';
-import {ListenerCallback} from './Listener';
-import {Notify} from './Notify';
-import {Request} from './Request';
-import {RPCError, RPCResponseError} from './RPCError';
+import {RPCHeader} from '../../Const.js';
+import {OPCode, ConnectorCommand, ConnectorState, ErrorLevel} from '../../Enum.js';
+import {FrameworkErrorCode, RPCErrorCode} from '../../ErrorCode.js';
+import {IConnectorOptions, IListenerInfo, IRawNetPacket, IRawOperationPacket, IRawReqPacket, IRawResPacket} from '../../interface/rpc.js';
+import {AbortError} from '../../utility/AbortError.js';
+import {Executor} from '../../utility/Executor.js';
+import {ExError} from '../../utility/ExError.js';
+import {LifeCycle} from '../../utility/LifeCycle.js';
+import {TimeoutError} from '../../utility/TimeoutError.js';
+import {NodeTime, Utility} from '../../utility/Utility.js';
+import {Waiter} from '../../utility/Waiter.js';
+import {Context} from '../Context.js';
+import {FrameworkError} from '../FrameworkError.js';
+import {Logger} from '../logger/Logger.js';
+import {Runtime} from '../Runtime.js';
+import {ListenerCallback} from './Listener.js';
+import {Notify} from './Notify.js';
+import {Request} from './Request.js';
+import {RPCError, RPCResponseError} from './RPCError.js';
 
 abstract class Connector {
   constructor(options: IConnectorOptions) {

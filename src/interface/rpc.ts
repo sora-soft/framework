@@ -1,6 +1,6 @@
-import {ConnectorState, ErrorLevel, OPCode} from '../Enum';
-import {ILabelData} from '../utility/LabelFilter';
-import {ILabels} from './config';
+import {ConnectorState, ErrorLevel, OPCode} from '../Enum.js';
+import {ILabelData} from '../utility/LabelFilter.js';
+import {ILabels} from './config.js';
 
 export type IRawNetPacket<T = unknown> = IRawReqPacket<T> | IRawResPacket<unknown> | IRawOperationPacket;
 

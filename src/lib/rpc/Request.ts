@@ -1,6 +1,6 @@
-import {OPCode} from '../../Enum';
-import {IRawReqPacket} from '../../interface/rpc';
-import {RawPacket} from './RawPacket';
+import {OPCode} from '../../Enum.js';
+import {IRawReqPacket} from '../../interface/rpc.js';
+import {RawPacket} from './RawPacket.js';
 
 class Request<T = unknown> extends RawPacket<T> {
   constructor(packet: Omit<IRawReqPacket<T>, 'opcode'>) {

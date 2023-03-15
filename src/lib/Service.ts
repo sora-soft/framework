@@ -1,15 +1,15 @@
-import {ListenerState, WorkerState} from '../Enum';
-import {LifeCycleEvent, ListenerWeightEvent} from '../Event';
-import {ILabels, IServiceOptions} from '../interface/config';
-import {IServiceMetaData, IServiceRunData} from '../interface/discovery';
-import {ExError} from '../utility/ExError';
-import {QueueExecutor} from '../utility/QueueExecutor';
-import {Utility} from '../utility/Utility';
-import {Context} from './Context';
-import {Logger} from './logger/Logger';
-import {Listener} from './rpc/Listener';
-import {Runtime} from './Runtime';
-import {Worker} from './Worker';
+import {ListenerState, WorkerState} from '../Enum.js';
+import {LifeCycleEvent, ListenerWeightEvent} from '../Event.js';
+import {ILabels, IServiceOptions} from '../interface/config.js';
+import {IServiceMetaData, IServiceRunData} from '../interface/discovery.js';
+import {ExError} from '../utility/ExError.js';
+import {QueueExecutor} from '../utility/QueueExecutor.js';
+import {Utility} from '../utility/Utility.js';
+import {Context} from './Context.js';
+import {Logger} from './logger/Logger.js';
+import {Listener} from './rpc/Listener.js';
+import {Runtime} from './Runtime.js';
+import {Worker} from './Worker.js';
 
 abstract class Service extends Worker {
   constructor(name: string, options: IServiceOptions) {

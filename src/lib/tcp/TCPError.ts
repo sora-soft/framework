@@ -1,5 +1,5 @@
-import {TCPErrorCode} from '../../ErrorCode';
-import {ExError} from '../../utility/ExError';
+import {TCPErrorCode} from '../../ErrorCode.js';
+import {ExError} from '../../utility/ExError.js';
 
 class TCPError extends ExError {
   constructor(code: TCPErrorCode, message: string) {

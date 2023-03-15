@@ -1,5 +1,5 @@
-import {ErrorLevel} from '../Enum';
-import {ExError} from './ExError';
+import {ErrorLevel} from '../Enum.js';
+import {ExError} from './ExError.js';
 
 export type RefCallback<T> = () => Promise<T>;
 

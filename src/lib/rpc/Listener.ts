@@ -1,16 +1,16 @@
-import {ConnectorState, ListenerState} from '../../Enum';
-import {LifeCycle} from '../../utility/LifeCycle';
+import {ConnectorState, ListenerState} from '../../Enum.js';
+import {LifeCycle} from '../../utility/LifeCycle.js';
 import {v4 as uuid} from 'uuid';
-import {IListenerInfo, IRawReqPacket, IRawResPacket} from '../../interface/rpc';
-import {IEventEmitter} from '../../interface/event';
-import {LifeCycleEvent, ListenerEvent, ListenerWeightEvent} from '../../Event';
-import {ILabels} from '../../interface/config';
+import {IListenerInfo, IRawReqPacket, IRawResPacket} from '../../interface/rpc.js';
+import {IEventEmitter} from '../../interface/event.js';
+import {LifeCycleEvent, ListenerEvent, ListenerWeightEvent} from '../../Event.js';
+import {ILabels} from '../../interface/config.js';
 import {EventEmitter} from 'events';
-import {Connector} from './Connector';
-import {Context} from '../Context';
-import {ExError} from '../../utility/ExError';
-import {Runtime} from '../Runtime';
-import {Logger} from '../logger/Logger';
+import {Connector} from './Connector.js';
+import {Context} from '../Context.js';
+import {ExError} from '../../utility/ExError.js';
+import {Runtime} from '../Runtime.js';
+import {Logger} from '../logger/Logger.js';
 
 export interface IListenerEvent {
   [ListenerEvent.NewConnect]: (session: string, connector: Connector, ...args: any[]) => void;

@@ -1,19 +1,19 @@
-import {Listener, ListenerCallback} from '../rpc/Listener';
+import {Listener, ListenerCallback} from '../rpc/Listener.js';
 import net =  require('net');
-import {ListenerState} from '../../Enum';
+import {ListenerState} from '../../Enum.js';
 import util = require('util');
-import {ILabels, ITCPListenerOptions} from '../../interface/config';
+import {ILabels, ITCPListenerOptions} from '../../interface/config.js';
 import {v4 as uuid} from 'uuid';
 import EventEmitter = require('events');
-import {Runtime} from '../Runtime';
-import {Logger} from '../logger/Logger';
-import {ExError} from '../../utility/ExError';
-import {Utility} from '../../utility/Utility';
-import {TCPErrorCode} from '../../ErrorCode';
-import {TCPError} from './TCPError';
-import {Time} from '../../utility/Time';
-import {IListenerInfo} from '../../interface/rpc';
-import {TCPConnector} from './TCPConnector';
+import {Runtime} from '../Runtime.js';
+import {Logger} from '../logger/Logger.js';
+import {ExError} from '../../utility/ExError.js';
+import {Utility} from '../../utility/Utility.js';
+import {TCPErrorCode} from '../../ErrorCode.js';
+import {TCPError} from './TCPError.js';
+import {Time} from '../../utility/Time.js';
+import {IListenerInfo} from '../../interface/rpc.js';
+import {TCPConnector} from './TCPConnector.js';
 
 class TCPListener extends Listener {
   constructor(options: ITCPListenerOptions, callback: ListenerCallback, labels: ILabels = {}) {

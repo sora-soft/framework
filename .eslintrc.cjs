@@ -32,9 +32,11 @@ module.exports = {
     'eslint-plugin-prefer-arrow',
     '@typescript-eslint',
     'unused-imports',
+    'file-extension-in-import-ts',
   ],
   'root': true,
   'rules': {
+    'file-extension-in-import-ts/file-extension-in-import-ts': 'error',
     '@typescript-eslint/member-delimiter-style': ['error', {
       'multiline': {
         'delimiter': 'semi',

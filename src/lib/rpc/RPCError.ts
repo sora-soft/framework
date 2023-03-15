@@ -1,6 +1,6 @@
-import {ErrorLevel} from '../../Enum';
-import {RPCErrorCode} from '../../ErrorCode';
-import {ExError} from '../../utility/ExError';
+import {ErrorLevel} from '../../Enum.js';
+import {RPCErrorCode} from '../../ErrorCode.js';
+import {ExError} from '../../utility/ExError.js';
 
 class RPCError extends ExError {
   constructor(code: RPCErrorCode, message: string) {

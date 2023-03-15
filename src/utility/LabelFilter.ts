@@ -1,4 +1,4 @@
-import {ILabels} from '../interface/config';
+import {ILabels} from '../interface/config.js';
 
 export enum FilterOperator {
   INCLUDE,

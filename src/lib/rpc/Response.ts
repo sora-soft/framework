@@ -1,7 +1,7 @@
-import {OPCode} from '../../Enum';
-import {IRawResPacket, IResPayloadPacket} from '../../interface/rpc';
-import {Utility} from '../../utility/Utility';
-import {RawPacket} from './RawPacket';
+import {OPCode} from '../../Enum.js';
+import {IRawResPacket, IResPayloadPacket} from '../../interface/rpc.js';
+import {Utility} from '../../utility/Utility.js';
+import {RawPacket} from './RawPacket.js';
 
 class Response<T = unknown> extends RawPacket<IResPayloadPacket<T>> {
   constructor(packet?: IRawResPacket<T>) {

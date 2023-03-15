@@ -1,15 +1,15 @@
-import {RPCHeader} from '../../Const';
-import {FrameworkErrorCode} from '../../ErrorCode';
-import {IServiceOptions, IWorkerOptions} from '../../interface/config';
-import {INodeRunData} from '../../interface/node';
-import {ExError} from '../../utility/ExError';
-import {Context} from '../Context';
-import {FrameworkError} from '../FrameworkError';
-import {Logger} from '../logger/Logger';
-import {Node} from '../Node';
-import {Request} from '../rpc/Request';
-import {Route} from '../rpc/Route';
-import {Runtime} from '../Runtime';
+import {RPCHeader} from '../../Const.js';
+import {FrameworkErrorCode} from '../../ErrorCode.js';
+import {IServiceOptions, IWorkerOptions} from '../../interface/config.js';
+import {INodeRunData} from '../../interface/node.js';
+import {ExError} from '../../utility/ExError.js';
+import {Context} from '../Context.js';
+import {FrameworkError} from '../FrameworkError.js';
+import {Logger} from '../logger/Logger.js';
+import {Node} from '../Node.js';
+import {Request} from '../rpc/Request.js';
+import {Route} from '../rpc/Route.js';
+import {Runtime} from '../Runtime.js';
 
 export interface IReqCreateService {
   name: string;

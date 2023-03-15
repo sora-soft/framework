@@ -1,6 +1,6 @@
-import {ILoggerData, LogLevel} from './Logger';
+import {ILoggerData, LogLevel} from './Logger.js';
 import chalk = require('chalk');
-import {ILoggerOutputOptions, LoggerOutput} from './LoggerOutput';
+import {ILoggerOutputOptions, LoggerOutput} from './LoggerOutput.js';
 
 export interface IConsoleOutputOptions extends ILoggerOutputOptions {
   colors?: {

@@ -1,17 +1,17 @@
-import {RPCHeader} from '../../Const';
-import {ErrorLevel, OPCode} from '../../Enum';
-import {RPCErrorCode} from '../../ErrorCode';
-import {IRawResPacket, IResPayloadPacket} from '../../interface/rpc';
-import {ExError} from '../../utility/ExError';
-import {ArrayMap} from '../../utility/Utility';
-import {Logger} from '../logger/Logger';
-import {Runtime} from '../Runtime';
-import {Connector} from './Connector';
-import {ListenerCallback} from './Listener';
-import {Notify} from './Notify';
-import {Request} from './Request';
-import {Response} from './Response';
-import {RPCError, RPCResponseError} from './RPCError';
+import {RPCHeader} from '../../Const.js';
+import {ErrorLevel, OPCode} from '../../Enum.js';
+import {RPCErrorCode} from '../../ErrorCode.js';
+import {IRawResPacket, IResPayloadPacket} from '../../interface/rpc.js';
+import {ExError} from '../../utility/ExError.js';
+import {ArrayMap} from '../../utility/Utility.js';
+import {Logger} from '../logger/Logger.js';
+import {Runtime} from '../Runtime.js';
+import {Connector} from './Connector.js';
+import {ListenerCallback} from './Listener.js';
+import {Notify} from './Notify.js';
+import {Request} from './Request.js';
+import {Response} from './Response.js';
+import {RPCError, RPCResponseError} from './RPCError.js';
 import 'reflect-metadata';
 
 export type RPCHandler<Req=unknown, Res=unknown> = (body: Req, ...args) => Promise<Res>;
@@ -55,12 +55,12 @@ class Route {
   protected static makeErrorRPCResponse(request: Request, response: Response, err: ExError) {
     response.payload = {
       error: {
-          code: err.code || RPCErrorCode.ERR_RPC_UNKNOWN,
-          level: err.level || ErrorLevel.UNEXPECTED,
-          name: err.name,
-          message: err.message,
-        },
-        result: null
+        code: err.code || RPCErrorCode.ERR_RPC_UNKNOWN,
+        level: err.level || ErrorLevel.UNEXPECTED,
+        name: err.name,
+        message: err.message,
+      },
+      result: null
     };
     return response.toPacket();
   }
@@ -126,11 +126,11 @@ class Route {
           if (!route.hasNotify(notify.method))
             throw new RPCError(RPCErrorCode.ERR_RPC_METHOD_NOT_FOUND, `ERR_RPC_METHOD_NOT_FOUND, method=${notify.method}`);
 
-            await route.callNotify(notify.method, notify, connector).catch((err: ExError) => {
-              if (err.level !== ErrorLevel.EXPECTED) {
-                Runtime.frameLogger.error('route', err, {event: 'notify-handler', error: Logger.errorMessage(err), method: notify.method, request: notify.payload});
-              }
-            });
+          await route.callNotify(notify.method, notify, connector).catch((err: ExError) => {
+            if (err.level !== ErrorLevel.EXPECTED) {
+              Runtime.frameLogger.error('route', err, {event: 'notify-handler', error: Logger.errorMessage(err), method: notify.method, request: notify.payload});
+            }
+          });
           Runtime.rpcLogger.debug('route', {event: 'handled-notify', method: notify.method, duration: Date.now() - startTime});
           return null;
         default:

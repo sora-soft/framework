@@ -1,10 +1,10 @@
 import EventEmitter = require('events');
-import {DiscoveryEvent, DiscoveryListenerEvent, DiscoveryNodeEvent, DiscoveryServiceEvent} from '../../Event';
-import {IEventEmitter} from '../../interface/event';
-import {IListenerEventData, IListenerMetaData, INodeMetaData, IServiceMetaData} from '../../interface/discovery';
-import {ListenerState, WorkerState} from '../../Enum';
-import {Context} from '../Context';
-import {Election} from '../Election';
+import {DiscoveryEvent, DiscoveryListenerEvent, DiscoveryNodeEvent, DiscoveryServiceEvent} from '../../Event.js';
+import {IEventEmitter} from '../../interface/event.js';
+import {IListenerEventData, IListenerMetaData, INodeMetaData, IServiceMetaData} from '../../interface/discovery.js';
+import {ListenerState, WorkerState} from '../../Enum.js';
+import {Context} from '../Context.js';
+import {Election} from '../Election.js';
 
 export interface IServiceEvent {
   [DiscoveryServiceEvent.ServiceCreated]: (info: IServiceMetaData) => void;
@@ -63,7 +63,7 @@ abstract class Discovery {
   abstract unregisterNode(id: string): Promise<void>;
 
   // 创建选举机
-  abstract createElection<T>(name: T): Election<T>;
+  abstract createElection(name: string): Election;
 
   protected abstract startup(context: Context): Promise<void>;
   protected abstract shutdown(): Promise<void>;

@@ -1,5 +1,5 @@
-import {AbortErrorCode} from '../ErrorCode';
-import {ExError} from './ExError';
+import {AbortErrorCode} from '../ErrorCode.js';
+import {ExError} from './ExError.js';
 
 class AbortError extends ExError {
   constructor(message?: string) {

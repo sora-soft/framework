@@ -1,6 +1,6 @@
-import {ListenerState, WorkerState} from '../Enum';
-import {ILabels} from './config';
-import {IListenerInfo} from './rpc';
+import {ListenerState, WorkerState} from '../Enum.js';
+import {ILabels} from './config.js';
+import {IListenerInfo} from './rpc.js';
 
 export interface IWorkerMetaData {
   name: string;

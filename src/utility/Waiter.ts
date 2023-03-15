@@ -1,4 +1,4 @@
-import {TimeoutError} from './TimeoutError';
+import {TimeoutError} from './TimeoutError.js';
 
 class Waiter<T> {
   constructor() {
