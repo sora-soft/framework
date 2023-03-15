@@ -17,7 +17,7 @@ abstract class SingletonWorker extends Worker {
   }
 
   async stop(reason: string) {
-    this.election_.resign().catch((e: ExError) => {
+    await this.election_.resign().catch((e: ExError) => {
       Runtime.frameLogger.error(this.logCategory, e, {event: 'resign-error', err: Logger.errorMessage(e)});
     });
     return super.stop(reason);
