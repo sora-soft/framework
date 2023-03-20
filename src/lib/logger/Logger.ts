@@ -1,5 +1,5 @@
 import {LoggerOutput} from './LoggerOutput.js';
-import {parse, StackFrame} from 'error-stack-parser';
+import ErrorStackParser from 'error-stack-parser';
 import path = require('path');
 import {Utility} from '../../utility/Utility.js';
 import {ExError} from '../../utility/ExError.js';
@@ -18,7 +18,7 @@ export interface ILoggerData {
   error?: Error | null;
   content: string;
   position: string;
-  stack: StackFrame[];
+  stack: ErrorStackParser.StackFrame[];
   raw: any[];
   pid: number;
 }
@@ -36,18 +36,18 @@ abstract class Logger {
   private static getStackPosition(depth: number) {
     const my = new Error();
     Error.captureStackTrace(my);
-    return parse(my)[depth];
+    return ErrorStackParser.parse(my)[depth];
   }
 
   private static getStack() {
     const my = new Error();
     Error.captureStackTrace(my);
-    return parse(my);
+    return ErrorStackParser.parse(my);
   }
 
   static errorMessage(e: ExError | Error) {
     const err = ExError.fromError(e);
-    const stack = parse(err).map(frame => {
+    const stack = ErrorStackParser.parse(err).map(frame => {
       return `${frame.functionName || 'unknown'}(${frame.fileName ? frame.fileName.replace(/\\/g, '/') : 'anonymous'}:${frame.lineNumber ? frame.lineNumber : 'NA'})`;
     });
     return {code: err.code, name: err.name, message: err.message, stack};
@@ -99,7 +99,7 @@ abstract class Logger {
 
   private write(level: LogLevel, category: string, error: Error | null | undefined, ...args: unknown[]) {
     const now = new Date();
-    const stack = error ? parse(error)[0] : Logger.getStackPosition(3);
+    const stack = error ? ErrorStackParser.parse(error)[0] : Logger.getStackPosition(3);
     const timeString = Utility.formatLogTimeString();
     for (const output of this.output_) {
       output.log({

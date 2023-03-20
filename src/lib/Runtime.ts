@@ -16,13 +16,14 @@ import {RPCLogger} from './rpc/RPCLogger.js';
 import {Service} from './Service.js';
 import {Worker} from './Worker.js';
 import {ProviderManager} from './rpc/ProviderManager.js';
+import {readFile} from 'fs/promises';
 
-// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-var-requires
-const pkg = require('../../package.json');
+const pkg = JSON.parse(
+  await readFile(new URL('../../package.json', import.meta.url), {encoding: 'utf-8'})
+) as {version: string};
 
 class Runtime {
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-  static version = pkg.version as string;
+  static version = pkg.version;
 
   static get frameLogger() {
     return this.frameLogger_;
