@@ -1,4 +1,4 @@
-import {is} from 'typescript-is';
+import {TypeGuard} from '@sora-soft/type-guard';
 import {RPCHeader} from '../../Const.js';
 import {OPCode, ConnectorCommand, ConnectorState, ErrorLevel} from '../../Enum.js';
 import {FrameworkErrorCode, RPCErrorCode} from '../../ErrorCode.js';
@@ -130,7 +130,7 @@ abstract class Connector {
     let rpcId = packet.headers[RPCHeader.RPC_ID_HEADER] as number | string | undefined;
     if (Utility.isUndefined(rpcId))
       throw new RPCError(RPCErrorCode.ERR_RPC_ID_NOT_FOUND, 'ERR_RPC_ID_NOT_FOUND');
-    if (is<string>(rpcId)) {
+    if (TypeGuard.valid<string>(rpcId)) {
       rpcId = parseInt(rpcId, 10);
     }
 
@@ -222,11 +222,11 @@ abstract class Connector {
                     message: err.message,
                   },
                   result: null,
-                }
+                },
               } as IRawResPacket<null>;
             };
 
-            if (!is<IRawReqPacket>(data)) {
+            if (!TypeGuard.valid<IRawReqPacket>(data)) {
               response = createErrorResPacket(new RPCResponseError(RPCErrorCode.ERR_RPC_BODY_PARSE_FAILED, ErrorLevel.EXPECTED, 'ERR_RPC_BODY_PARSE_FAILED'));
               await this.send(response );
               return;
@@ -258,21 +258,21 @@ abstract class Connector {
             Runtime.frameLogger.warn('connector', {event: 'connector-response-not-enabled', session: this.session});
             return;
           }
-          if (!is<IRawReqPacket>(data)) {
+          if (!TypeGuard.valid<IRawReqPacket>(data)) {
             Runtime.frameLogger.warn('connector', {event: 'parse-body-failed', data});
             return;
           }
           await this.routeCallback_(data, session, this);
           break;
         case OPCode.RESPONSE:
-          if (!is<IRawResPacket>(data)) {
+          if (!TypeGuard.valid<IRawResPacket>(data)) {
             Runtime.frameLogger.warn('connector', {event: 'parse-body-failed', data});
             return;
           }
           this.emitRPCResponse(data);
           break;
         case OPCode.OPERATION:
-          if (!is<IRawOperationPacket>(data)) {
+          if (!TypeGuard.valid<IRawOperationPacket>(data)) {
             Runtime.frameLogger.warn('connector', {event: 'parse-body-failed', data});
             return;
           }

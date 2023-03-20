@@ -15,16 +15,16 @@ module.exports = {
   'env': {
     'browser': true,
     'es6': true,
-    'node': true
+    'node': true,
   },
   'extends': [
     'plugin:@typescript-eslint/recommended',
-    'plugin:@typescript-eslint/recommended-requiring-type-checking'
+    'plugin:@typescript-eslint/recommended-requiring-type-checking',
   ],
   'parser': '@typescript-eslint/parser',
   'parserOptions': {
-    'project': 'tsconfig.json',
-    'sourceType': 'module'
+    'project': ['./tsconfig.json'],
+    'sourceType': 'module',
   },
   'plugins': [
     'eslint-plugin-import',
@@ -36,17 +36,18 @@ module.exports = {
   ],
   'root': true,
   'rules': {
+    'comma-dangle': ['error', 'always-multiline'],
     'file-extension-in-import-ts/file-extension-in-import-ts': 'error',
     '@typescript-eslint/member-delimiter-style': ['error', {
       'multiline': {
         'delimiter': 'semi',
-        'requireLast': true
+        'requireLast': true,
       },
       'singleline': {
         'delimiter': 'semi',
-        'requireLast': false
+        'requireLast': false,
       },
-      'multilineDetection': 'brackets'
+      'multilineDetection': 'brackets',
     }],
     '@typescript-eslint/no-unused-vars': ['warn', {'destructuredArrayIgnorePattern': '^_'}],
     '@typescript-eslint/unbound-method': 'off',
@@ -68,11 +69,11 @@ module.exports = {
           'camelCase',
           'UPPER_CASE',
           'PascalCase',
-          'snake_case'
+          'snake_case',
         ],
         'leadingUnderscore': 'allow',
-        'trailingUnderscore': 'allow'
-      }
+        'trailingUnderscore': 'allow',
+      },
     ],
     '@typescript-eslint/no-empty-function': 'off',
     '@typescript-eslint/no-empty-interface': 'off',
@@ -83,8 +84,8 @@ module.exports = {
     '@typescript-eslint/no-shadow': [
       'error',
       {
-        'hoist': 'all'
-      }
+        'hoist': 'all',
+      },
     ],
     '@typescript-eslint/no-unused-expressions': 'error',
     '@typescript-eslint/no-use-before-define': 'off',
@@ -94,15 +95,15 @@ module.exports = {
     '@typescript-eslint/prefer-namespace-keyword': 'error',
     '@typescript-eslint/quotes': [
       'error',
-      'single'
+      'single',
     ],
     '@typescript-eslint/triple-slash-reference': [
       'error',
       {
         'path': 'always',
         'types': 'prefer-import',
-        'lib': 'always'
-      }
+        'lib': 'always',
+      },
     ],
     '@typescript-eslint/typedef': 'off',
     '@typescript-eslint/unified-signatures': 'error',
@@ -115,14 +116,14 @@ module.exports = {
       '1tbs',
       {
         'allowSingleLine': true,
-      }
+      },
     ],
     'complexity': 'off',
     'constructor-super': 'error',
     'dot-notation': 'off',
     'eqeqeq': [
       'off',
-      'always'
+      'always',
     ],
     'guard-for-in': 'error',
     'id-denylist': [
@@ -135,7 +136,7 @@ module.exports = {
       'Boolean',
       'boolean',
       'Undefined',
-      'undefined'
+      'undefined',
     ],
     'id-match': 'error',
     'import/order': [
@@ -143,7 +144,7 @@ module.exports = {
       {
         'alphabetize': {
           'caseInsensitive': true,
-          'order': 'asc'
+          'order': 'asc',
         },
         'newlines-between': 'ignore',
         'groups': [
@@ -153,13 +154,13 @@ module.exports = {
             'internal',
             'unknown',
             'object',
-            'type'
+            'type',
           ],
           'parent',
           [
             'sibling',
-            'index'
-          ]
+            'index',
+          ],
         ],
         'distinctGroup': false,
         'pathGroupsExcludedImportTypes': [],
@@ -167,40 +168,40 @@ module.exports = {
           'pattern': './',
           'patternOptions': {
             'nocomment': true,
-            'dot': true
+            'dot': true,
           },
           'group': 'sibling',
-          'position': 'before'
+          'position': 'before',
         },
         {
           'pattern': '.',
           'patternOptions': {
             'nocomment': true,
-            'dot': true
+            'dot': true,
           },
           'group': 'sibling',
-          'position': 'before'
+          'position': 'before',
         },
         {
           'pattern': '..',
           'patternOptions': {
             'nocomment': true,
-            'dot': true
+            'dot': true,
           },
           'group': 'parent',
-          'position': 'before'
+          'position': 'before',
         },
         {
           'pattern': '../',
           'patternOptions': {
             'nocomment': true,
-            'dot': true
+            'dot': true,
           },
           'group': 'parent',
-          'position': 'before'
-        }
-        ]
-      }
+          'position': 'before',
+        },
+        ],
+      },
     ],
     'jsdoc/check-alignment': 'error',
     'jsdoc/check-indentation': 'error',
@@ -209,7 +210,6 @@ module.exports = {
     'indent': ['error', 2, {'SwitchCase': 1}],
     'max-len': 'off',
     'new-parens': 'error',
-    'no-bitwise': 'error',
     'no-caller': 'error',
     'no-cond-assign': 'error',
     'no-console': [
@@ -238,9 +238,9 @@ module.exports = {
           'profile',
           'profileEnd',
           'timeStamp',
-          'context'
-        ]
-      }
+          'context',
+        ],
+      },
     ],
     'no-debugger': 'error',
     'no-empty': 'off',
@@ -263,7 +263,7 @@ module.exports = {
     'object-shorthand': 'error',
     'one-var': [
       'error',
-      'never'
+      'never',
     ],
     'semi': ['error', 'always'],
     'prefer-arrow/prefer-arrow-functions': 'error',
@@ -275,11 +275,11 @@ module.exports = {
       'always',
       {
         'markers': [
-          '/'
-        ]
-      }
+          '/',
+        ],
+      },
     ],
     'use-isnan': 'error',
-    'valid-typeof': 'off'
-  }
+    'valid-typeof': 'off',
+  },
 };

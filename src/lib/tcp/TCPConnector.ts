@@ -12,11 +12,11 @@ import {Runtime} from '../Runtime.js';
 import {Logger} from '../logger/Logger.js';
 import {RetryEvent} from '../../Event.js';
 import {RPCSender} from '../rpc/RPCSender.js';
-import {is} from 'typescript-is';
 import {Context} from '../Context.js';
 import {AbortError} from '../../utility/AbortError.js';
 import {ExError} from '../../utility/ExError.js';
 import {ProviderManager} from '../rpc/ProviderManager.js';
+import {TypeGuard} from '@sora-soft/type-guard';
 
 class TCPConnector extends Connector {
   static register(manager?: ProviderManager) {
@@ -169,7 +169,7 @@ class TCPConnector extends Connector {
         return;
       }
 
-      if (!is<IRawNetPacket>(packet)) {
+      if (!TypeGuard.valid<IRawNetPacket>(packet)) {
         const err = new RPCError(RPCErrorCode.ERR_RPC_BODY_PARSE_FAILED, 'ERR_RPC_BODY_PARSE_FAILED');
         Runtime.frameLogger.error('connector.websocket', err, {event: 'connector-body-invalid', packet});
       }

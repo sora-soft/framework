@@ -13,6 +13,7 @@ import {Context} from './Context.js';
 import {ExError} from '../utility/ExError.js';
 import {Logger} from './logger/Logger.js';
 import {Utility} from '../utility/Utility.js';
+import {TypeGuard} from '@sora-soft/type-guard';
 
 class Node extends Service {
   static registerWorker(name: string, builder: WorkerBuilder) {
@@ -42,6 +43,7 @@ class Node extends Service {
 
   constructor(options: INodeOptions) {
     super('node', options);
+    TypeGuard.assertType<INodeOptions>(options);
     this.nodeOptions_ = options;
     this.broadcaster_ = new Broadcaster();
   }

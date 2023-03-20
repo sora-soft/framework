@@ -1,3 +1,4 @@
+import {TypeGuard} from '@sora-soft/type-guard';
 import {ListenerState, WorkerState} from '../Enum.js';
 import {LifeCycleEvent, ListenerWeightEvent} from '../Event.js';
 import {ILabels, IServiceOptions} from '../interface/config.js';
@@ -14,6 +15,7 @@ import {Worker} from './Worker.js';
 abstract class Service extends Worker {
   constructor(name: string, options: IServiceOptions) {
     super(name);
+    TypeGuard.assertType<IServiceOptions>(options);
     this.options_ = options;
 
     this.listenerPool_ = new Map();
@@ -154,7 +156,7 @@ abstract class Service extends Worker {
           state: listener.state,
           weight: listener.weight,
         };
-      })
+      }),
     };
   }
 

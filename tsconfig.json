@@ -12,7 +12,7 @@
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
     "plugins": [{
-      "transform": "typescript-is/lib/transform-inline/transformer"
+      "transform": "@sora-soft/type-guard/dist/transformer"
     }]
   },
   "include": [
