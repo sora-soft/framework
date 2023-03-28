@@ -15,7 +15,7 @@ export interface IRawReqPacket<T = unknown> {
   method: string;
   path: string;
   headers: {
-    [key: string]: any;
+    [key: string]: unknown;
   };
   payload: T;
 }
@@ -29,7 +29,7 @@ export interface IRawOperationPacket {
 export interface IRawResPacket<T = unknown> {
   opcode: OPCode.RESPONSE;
   headers: {
-    [key: string]: any;
+    [key: string]: unknown;
   };
   payload: IResPayloadPacket<T>;
 }

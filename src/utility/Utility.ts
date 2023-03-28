@@ -29,7 +29,7 @@ class Utility {
       result[key] = map.get(key);
     }
 
-    return result;
+    return result as {[k: string]: unknown};
   }
 
   static parseInt(value: string) {
