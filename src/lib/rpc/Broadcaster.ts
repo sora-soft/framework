@@ -18,7 +18,7 @@ class Broadcaster<T extends Route> {
     if (!handler) {
       handler = {
         connector,
-        methods: new Set()
+        methods: new Set(),
       };
     }
 
@@ -77,7 +77,7 @@ class Broadcaster<T extends Route> {
             });
           }
         };
-      }
+      },
     });
   }
 

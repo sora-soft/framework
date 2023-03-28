@@ -125,7 +125,7 @@ abstract class Listener {
     if (protocol)
       return {
         protocol,
-        ...this.labels_
+        ...this.labels_,
       };
     else
       return this.labels_;

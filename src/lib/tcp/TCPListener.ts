@@ -39,7 +39,7 @@ class TCPListener extends Listener {
       protocol: 'tcp',
       endpoint: `${this.exposeHost}:${this.usePort_}`,
       state: this.state,
-      labels: this.labels
+      labels: this.labels,
     };
   }
 
