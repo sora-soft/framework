@@ -169,7 +169,7 @@ class TCPConnector extends Connector {
         return;
       }
 
-      if (!TypeGuard.valid<IRawNetPacket>(packet)) {
+      if (!TypeGuard.is<IRawNetPacket>(packet)) {
         const err = new RPCError(RPCErrorCode.ERR_RPC_BODY_PARSE_FAILED, 'ERR_RPC_BODY_PARSE_FAILED');
         Runtime.frameLogger.error('connector.websocket', err, {event: 'connector-body-invalid', packet});
       }

@@ -15,7 +15,7 @@ import {Worker} from './Worker.js';
 abstract class Service extends Worker {
   constructor(name: string, options: IServiceOptions) {
     super(name);
-    TypeGuard.assertType<IServiceOptions>(options);
+    TypeGuard.assert<IServiceOptions>(options);
     this.options_ = options;
 
     this.listenerPool_ = new Map();

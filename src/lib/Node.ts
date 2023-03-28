@@ -44,7 +44,7 @@ class Node extends Service {
 
   constructor(options: INodeOptions) {
     super('node', options);
-    TypeGuard.assertType<INodeOptions>(options);
+    TypeGuard.assert<INodeOptions>(options);
     this.nodeOptions_ = options;
     this.broadcaster_ = new Broadcaster();
   }

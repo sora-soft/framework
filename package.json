@@ -66,7 +66,7 @@
     "typescript": "^4.9.0"
   },
   "dependencies": {
-    "@sora-soft/type-guard": "^1.0.2",
+    "@sora-soft/type-guard": "^1.1.0",
     "chalk": "^4.1.0",
     "error-stack-parser": "^2.0.6",
     "jsondiffpatch": "^0.4.1",

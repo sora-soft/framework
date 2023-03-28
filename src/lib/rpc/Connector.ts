@@ -130,7 +130,7 @@ abstract class Connector {
     let rpcId = packet.headers[RPCHeader.RPC_ID_HEADER] as number | string | undefined;
     if (Utility.isUndefined(rpcId))
       throw new RPCError(RPCErrorCode.ERR_RPC_ID_NOT_FOUND, 'ERR_RPC_ID_NOT_FOUND');
-    if (TypeGuard.valid<string>(rpcId)) {
+    if (TypeGuard.is<string>(rpcId)) {
       rpcId = parseInt(rpcId, 10);
     }
 
@@ -226,7 +226,7 @@ abstract class Connector {
               } as IRawResPacket<null>;
             };
 
-            if (!TypeGuard.valid<IRawReqPacket>(data)) {
+            if (!TypeGuard.is<IRawReqPacket>(data)) {
               response = createErrorResPacket(new RPCResponseError(RPCErrorCode.ERR_RPC_BODY_PARSE_FAILED, ErrorLevel.EXPECTED, 'ERR_RPC_BODY_PARSE_FAILED'));
               await this.send(response );
               return;
@@ -258,21 +258,21 @@ abstract class Connector {
             Runtime.frameLogger.warn('connector', {event: 'connector-response-not-enabled', session: this.session});
             return;
           }
-          if (!TypeGuard.valid<IRawReqPacket>(data)) {
+          if (!TypeGuard.is<IRawReqPacket>(data)) {
             Runtime.frameLogger.warn('connector', {event: 'parse-body-failed', data});
             return;
           }
           await this.routeCallback_(data, session, this);
           break;
         case OPCode.RESPONSE:
-          if (!TypeGuard.valid<IRawResPacket>(data)) {
+          if (!TypeGuard.is<IRawResPacket>(data)) {
             Runtime.frameLogger.warn('connector', {event: 'parse-body-failed', data});
             return;
           }
           this.emitRPCResponse(data);
           break;
         case OPCode.OPERATION:
-          if (!TypeGuard.valid<IRawOperationPacket>(data)) {
+          if (!TypeGuard.is<IRawOperationPacket>(data)) {
             Runtime.frameLogger.warn('connector', {event: 'parse-body-failed', data});
             return;
           }
