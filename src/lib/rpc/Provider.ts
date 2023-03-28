@@ -181,7 +181,7 @@ class Provider<T extends Route = Route> {
                 .filter((s) => {
                   return (
                     s.connector.state === ConnectorState.READY &&
-                    (!toId || s.listenerId === toId) &&
+                    (!toId || s.targetId === toId) &&
                     s.connector.isAvailable()
                   );
                 })
