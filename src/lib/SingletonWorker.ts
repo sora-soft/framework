@@ -8,7 +8,7 @@ import {Worker} from './Worker.js';
 abstract class SingletonWorker extends Worker {
   constructor(name: string) {
     super(name);
-    this.election_ = Runtime.discovery.createElection(`$worker-${this.name}`);
+    this.election_ = Runtime.discovery.createElection(`worker-${this.name}`);
   }
 
   async start(context?: Context) {

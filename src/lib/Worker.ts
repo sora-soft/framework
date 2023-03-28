@@ -154,6 +154,7 @@ abstract class Worker {
   }
 
   protected onError(err: Error) {
+    Runtime.frameLogger.error(this.logCategory, err, {event: 'worker-on-error', error: Logger.errorMessage(err)});
     this.abortStartup();
     this.lifeCycle_.setState(WorkerState.ERROR, err).catch(Utility.null);
     throw err;

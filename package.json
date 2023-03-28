@@ -19,7 +19,8 @@
   "exports": {
     ".": "./dist/index.js",
     "./rxjs": {
-      "import": "./dist/rxjs.js"
+      "import": "./dist/rxjs.js",
+      "types": "./dist/rxjs.d.ts"
     }
   },
   "keywords": [
@@ -68,6 +69,7 @@
     "@sora-soft/type-guard": "^1.0.2",
     "chalk": "^4.1.0",
     "error-stack-parser": "^2.0.6",
+    "jsondiffpatch": "^0.4.1",
     "reflect-metadata": "^0.1.13",
     "rxjs": "^7.8.0",
     "source-map-support": "^0.5.19",

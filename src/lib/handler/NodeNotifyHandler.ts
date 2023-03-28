@@ -1,6 +1,11 @@
-import {INodeRunData} from '../../interface/node.js';
 import {Route} from '../rpc/Route.js';
+import jsondiffpatch from 'jsondiffpatch';
+
+export interface INodeRunDataDiff {
+  id: string;
+  diff: jsondiffpatch.Delta;
+}
 
 export interface INodeNotifyHandler extends Route {
-  notifyNodeState(body: INodeRunData): Promise<void>;
+  notifyNodeState(body: INodeRunDataDiff): Promise<void>;
 }

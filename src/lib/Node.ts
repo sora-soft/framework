@@ -12,8 +12,9 @@ import {INodeRunData, ServiceBuilder, WorkerBuilder} from '../interface/node.js'
 import {Context} from './Context.js';
 import {ExError} from '../utility/ExError.js';
 import {Logger} from './logger/Logger.js';
-import {Utility} from '../utility/Utility.js';
+import {NodeTime, Utility} from '../utility/Utility.js';
 import {TypeGuard} from '@sora-soft/type-guard';
+import jsondiffpatch from 'jsondiffpatch';
 
 class Node extends Service {
   static registerWorker(name: string, builder: WorkerBuilder) {
@@ -51,14 +52,21 @@ class Node extends Service {
   async startup(context: Context) {
     const route = new NodeHandler(this);
     this.TCPListener_ = new TCPListener(this.nodeOptions_.api, Route.callback(route), {});
-
     await this.installListener(this.TCPListener_, context);
 
     this.doJobInterval(async () => {
-      this.broadcaster_.notify(this.id).notifyNodeState(this.nodeRunData).catch((err: ExError) => {
-        Runtime.frameLogger.error('node', err, {event: 'node-broadcast-state-error', error: Logger.errorMessage(err)});
-      });
-    }, 1000).catch(Utility.null);
+      const data = this.nodeRunData;
+      const diff = jsondiffpatch.diff(this.notifiedNodeState_, data);
+      if (diff) {
+        this.broadcaster_.notify(this.id).notifyNodeState({
+          id: this.id,
+          diff,
+        }).catch((err: ExError) => {
+          Runtime.frameLogger.error('node', err, {event: 'node-broadcast-state-error', error: Logger.errorMessage(err)});
+        });
+      }
+      this.notifiedNodeState_ = JSON.parse(JSON.stringify(data), jsondiffpatch.dateReviver) as INodeRunData;
+    }, NodeTime.second(1)).catch(Utility.null);
   }
 
   async shutdown() {}
@@ -95,6 +103,7 @@ class Node extends Service {
   private nodeOptions_: INodeOptions;
   private broadcaster_: Broadcaster<INodeNotifyHandler>;
   private TCPListener_: TCPListener;
+  private notifiedNodeState_: INodeRunData;
 }
 
 export {Node};
