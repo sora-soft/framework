@@ -9,7 +9,7 @@ import {Service} from './Service.js';
 abstract class SingletonService extends Service {
   constructor(name: string,  options: IServiceOptions) {
     super(name, options);
-    this.election_ = Runtime.discovery.createElection(`service-${this.name}`);
+    this.election_ = Runtime.discovery.createElection(`service/${this.name}`);
   }
 
   async start(context?: Context) {
