@@ -23,6 +23,10 @@ export interface INodeMetaData {
   pid: number;
   state: WorkerState;
   endpoint: Omit<IListenerMetaData, 'targetName' | 'targetId' | 'weight'>;
+  versions: {
+    framework: string;
+    app: string;
+  };
 }
 
 export interface IListenerMetaData extends IListenerInfo {

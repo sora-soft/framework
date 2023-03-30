@@ -24,6 +24,7 @@ const pkg = JSON.parse(
 
 class Runtime {
   static version = pkg.version;
+  static appVersion = '0.0.0';
 
   static get frameLogger() {
     return this.frameLogger_;

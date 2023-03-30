@@ -98,6 +98,10 @@ class Node extends Service {
       pid: process.pid,
       endpoint: this.TCPListener_.metaData,
       state: this.state,
+      versions: {
+        framework: Runtime.version,
+        app: Runtime.appVersion,
+      },
     };
   }
   private nodeOptions_: INodeOptions;
