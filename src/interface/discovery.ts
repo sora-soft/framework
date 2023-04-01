@@ -3,15 +3,15 @@ import {ILabels} from './config.js';
 import {IListenerInfo} from './rpc.js';
 
 export interface IWorkerMetaData {
-  name: string;
-  id: string;
-  state: WorkerState;
-  nodeId: string;
-  startTime: number;
+  readonly name: string;
+  readonly id: string;
+  readonly state: WorkerState;
+  readonly nodeId: string;
+  readonly startTime: number;
 }
 
 export interface IServiceMetaData extends IWorkerMetaData {
-  labels: ILabels;
+  readonly labels: ILabels;
 }
 
 export interface IServiceRunData extends IServiceMetaData {
@@ -19,28 +19,28 @@ export interface IServiceRunData extends IServiceMetaData {
 }
 
 export interface INodeMetaData {
-  id: string;
-  host: string;
-  pid: number;
-  state: WorkerState;
-  endpoint: Omit<IListenerMetaData, 'targetName' | 'targetId' | 'weight'>;
-  startTime: number;
-  versions: {
-    framework: string;
-    app: string;
+  readonly id: string;
+  readonly host: string;
+  readonly pid: number;
+  readonly state: WorkerState;
+  readonly endpoint: Omit<IListenerMetaData, 'targetName' | 'targetId' | 'weight'>;
+  readonly startTime: number;
+  readonly versions: {
+    readonly framework: string;
+    readonly app: string;
   };
 }
 
 export interface IListenerMetaData extends IListenerInfo {
-  id: string;
-  state: ListenerState;
-  targetId: string;
-  targetName: string;
-  labels: ILabels;
-  weight: number;
+  readonly id: string;
+  readonly state: ListenerState;
+  readonly targetId: string;
+  readonly targetName: string;
+  readonly labels: ILabels;
+  readonly weight: number;
 }
 
 export interface IListenerEventData extends IListenerMetaData {
-  service: string;
-  labels: ILabels;
+  readonly service: string;
+  readonly labels: ILabels;
 }

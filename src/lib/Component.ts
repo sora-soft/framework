@@ -6,6 +6,7 @@ import {FrameworkError} from './FrameworkError.js';
 import {Logger} from './logger/Logger.js';
 import {Runtime} from './Runtime.js';
 import {IComponentMetaData, IComponentOptions} from '../interface/component.js';
+import {Utility} from '../index.js';
 
 abstract class Component {
   constructor() {
@@ -72,11 +73,12 @@ abstract class Component {
   }
 
   get meta(): IComponentMetaData {
-    return {
+    return Utility.deepCopy({
       name: this.name_,
       ready: this.ready,
+      version: this.version,
       options: this.options,
-    };
+    });
   }
 
   protected name_: string;

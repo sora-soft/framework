@@ -109,6 +109,10 @@ class Utility {
     // String such as +5:30 or -6:00 or Z
     return currentDateTime + timezoneStandard;
   }
+
+  static deepCopy<T extends Object>(obj: T): T {
+    return JSON.parse(JSON.stringify(obj)) as T;
+  }
 }
 
 class UnixTime {

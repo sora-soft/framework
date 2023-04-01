@@ -63,14 +63,14 @@ export interface IConnectorOptions {
 }
 
 export interface ISenderMetaData {
-  id: string;
-  state: ConnectorState;
-  targetId: string;
-  weight: number;
+  readonly id: string;
+  readonly state: ConnectorState;
+  readonly targetId: string;
+  readonly weight: number;
 }
 
 export interface IProviderMetaData {
-  name: string;
-  filter: ILabelData[];
-  senders: ISenderMetaData[];
+  readonly name: string;
+  readonly filter: ILabelData[];
+  readonly senders: ISenderMetaData[];
 }

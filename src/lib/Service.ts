@@ -137,18 +137,18 @@ abstract class Service extends Worker {
   }
 
   get metaData(): IServiceMetaData {
-    return {
+    return Utility.deepCopy({
       name: this.name,
       id: this.id,
       nodeId: Runtime.node.id,
       state: this.state,
       startTime: this.startTime_,
       labels: this.options_.labels || [] as unknown as ILabels,
-    };
+    });
   }
 
   get runData(): IServiceRunData {
-    return {
+    return Utility.deepCopy({
       ...this.metaData,
       listeners: [...this.listenerPool_].map(([_, listener]) => {
         return {
@@ -158,7 +158,7 @@ abstract class Service extends Worker {
           weight: listener.weight,
         };
       }),
-    };
+    });
   }
 
   protected get logCategory() {

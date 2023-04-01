@@ -190,13 +190,13 @@ abstract class Worker {
   }
 
   get metaData(): IWorkerMetaData {
-    return {
+    return Utility.deepCopy({
       name: this.name,
       state: this.state,
       id: this.id_,
       nodeId: Runtime.node.id,
       startTime: this.startTime_,
-    };
+    });
   }
 
   protected get logCategory() {

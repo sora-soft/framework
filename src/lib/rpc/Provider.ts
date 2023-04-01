@@ -343,11 +343,11 @@ class Provider<T extends Route = Route> {
   }
 
   get metaData(): IProviderMetaData {
-    return {
+    return Utility.deepCopy({
       name: this.name,
       filter: this.filter_.filter,
       senders: this.senderList_.map(sender => sender.metaData),
-    };
+    });
   }
 
   get senderEmitter() {
