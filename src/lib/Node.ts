@@ -95,6 +95,7 @@ class Node extends Service {
   get nodeStateData(): INodeMetaData {
     return {
       id: this.id,
+      alias: this.nodeOptions_.alias,
       host: os.hostname(),
       pid: process.pid,
       endpoint: this.TCPListener_.metaData,

@@ -5,6 +5,7 @@ import {IListenerInfo} from './rpc.js';
 export interface IWorkerMetaData {
   readonly name: string;
   readonly id: string;
+  readonly alias: string;
   readonly state: WorkerState;
   readonly nodeId: string;
   readonly startTime: number;
@@ -15,11 +16,12 @@ export interface IServiceMetaData extends IWorkerMetaData {
 }
 
 export interface IServiceRunData extends IServiceMetaData {
-  listeners: Omit<IListenerMetaData, 'targetName' | 'targetId'>[];
+  readonly listeners: Omit<IListenerMetaData, 'targetName' | 'targetId'>[];
 }
 
 export interface INodeMetaData {
   readonly id: string;
+  readonly alias: string;
   readonly host: string;
   readonly pid: number;
   readonly state: WorkerState;

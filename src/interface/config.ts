@@ -13,11 +13,13 @@ export interface ILabels {
   readonly [key: string]: string;
 }
 
-export interface IServiceOptions {
+export interface IServiceOptions extends IWorkerOptions {
   readonly labels?: ILabels;
 }
 
-export interface IWorkerOptions {}
+export interface IWorkerOptions {
+  readonly alias: string;
+}
 
 export interface IRuntimeOptions {
   readonly scope: string;

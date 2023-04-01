@@ -14,9 +14,9 @@ import {Worker} from './Worker.js';
 
 abstract class Service extends Worker {
   constructor(name: string, options: IServiceOptions) {
-    super(name);
+    super(name, options);
     TypeGuard.assert<IServiceOptions>(options);
-    this.options_ = options;
+    this.serviceOptions_ = options;
 
     this.listenerPool_ = new Map();
     this.discoveryExecutor_ = new QueueExecutor();
@@ -139,11 +139,12 @@ abstract class Service extends Worker {
   get metaData(): IServiceMetaData {
     return Utility.deepCopy({
       name: this.name,
+      alias: this.serviceOptions_.alias,
       id: this.id,
       nodeId: Runtime.node.id,
       state: this.state,
       startTime: this.startTime_,
-      labels: this.options_.labels || [] as unknown as ILabels,
+      labels: this.serviceOptions_.labels || [] as unknown as ILabels,
     });
   }
 
@@ -171,7 +172,7 @@ abstract class Service extends Worker {
 
   private listenerPool_: Map<string/* id*/, Listener>;
   private discoveryExecutor_: QueueExecutor;
-  private options_: IServiceOptions;
+  private serviceOptions_: IServiceOptions;
 }
 
 export {Service};

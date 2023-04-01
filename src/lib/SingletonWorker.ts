@@ -1,3 +1,4 @@
+import {IWorkerOptions} from '../index.js';
 import {ExError} from '../utility/ExError.js';
 import {Context} from './Context.js';
 import {Election} from './Election.js';
@@ -6,8 +7,8 @@ import {Runtime} from './Runtime.js';
 import {Worker} from './Worker.js';
 
 abstract class SingletonWorker extends Worker {
-  constructor(name: string) {
-    super(name);
+  constructor(name: string, options: IWorkerOptions) {
+    super(name, options);
     this.election_ = Runtime.discovery.createElection(`worker/${this.name}`);
   }
 

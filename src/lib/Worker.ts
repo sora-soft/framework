@@ -11,14 +11,16 @@ import {Logger} from './logger/Logger.js';
 import {Context} from './Context.js';
 import {UnixTime, Utility} from '../utility/Utility.js';
 import {ExError} from '../utility/ExError.js';
+import {IWorkerOptions} from '../index.js';
 
 abstract class Worker {
-  constructor(name: string) {
+  constructor(name: string, options: IWorkerOptions) {
     this.name_ = name;
     this.lifeCycle_ = new LifeCycle(WorkerState.INIT, true);
     this.executor_ = new Executor();
     this.intervalJobTimer_ = new Timer();
     this.id_ = uuid();
+    this.workerOptions_ = options;
 
     this.componentPool_ = new Map();
     this.providerPool_ = new Map();
@@ -190,8 +192,9 @@ abstract class Worker {
   }
 
   get metaData(): IWorkerMetaData {
-    return Utility.deepCopy({
+    return Utility.deepCopy<IWorkerMetaData>({
       name: this.name,
+      alias: this.workerOptions_.alias,
       state: this.state,
       id: this.id_,
       nodeId: Runtime.node.id,
@@ -212,6 +215,7 @@ abstract class Worker {
   private componentPool_: Map<string/* name*/, Component>;
   private providerPool_: Map<string/* name*/, Provider>;
   private startupContext_: Context | null;
+  private workerOptions_: IWorkerOptions;
 }
 
 export {Worker};
