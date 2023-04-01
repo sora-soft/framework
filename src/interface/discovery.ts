@@ -7,6 +7,7 @@ export interface IWorkerMetaData {
   id: string;
   state: WorkerState;
   nodeId: string;
+  startTime: number;
 }
 
 export interface IServiceMetaData extends IWorkerMetaData {
@@ -23,6 +24,7 @@ export interface INodeMetaData {
   pid: number;
   state: WorkerState;
   endpoint: Omit<IListenerMetaData, 'targetName' | 'targetId' | 'weight'>;
+  startTime: number;
   versions: {
     framework: string;
     app: string;

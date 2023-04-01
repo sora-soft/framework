@@ -87,6 +87,7 @@ class Node extends Service {
       services: Runtime.services.map((service) => service.runData),
       workers: Runtime.workers.map((worker) => worker.metaData),
       providers: Runtime.pvdManager.getAllProviders().map((provider) => provider.metaData),
+      components: Runtime.components.map(component => component.meta),
       node: Runtime.node.nodeStateData,
     };
   }
@@ -98,6 +99,7 @@ class Node extends Service {
       pid: process.pid,
       endpoint: this.TCPListener_.metaData,
       state: this.state,
+      startTime: Runtime.startTime,
       versions: {
         framework: Runtime.version,
         app: Runtime.appVersion,

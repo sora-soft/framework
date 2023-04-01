@@ -17,6 +17,7 @@ import {Service} from './Service.js';
 import {Worker} from './Worker.js';
 import {ProviderManager} from './rpc/ProviderManager.js';
 import {readFile} from 'fs/promises';
+import {UnixTime} from '../index.js';
 
 const pkg = JSON.parse(
   await readFile(new URL('../../package.json', import.meta.url), {encoding: 'utf-8'})
@@ -25,6 +26,7 @@ const pkg = JSON.parse(
 class Runtime {
   static version = pkg.version;
   static appVersion = '0.0.0';
+  static startTime = UnixTime.now();
 
   static get frameLogger() {
     return this.frameLogger_;
@@ -276,6 +278,10 @@ class Runtime {
 
   static get workers() {
     return [...this.workers_].map(([_, worker]) => worker);
+  }
+
+  static get components() {
+    return [...this.components_].map(([_, component]) => component);
   }
 
   private static node_: Node;

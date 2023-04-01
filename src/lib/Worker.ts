@@ -9,7 +9,7 @@ import {Component} from './Component.js';
 import {Provider} from './rpc/Provider.js';
 import {Logger} from './logger/Logger.js';
 import {Context} from './Context.js';
-import {Utility} from '../utility/Utility.js';
+import {UnixTime, Utility} from '../utility/Utility.js';
 import {ExError} from '../utility/ExError.js';
 
 abstract class Worker {
@@ -48,6 +48,7 @@ abstract class Worker {
     }));
     await context.await(this.lifeCycle_.setState(WorkerState.READY));
     this.startupContext_ = null;
+    this.startTime_ = UnixTime.now();
   }
 
   protected abstract shutdown(reason: string): Promise<void>;
@@ -194,6 +195,7 @@ abstract class Worker {
       state: this.state,
       id: this.id_,
       nodeId: Runtime.node.id,
+      startTime: this.startTime_,
     };
   }
 
@@ -204,6 +206,7 @@ abstract class Worker {
   protected lifeCycle_: LifeCycle<WorkerState>;
   protected executor_: Executor;
   protected intervalJobTimer_: Timer;
+  protected startTime_: number;
   private name_: string;
   private id_: string;
   private componentPool_: Map<string/* name*/, Component>;

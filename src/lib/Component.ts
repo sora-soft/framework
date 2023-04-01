@@ -5,8 +5,7 @@ import {Context} from './Context.js';
 import {FrameworkError} from './FrameworkError.js';
 import {Logger} from './logger/Logger.js';
 import {Runtime} from './Runtime.js';
-
-export interface IComponentOptions {}
+import {IComponentMetaData, IComponentOptions} from '../interface/component.js';
 
 abstract class Component {
   constructor() {
@@ -31,7 +30,7 @@ abstract class Component {
         Runtime.frameLogger.error(`component.${this.name_}`, err, {event: 'connect-component', error: Logger.errorMessage(err)});
         throw err;
       });
-      Runtime.frameLogger.success(`component.${this.name_}`, {event: 'success-connect', options: this.logOptions(), version: this.version});
+      Runtime.frameLogger.success(`component.${this.name_}`, {event: 'success-connect', options: this.options, version: this.version});
       this.init_ = true;
     });
   }
@@ -72,8 +71,12 @@ abstract class Component {
     return this.options_;
   }
 
-  logOptions() {
-    return this.options_;
+  get meta(): IComponentMetaData {
+    return {
+      name: this.name_,
+      ready: this.ready,
+      options: this.options,
+    };
   }
 
   protected name_: string;
