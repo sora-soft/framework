@@ -18,7 +18,7 @@ export interface IServiceOptions extends IWorkerOptions {
 }
 
 export interface IWorkerOptions {
-  readonly alias: string;
+  readonly alias?: string;
 }
 
 export interface IRuntimeOptions {
