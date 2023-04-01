@@ -7,6 +7,7 @@ export * from './interface/event.js';
 export * from './interface/node.js';
 export * from './interface/rpc.js';
 export * from './interface/util.js';
+export * from './interface/component.js';
 
 export * from './lib/discovery/Discovery.js';
 
