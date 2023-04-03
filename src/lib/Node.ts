@@ -90,6 +90,7 @@ class Node extends Service {
       components: Runtime.components.map(component => component.meta),
       node: Runtime.node.nodeStateData,
       scope: Runtime.scope,
+      discovery: Runtime.discovery.info,
     });
   }
 
