@@ -83,17 +83,18 @@ class Node extends Service {
   }
 
   get nodeRunData(): INodeRunData {
-    return {
+    return Utility.deepCopy({
       services: Runtime.services.map((service) => service.runData),
       workers: Runtime.workers.map((worker) => worker.metaData),
       providers: Runtime.pvdManager.getAllProviders().map((provider) => provider.metaData),
       components: Runtime.components.map(component => component.meta),
       node: Runtime.node.nodeStateData,
-    };
+      scope: Runtime.scope,
+    });
   }
 
   get nodeStateData(): INodeMetaData {
-    return {
+    return Utility.deepCopy({
       id: this.id,
       alias: this.nodeOptions_.alias,
       host: os.hostname(),
@@ -105,7 +106,7 @@ class Node extends Service {
         framework: Runtime.version,
         app: Runtime.appVersion,
       },
-    };
+    });
   }
   private nodeOptions_: INodeOptions;
   private broadcaster_: Broadcaster<INodeNotifyHandler>;
