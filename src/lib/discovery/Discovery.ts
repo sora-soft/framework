@@ -1,10 +1,17 @@
 import EventEmitter = require('events');
-import {DiscoveryEvent, DiscoveryListenerEvent, DiscoveryNodeEvent, DiscoveryServiceEvent} from '../../Event.js';
+import {DiscoveryEvent, DiscoveryListenerEvent, DiscoveryNodeEvent, DiscoveryServiceEvent, DiscoveryWorkerEvent} from '../../Event.js';
 import {IEventEmitter} from '../../interface/event.js';
 import {IListenerEventData, IListenerMetaData, INodeMetaData, IServiceMetaData, IWorkerMetaData} from '../../interface/discovery.js';
 import {ListenerState, WorkerState} from '../../Enum.js';
 import {Context} from '../Context.js';
 import {Election} from '../Election.js';
+
+export interface IWorkerEvent {
+  [DiscoveryWorkerEvent.WorkerCreated]: (info: IWorkerMetaData) => void;
+  [DiscoveryWorkerEvent.WorkerDeleted]: (id: string, info: IWorkerMetaData) => void;
+  [DiscoveryWorkerEvent.WorkerUpdated]: (id: string, info: IWorkerMetaData) => void;
+  [DiscoveryWorkerEvent.WorkerStateUpdate]: (id: string, state: WorkerState, pre: WorkerState, info: IWorkerMetaData) => void;
+}
 
 export interface IServiceEvent {
   [DiscoveryServiceEvent.ServiceCreated]: (info: IServiceMetaData) => void;
@@ -46,13 +53,18 @@ abstract class Discovery {
 
   // 获取所有节点信息（本地与远端）
   abstract getAllServiceList(): Promise<IServiceMetaData[]>;
-  abstract getServiceList(name: string, ): Promise<IServiceMetaData[]>;
+  abstract getServiceList(name: string): Promise<IServiceMetaData[]>;
   abstract getAllEndpointList(): Promise<IListenerMetaData[]>;
-  abstract getEndpointList(service: string, ): Promise<IListenerMetaData[]>;
+  abstract getEndpointList(service: string): Promise<IListenerMetaData[]>;
   abstract getNodeList(): Promise<INodeMetaData[]>;
+  abstract getAllWorkerList(): Promise<IWorkerMetaData[]>;
+  abstract getWorkerList(worker: string): Promise<IWorkerMetaData[]>;
 
   // 获取单个节点信息（本地与远端）
   abstract getServiceById(id: string): Promise<IServiceMetaData>;
+  abstract getWorkerById(id: string): Promise<IWorkerMetaData>;
+  abstract getNodeById(id: string): Promise<INodeMetaData>;
+  abstract getEndpointById(id: string): Promise<IListenerMetaData>;
 
   // 注册本地信息
   abstract registerWorker(worker: IWorkerMetaData): Promise<void>;
@@ -98,6 +110,10 @@ abstract class Discovery {
     return this.nodeEmitter_;
   }
 
+  get workerEmitter() {
+    return this.workerEmitter_;
+  }
+
   abstract get version(): string;
 
   abstract get info(): IDiscoveryInfo;
@@ -105,6 +121,7 @@ abstract class Discovery {
   protected serviceEmitter_: IEventEmitter<IServiceEvent>;
   protected listenerEmitter_: IEventEmitter<IDiscoveryListenerEvent>;
   protected nodeEmitter_: IEventEmitter<INodeEvent>;
+  protected workerEmitter_: IEventEmitter<IWorkerEvent>;
   protected discoveryEmitter_: IEventEmitter<IDiscoveryEvent>;
   private startupContext_: Context | null;
 }

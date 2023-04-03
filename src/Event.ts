@@ -3,6 +3,13 @@ export enum LifeCycleEvent {
   StateChangeTo = 'state-change-to'
 }
 
+export enum DiscoveryWorkerEvent {
+  WorkerCreated = 'worker-created',
+  WorkerUpdated = 'worker-updated',
+  WorkerDeleted = 'worker-deleted',
+  WorkerStateUpdate = 'worker-state-update',
+}
+
 export enum DiscoveryServiceEvent {
   ServiceCreated = 'service-created',
   ServiceUpdated = 'service-updated',
