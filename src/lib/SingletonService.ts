@@ -18,10 +18,10 @@ abstract class SingletonService extends Service {
   }
 
   async stop(reason: string) {
+    await super.stop(reason);
     await this.election_.resign().catch((e: ExError) => {
       Runtime.frameLogger.error(this.logCategory, e, {event: 'resign-error', err: Logger.errorMessage(e)});
     });
-    return super.stop(reason);
   }
 
   protected onError(err: Error) {
