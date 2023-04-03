@@ -111,6 +111,12 @@ class Runtime {
           this.frameLogger_.error('runtime', err, {event: 'register-listener', error: Logger.errorMessage(err)});
         });
       }
+
+      for (const worker of this.workers) {
+        await this.discovery_.registerWorker(worker.metaData).catch((err: ExError) => {
+          this.frameLogger_.error('runtime', err, {event: 'register-worker', error: Logger.errorMessage(err)});
+        });
+      }
     });
 
     this.frameLogger_.success('framework', {event: 'start-runtime-success', discovery: discovery.info, node: node.metaData});
@@ -196,9 +202,18 @@ class Runtime {
     if (this.workers_.has(worker.id))
       return;
 
+    this.workers_.set(worker.id, worker);
+
     this.frameLogger.info('runtime', {event: 'worker-starting', name: worker.name, id: worker.id});
 
-    this.workers_.set(worker.id, worker);
+    worker.lifeCycle.addAllHandler(async () => {
+      await this.discovery_.registerWorker(worker.metaData);
+    });
+
+    await this.discovery_.registerWorker(worker.metaData);
+    if (context?.signal.aborted)
+      throw new AbortError(AbortErrorCode.ERR_ABORT);
+
     await worker.start(context).catch((err: ExError) => {
       if (err instanceof AbortError)
         throw err;

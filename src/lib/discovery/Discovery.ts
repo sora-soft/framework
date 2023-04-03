@@ -1,7 +1,7 @@
 import EventEmitter = require('events');
 import {DiscoveryEvent, DiscoveryListenerEvent, DiscoveryNodeEvent, DiscoveryServiceEvent} from '../../Event.js';
 import {IEventEmitter} from '../../interface/event.js';
-import {IListenerEventData, IListenerMetaData, INodeMetaData, IServiceMetaData} from '../../interface/discovery.js';
+import {IListenerEventData, IListenerMetaData, INodeMetaData, IServiceMetaData, IWorkerMetaData} from '../../interface/discovery.js';
 import {ListenerState, WorkerState} from '../../Enum.js';
 import {Context} from '../Context.js';
 import {Election} from '../Election.js';
@@ -55,9 +55,11 @@ abstract class Discovery {
   abstract getServiceById(id: string): Promise<IServiceMetaData>;
 
   // 注册本地信息
+  abstract registerWorker(worker: IWorkerMetaData): Promise<void>;
   abstract registerService(service: IServiceMetaData): Promise<void>;
   abstract registerEndpoint(info: IListenerMetaData): Promise<void>;
   abstract registerNode(node: INodeMetaData): Promise<void>;
+  abstract unregisterWorker(id: string): Promise<void>;
   abstract unregisterService(id: string): Promise<void>;
   abstract unregisterEndPoint(id: string): Promise<void>;
   abstract unregisterNode(id: string): Promise<void>;
