@@ -57,7 +57,7 @@ class QueueExecutor extends Executor {
   }
 
   private executorQueue_: {resolve: (value: unknown) => void; reject: (err: Error) => void; executor: JobExecutor}[] = [];
-  private stopCallback_: () => void;
+  private stopCallback_?: () => void;
   private isDoingJob_ = false;
 }
 

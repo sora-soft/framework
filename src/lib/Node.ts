@@ -47,11 +47,12 @@ class Node extends Service {
     TypeGuard.assert<INodeOptions>(options);
     this.nodeOptions_ = options;
     this.broadcaster_ = new Broadcaster();
+    const route = new NodeHandler(this);
+    this.TCPListener_ = new TCPListener(this.nodeOptions_.api, Route.callback(route), {});
+    this.notifiedNodeState_ = null;
   }
 
   async startup(context: Context) {
-    const route = new NodeHandler(this);
-    this.TCPListener_ = new TCPListener(this.nodeOptions_.api, Route.callback(route), {});
     await this.installListener(this.TCPListener_, context);
 
     this.doJobInterval(async () => {
@@ -84,8 +85,6 @@ class Node extends Service {
 
   get nodeRunData(): INodeRunData {
     return Utility.deepCopy({
-      services: Runtime.services.map((service) => service.runData),
-      workers: Runtime.workers.map((worker) => worker.metaData),
       providers: Runtime.pvdManager.getAllProviders().map((provider) => provider.metaData),
       components: Runtime.components.map(component => component.meta),
       node: Runtime.node.nodeStateData,
@@ -112,7 +111,7 @@ class Node extends Service {
   private nodeOptions_: INodeOptions;
   private broadcaster_: Broadcaster<INodeNotifyHandler>;
   private TCPListener_: TCPListener;
-  private notifiedNodeState_: INodeRunData;
+  private notifiedNodeState_: INodeRunData | null;
 }
 
 export {Node};

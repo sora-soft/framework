@@ -21,7 +21,7 @@ export interface IListenerWeightEvent {
   [ListenerWeightEvent.WeightChange]: (to: number, from: number) => void;
 }
 
-export type ListenerCallback<Req=unknown, Res=unknown> = (data: IRawReqPacket<Req>, session: string, connector: Connector) => Promise<IRawResPacket<Res> | null>;
+export type ListenerCallback<Req=unknown, Res=unknown> = (data: IRawReqPacket<Req>, session: string | undefined, connector: Connector) => Promise<IRawResPacket<Res> | null>;
 
 abstract class Listener {
   constructor(callback: ListenerCallback, labels: ILabels = {}) {
@@ -33,6 +33,7 @@ abstract class Listener {
     this.weightEmitter_ = new EventEmitter();
     this.connectors_ = new Map();
     this.weight_ = 100;
+    this.startContext_ = null;
   }
 
   protected abstract listen(context: Context): Promise<IListenerInfo>;
@@ -67,6 +68,8 @@ abstract class Listener {
       switch (state) {
         case ConnectorState.ERROR:
         case ConnectorState.STOPPED:
+          if (!connector.session)
+            return;
           if (this.connectors_.delete(connector.session)) {
             connector.off().catch((err: ExError) => {
               Runtime.rpcLogger.error('listener', err, {event: 'listener-connector-off-error', error: Logger.errorMessage(err)});
@@ -142,7 +145,7 @@ abstract class Listener {
   protected connectors_: Map<string, Connector>;
   protected lifeCycle_: LifeCycle<ListenerState>;
   protected callback_: ListenerCallback;
-  private info_: IListenerInfo;
+  private info_?: IListenerInfo;
   private id_: string;
   private labels_: ILabels;
   private startContext_: Context | null;

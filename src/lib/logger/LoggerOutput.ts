@@ -26,7 +26,7 @@ abstract class LoggerOutput {
   }
 
   private executor_: QueueExecutor;
-  private next_: LoggerOutput;
+  private next_: LoggerOutput | undefined;
   private options_: ILoggerOutputOptions;
 }
 

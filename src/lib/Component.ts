@@ -12,6 +12,9 @@ abstract class Component {
   constructor() {
     this.init_ = false;
     this.ref_ = new Ref();
+    this.startContext_ = null;
+    this.name_ = 'not-set';
+    this.options_ = {};
   }
 
   protected abstract setOptions(options: IComponentOptions): void;

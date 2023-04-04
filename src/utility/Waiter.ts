@@ -85,8 +85,8 @@ class Waiter<T> {
   }
 
   private pool_: Map<number, {resolve: (value: T) => void; reject: (error: Error) => void; timer: NodeJS.Timeout}>;
-  private allStoppedCallback_: () => void;
-  private stopTimeoutTimer_: NodeJS.Timer;
+  private allStoppedCallback_?: () => void;
+  private stopTimeoutTimer_?: NodeJS.Timer;
   private id_: number;
 }
 

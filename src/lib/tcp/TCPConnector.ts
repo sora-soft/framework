@@ -33,6 +33,7 @@ class TCPConnector extends Connector {
     });
     this.cache_ = Buffer.alloc(0);
     this.currentPacketLength_ = 0;
+    this.socket_ = null;
     if (socket) {
       this.socket_ = socket;
       this.bindSocketEvent(socket);
@@ -137,9 +138,9 @@ class TCPConnector extends Connector {
   async sendRaw(request: Object) {
     const data = await TCPUtility.encodeMessage(request);
     if (!this.isAvailable())
-      throw new RPCError(RPCErrorCode.ERR_RPC_TUNNEL_NOT_AVAILABLE, `ERR_RPC_TUNNEL_NOT_AVAILABLE, endpoint=${this.target_.endpoint}`);
+      throw new RPCError(RPCErrorCode.ERR_RPC_TUNNEL_NOT_AVAILABLE, `ERR_RPC_TUNNEL_NOT_AVAILABLE, endpoint=${this.target_?.endpoint || 'unknown'}`);
     if (!this.socket_)
-      throw new RPCError(RPCErrorCode.ERR_RPC_TUNNEL_NOT_AVAILABLE, `ERR_RPC_TUNNEL_NOT_AVAILABLE, endpoint=${this.target_.endpoint}`);
+      throw new RPCError(RPCErrorCode.ERR_RPC_TUNNEL_NOT_AVAILABLE, `ERR_RPC_TUNNEL_NOT_AVAILABLE, endpoint=${this.target_?.endpoint || 'unknown'}`);
 
     await util.promisify<Buffer, void>(this.socket_.write.bind(this.socket_) as (buf: Buffer) => void)(data).catch((err: Error) => {
       throw new RPCError(RPCErrorCode.ERR_RPC_SENDER_INNER, `ERR_RPC_SENDER_INNER, err=${err.message}`);

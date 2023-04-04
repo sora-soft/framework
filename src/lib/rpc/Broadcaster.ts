@@ -14,6 +14,9 @@ class Broadcaster<T extends Route> {
   }
 
   registerConnector(method: keyof T, connector: Connector) {
+    if (!connector.session)
+      return;
+
     let handler = this.connectors_.get(connector.session);
     if (!handler) {
       handler = {
@@ -30,7 +33,9 @@ class Broadcaster<T extends Route> {
         case ConnectorState.ERROR:
         case ConnectorState.STOPPING:
         case ConnectorState.STOPPED:
-          this.removeConnector(connector.session);
+          if (connector.session) {
+            this.removeConnector(connector.session);
+          }
           break;
       }
     });
@@ -67,9 +72,9 @@ class Broadcaster<T extends Route> {
               options = {};
 
             const notify = new Notify({
+              service: '',
               method: prop,
               payload: body,
-              path: '',
               headers: options.headers || {},
             });
             await handler.connector.sendNotify(notify, fromId).catch((err: ExError) => {

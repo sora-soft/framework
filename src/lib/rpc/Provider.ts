@@ -37,6 +37,7 @@ class Provider<T extends Route = Route> {
     this.ref_ = new Ref();
     this.manager_ = manager;
     this.senderEmitter_ = new EventEmitter();
+    this.startCtx_ = null;
   }
 
   async shutdown() {
@@ -44,8 +45,10 @@ class Provider<T extends Route = Route> {
       this.startCtx_?.abort();
       this.startCtx_ = null;
 
-      this.pvdManager.removeEndpointEventHandler(this.name_, this.endpointEventHandlerid_);
-      this.pvdManager.removeEndpointUpdateHandler(this.name_, this.endpointUpdateHandlerId_);
+      if (this.endpointEventHandlerid_)
+        this.pvdManager.removeEndpointEventHandler(this.name_, this.endpointEventHandlerid_);
+      if (this.endpointUpdateHandlerId_)
+        this.pvdManager.removeEndpointUpdateHandler(this.name_, this.endpointUpdateHandlerId_);
 
       await Promise.all([...this.senders_].map(async ([_, sender]) => {
         await sender.connector.off();
@@ -143,9 +146,9 @@ class Provider<T extends Route = Route> {
             if (!options) options = {};
 
             const request = new Request({
+              service: this.name_,
               method: prop,
               payload: body || {},
-              path: `${this.name_}/${prop}`,
               headers: options.headers || {},
             });
             const res = await sender.connector.sendRpc(
@@ -196,9 +199,9 @@ class Provider<T extends Route = Route> {
             if (!options) options = {};
 
             const notify = new Notify({
+              service: this.name,
               method: prop,
               payload: body,
-              path: `${this.name_}/${prop}`,
               headers: options.headers || {},
             });
             await sender.connector.sendNotify(notify, fromId);
@@ -235,9 +238,9 @@ class Provider<T extends Route = Route> {
                 if (!options) options = {};
 
                 const notify = new Notify({
+                  service: this.name,
                   method: prop,
                   payload: body,
-                  path: `${this.name_}/${prop}`,
                   headers: options.headers || {},
                 });
                 return s.connector.sendNotify(notify, fromId);
@@ -385,8 +388,8 @@ class Provider<T extends Route = Route> {
   private routeCallback_: ListenerCallback | undefined;
   private ref_: Ref<void>;
   private startCtx_: Context | null;
-  private endpointUpdateHandlerId_: number;
-  private endpointEventHandlerid_: number;
+  private endpointUpdateHandlerId_?: number;
+  private endpointEventHandlerid_?: number;
   private manager_: ProviderManager | null;
   protected senderEmitter_: IEventEmitter<IProviderEvent>;
 }

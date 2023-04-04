@@ -4,8 +4,8 @@ import {Utility} from '../../utility/Utility.js';
 import {RawPacket} from './RawPacket.js';
 
 class Response<T = unknown> extends RawPacket<IResPayloadPacket<T>> {
-  constructor(packet?: IRawResPacket<T>) {
-    super(OPCode.RESPONSE);
+  constructor(packet: Omit<IRawResPacket<T>, 'opcode'>) {
+    super(OPCode.RESPONSE, packet);
     if (packet) {
       this.payload = packet.payload;
       this.loadHeaders(packet.headers);

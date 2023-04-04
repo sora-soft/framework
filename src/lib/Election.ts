@@ -20,7 +20,7 @@ abstract class Election {
   }
 
   private name_: string;
-  private id_: string;
+  private id_: string | undefined;
 }
 
 export {Election};

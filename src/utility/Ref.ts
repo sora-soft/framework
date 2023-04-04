@@ -10,7 +10,7 @@ class Ref<T = unknown> {
 
   async add(callback: RefCallback<T>): Promise<T> {
     this.count_ ++;
-    if (this.count_ > 1) {
+    if (this.count_ > 1 && this.startPromise_) {
       return this.startPromise_;
     }
 
@@ -36,8 +36,8 @@ class Ref<T = unknown> {
   }
 
   private count_: number;
-  private startPromise_: Promise<T>;
-  private stopPromise_: Promise<T>;
+  private startPromise_?: Promise<T>;
+  private stopPromise_?: Promise<T>;
 }
 
 export {Ref};

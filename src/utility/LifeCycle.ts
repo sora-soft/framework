@@ -19,6 +19,7 @@ class LifeCycle<T extends number> {
     this.state_ = state;
     this.backtrackable_ = backtrackable;
     this.emitter_ = new EventEmitter();
+    this.context_ = null;
   }
 
   async setState(state: T, ...args: unknown[]) {

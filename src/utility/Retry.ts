@@ -73,7 +73,7 @@ class Retry<T> {
       if (this.count_ < this.maxRetryTimes_ || !this.maxRetryTimes_) {
         await context.await(Time.timeout(this.currentInterval_, context.signal));
         if (this.incrementInterval_) {
-          this.currentInterval_ = Math.min(this.maxRetryIntervalMS_, this.currentInterval_ * 2);
+          this.currentInterval_ = Math.min(this.maxRetryIntervalMS_ || 0, this.currentInterval_ * 2);
         }
         if (context.signal.aborted)
           throw new AbortError();
@@ -101,8 +101,8 @@ class Retry<T> {
 
   private maxRetryTimes_: number;
   private incrementInterval_: boolean;
-  private intervalMS_: number;
-  private maxRetryIntervalMS_: number;
+  private intervalMS_?: number;
+  private maxRetryIntervalMS_?: number;
   private currentInterval_: number;
 
   private count_: number;

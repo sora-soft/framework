@@ -1,13 +1,12 @@
 import {OPCode} from '../../Enum.js';
-import {RPCErrorCode} from '../../ErrorCode.js';
-import {IRawNetPacket, IResPayloadPacket} from '../../interface/rpc.js';
+import {IRawNetPacket, IRawReqPacket, IRawResPacket} from '../../interface/rpc.js';
 import {Utility} from '../../utility/Utility.js';
-import {RPCError} from './RPCError.js';
 
-class RawPacket<T> {
-  constructor(opCode: OPCode) {
+abstract class RawPacket<T> {
+  constructor(opCode: OPCode, data: Omit<IRawReqPacket<T> | IRawResPacket<T>, 'opcode'>) {
     this.headers_ = new Map();
     this.opCode_ = opCode;
+    this.payload_ = data.payload as T;
   }
 
   getHeader<H>(header: string): H | undefined {
@@ -26,47 +25,33 @@ class RawPacket<T> {
     this.headers_.set(header, value);
   }
 
-  toPacket(): IRawNetPacket<T> {
-    switch (this.opCode_) {
-      case OPCode.REQUEST:
-      case OPCode.NOTIFY:
-        return {
-          opcode: this.opCode_,
-          method: this.method_,
-          path: this.path_,
-          headers: Utility.mapToJSON(this.headers_),
-          payload: this.payload_,
-        };
-      case OPCode.RESPONSE:
-        return {
-          opcode: this.opCode_,
-          headers: Utility.mapToJSON(this.headers_),
-          payload: this.payload_ as unknown as IResPayloadPacket<unknown>,
-        };
-      case OPCode.OPERATION:
-        throw new RPCError(RPCErrorCode.ERR_RPC_NOT_SUPPORT_OPCODE, 'ERR_NOT_SUPPORT_OPCODE');
-    }
-  }
+  abstract toPacket(): IRawNetPacket<T>;
+  // toPacket(): IRawNetPacket<T> {
+  //   switch (this.opCode_) {
+  //     case OPCode.REQUEST:
+  //     case OPCode.NOTIFY:
+  //       return {
+  //         opcode: this.opCode_,
+  //         method: this.method_,
+  //         service: this.service_,
+  //         headers: Utility.mapToJSON(this.headers_),
+  //         payload: this.payload_,
+  //       };
+  //     case OPCode.RESPONSE:
+  //       return {
+  //         opcode: this.opCode_,
+  //         headers: Utility.mapToJSON(this.headers_),
+  //         payload: this.payload_ as unknown as IResPayloadPacket<unknown>,
+  //       };
+  //     case OPCode.OPERATION:
+  //       throw new RPCError(RPCErrorCode.ERR_RPC_NOT_SUPPORT_OPCODE, 'ERR_NOT_SUPPORT_OPCODE');
+  //   }
+  // }
 
   get opCode() {
     return this.opCode_;
   }
 
-  get method() {
-    return this.method_;
-  }
-
-  set method(value: string) {
-    this.method_ = value;
-  }
-
-  get path() {
-    return this.path_;
-  }
-
-  set path(value: string) {
-    this.path_ = value;
-  }
 
   get payload() {
     return this.payload_;
@@ -82,8 +67,6 @@ class RawPacket<T> {
 
   protected headers_: Map<string, any>;
   private opCode_: OPCode;
-  private method_: string;
-  private path_: string;
   private payload_: T;
 }
 

@@ -21,6 +21,8 @@ abstract class Worker {
     this.intervalJobTimer_ = new Timer();
     this.id_ = uuid();
     this.workerOptions_ = options;
+    this.startTime_ = UnixTime.now();
+    this.startupContext_ = null;
 
     this.componentPool_ = new Map();
     this.providerPool_ = new Map();
@@ -50,7 +52,6 @@ abstract class Worker {
     }));
     await context.await(this.lifeCycle_.setState(WorkerState.READY));
     this.startupContext_ = null;
-    this.startTime_ = UnixTime.now();
   }
 
   protected abstract shutdown(reason: string): Promise<void>;

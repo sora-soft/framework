@@ -1,31 +1,37 @@
 import {OPCode} from '../../Enum.js';
-import {IRawReqPacket} from '../../interface/rpc.js';
+import {Utility} from '../../index.js';
+import {IRawNetPacket, IRawReqPacket} from '../../interface/rpc.js';
 import {RawPacket} from './RawPacket.js';
 
 class Request<T = unknown> extends RawPacket<T> {
   constructor(packet: Omit<IRawReqPacket<T>, 'opcode'>) {
-    super(OPCode.REQUEST);
-    this.method = packet.method;
+    super(OPCode.REQUEST, packet);
+    this.service_ = packet.service;
+    this.method_ = packet.method;
     this.payload = packet.payload;
-    this.path = packet.path;
     this.loadHeaders(packet.headers);
   }
 
-  get path() {
-    return super.path;
-  }
-
-  set path(value: string) {
-    super.path = value;
+  toPacket(): IRawNetPacket<T> {
+    return {
+      opcode: OPCode.REQUEST,
+      method: this.method_,
+      service: this.service_,
+      headers: Utility.mapToJSON(this.headers_),
+      payload: this.payload,
+    };
   }
 
   get method() {
-    return super.method;
+    return this.method_;
   }
 
-  set method(value: string) {
-    super.method = value;
+  get service() {
+    return this.service_;
   }
+
+  private method_: string;
+  private service_: string;
 }
 
 export {Request};

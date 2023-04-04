@@ -49,6 +49,8 @@ abstract class Discovery {
     this.listenerEmitter_ = new EventEmitter();
     this.nodeEmitter_ = new EventEmitter();
     this.discoveryEmitter_ = new EventEmitter();
+    this.workerEmitter_ = new EventEmitter();
+    this.startupContext_ = null;
   }
 
   // 获取所有节点信息（本地与远端）

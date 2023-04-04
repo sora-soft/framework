@@ -10,6 +10,7 @@
     "alwaysStrict": true,
     "downlevelIteration": true,
     "experimentalDecorators": true,
+    "strictPropertyInitialization": true,
     "emitDecoratorMetadata": true,
     "plugins": [{
       "transform": "@sora-soft/type-guard/dist/transformer"

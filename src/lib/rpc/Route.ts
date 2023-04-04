@@ -15,12 +15,12 @@ import 'reflect-metadata';
 import {TypeGuardError} from '@sora-soft/type-guard';
 
 export type RPCHandler<Req=unknown, Res=unknown> = (body: Req, ...args) => Promise<Res>;
-export type MethodPramBuilder<T=unknown, R extends Route = Route, Req=unknown, Res=unknown> = (route: R, body: Req, req: Request<Req>, response: Response<Res> | null, connector: Connector) => Promise<T>;
+export type MethodPramBuilder<T=unknown, R extends Route = Route, Req=unknown, Res=unknown> = (route: R, body: Req, req: Request<Req> | Notify<Req>, response: Response<Res> | null, connector: Connector) => Promise<T>;
 export interface IRPCHandlerParam<T=unknown, R extends Route = Route, Req=unknown, Res=unknown> {
   type: any;
   provider: MethodPramBuilder<T, R, Req, Res>;
 }
-export type IRPCMiddlewares<T extends Route = Route, Req = unknown, Res = unknown> = (route: T, body: Req, req: Request<Req>, response: Response<Res> | null, connector: Connector) => Promise<boolean>;
+export type IRPCMiddlewares<T extends Route = Route, Req = unknown, Res = unknown> = (route: T, body: Req, req: Request<Req> | Notify<Req>, response: Response<Res> | null, connector: Connector) => Promise<boolean>;
 export interface IRPCHandler<Req=unknown, Res=unknown> {
   params: any[];
   handler: RPCHandler<Req, Res>;
@@ -116,7 +116,10 @@ class Route {
       switch (packet.opcode) {
         case OPCode.REQUEST: {
           const request = new Request(packet);
-          const response = new Response();
+          const response = new Response<unknown>({
+            headers: {},
+            payload: {error: null, result: null},
+          });
           try {
             const rpcId = request.getHeader<number>(RPCHeader.RPC_ID_HEADER);
             request.setHeader(RPCHeader.RPC_SESSION_HEADER, session);
@@ -175,7 +178,7 @@ class Route {
 
   constructor() {}
 
-  protected async buildCallParams(method: string, paramTypes: any[], request: Request, response: Response | null, connector: Connector) {
+  protected async buildCallParams(method: string, paramTypes: any[], request: Request | Notify, response: Response | null, connector: Connector) {
     const params: unknown[] = await Promise.all(paramTypes.slice(1).map(async (type) => {
       switch(type) {
         case Connector:
@@ -214,7 +217,7 @@ class Route {
           throw new RPCResponseError(RPCErrorCode.ERR_RPC_METHOD_NOT_FOUND, ErrorLevel.EXPECTED, 'ERR_RPC_METHOD_NOT_FOUND');
         }
 
-        const middlewares = Reflect.getMetadata(MiddlewareSymbol, prototype) as IRPCMiddlewares[];
+        const middlewares = Reflect.getMetadata(MiddlewareSymbol, prototype, method) as IRPCMiddlewares[];
         if (middlewares) {
           for (const middleware of middlewares) {
             const next = await middleware(this, request.payload, request, null, connector);

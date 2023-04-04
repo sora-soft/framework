@@ -26,6 +26,8 @@ abstract class Connector {
     this.resWaiter_ = new Waiter();
     this.pongWaiter_ = new Waiter();
     this.executor_ = new Executor();
+    this.pingInterval_ = null;
+    this.startContext_ = null;
 
     this.lifeCycle_.addAllHandler(async (context, state) => {
       switch(state) {
@@ -96,7 +98,7 @@ abstract class Connector {
     await this.send(request.toPacket());
     return wait.promise.catch((err: Error) => {
       if (err instanceof TimeoutError)
-        throw new RPCError(RPCErrorCode.ERR_RPC_TIMEOUT, `ERR_RPC_TIMEOUT, method=${request.method}, endpoint=${this.target_.endpoint}`);
+        throw new RPCError(RPCErrorCode.ERR_RPC_TIMEOUT, `ERR_RPC_TIMEOUT, method=${request.method}, endpoint=${this.target_?.endpoint || 'unknown'}`);
       throw err;
     }) as Promise<IRawResPacket<ResponsePayload>>;
   }
@@ -193,7 +195,7 @@ abstract class Connector {
     }
   }
 
-  protected async handleIncomeMessage(data: IRawNetPacket, session: string, connector: Connector) {
+  protected async handleIncomeMessage(data: IRawNetPacket, session: string | undefined, connector: Connector) {
     return this.executor_.doJob(async () => {
       switch (data.opcode) {
         case OPCode.REQUEST:
@@ -203,9 +205,6 @@ abstract class Connector {
           }
 
           const rpcId = data.headers[RPCHeader.RPC_ID_HEADER] as number | undefined;
-          // if (Utility.isUndefined(rpcId))
-          //   throw new RPCError(RPCErrorCode.ERR_RPC_ID_NOT_FOUND, 'ERR_RPC_ID_NOT_FOUND');
-
           try {
             let response: IRawResPacket<unknown> | null = null;
             const createErrorResPacket = (err: ExError) => {
@@ -232,7 +231,7 @@ abstract class Connector {
               return;
             }
 
-            response = await this.routeCallback_(data, this.session_, connector).catch((err: ExError) => {
+            response = await this.routeCallback_(data, this.session, connector).catch((err: ExError) => {
               const exError = ExError.fromError(err);
               if (exError.name !== 'RPCResponseError') {
                 Runtime.frameLogger.error('connector', err, {event: 'handle-error', error: Logger.errorMessage(err)});
@@ -329,19 +328,19 @@ abstract class Connector {
     return this.lifeCycle_.emitter;
   }
 
-  set session(value: string) {
-    this.session_ = value;
-  }
-
   get session() {
     return this.session_;
   }
 
+  set session(value: string | undefined) {
+    this.session_ = value;
+  }
+
   protected lifeCycle_: LifeCycle<ConnectorState>;
-  protected target_: IListenerInfo;
-  private routeCallback_: ListenerCallback | undefined;
+  protected target_?: IListenerInfo;
+  private routeCallback_?: ListenerCallback;
   private executor_: Executor;
-  protected session_: string;
+  protected session_: string | undefined;
   private resWaiter_: Waiter<IRawResPacket>;
   private pongWaiter_: Waiter<void>;
   private pingInterval_: NodeJS.Timer | null;

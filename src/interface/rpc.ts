@@ -13,7 +13,7 @@ export interface IListenerInfo {
 export interface IRawReqPacket<T = unknown> {
   opcode: OPCode.REQUEST | OPCode.NOTIFY;
   method: string;
-  path: string;
+  service: string;
   headers: {
     [key: string]: unknown;
   };
