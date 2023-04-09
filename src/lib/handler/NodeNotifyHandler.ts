@@ -1,9 +1,9 @@
 import {Route} from '../rpc/Route.js';
-import jsondiffpatch from 'jsondiffpatch';
+import {Delta} from 'jsondiffpatch';
 
 export interface INodeRunDataDiff {
   id: string;
-  diff: jsondiffpatch.Delta;
+  diff: Delta;
 }
 
 export interface INodeNotifyHandler extends Route {

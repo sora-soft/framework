@@ -179,6 +179,10 @@ class TCPConnector extends Connector {
     }
   }
 
+  get protocol() {
+    return 'tcp';
+  }
+
   private socket_: net.Socket | null;
   private cache_: Buffer;
   private currentPacketLength_: number;

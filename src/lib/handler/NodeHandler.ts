@@ -80,12 +80,12 @@ class NodeHandler extends Route {
   }
 
   @Route.method
-  async registerRunningDataNotify(body: void, request: Request<{}>): Promise<INodeRunData> {
+  async registerRunningDataNotify(body: void, request: Request<{}>): Promise<INodeRunData | null> {
     const session = request.getHeader<string>(RPCHeader.RPC_SESSION_HEADER);
     if (!session)
       throw new FrameworkError(FrameworkErrorCode.ERR_SESSION_NOT_FOUND, 'ERR_SESSION_NOT_FOUND');
     this.node_.registerBroadcaster('notifyNodeState', session);
-    return this.node_.nodeRunData;
+    return this.node_.notifiedNodeState;
   }
 
   @Route.method

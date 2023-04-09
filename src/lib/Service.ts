@@ -132,6 +132,7 @@ abstract class Service extends Worker {
       targetId: this.id,
       targetName: this.name,
       weight: listener.weight,
+      version: listener.version,
       labels,
     };
   }

@@ -5,5 +5,6 @@ export interface IComponentOptions {
 export interface IComponentMetaData {
   name: string;
   ready: boolean;
+  version: string;
   options: IComponentOptions;
 }

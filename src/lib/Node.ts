@@ -108,6 +108,11 @@ class Node extends Service {
       },
     });
   }
+
+  get notifiedNodeState() {
+    return this.notifiedNodeState_;
+  }
+
   private nodeOptions_: INodeOptions;
   private broadcaster_: Broadcaster<INodeNotifyHandler>;
   private TCPListener_: TCPListener;

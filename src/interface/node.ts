@@ -1,3 +1,4 @@
+import {IDiscoveryInfo} from '../index.js';
 import {Service} from '../lib/Service.js';
 import {Worker} from '../lib/Worker.js';
 import {IComponentMetaData} from './component.js';
@@ -9,6 +10,7 @@ export interface INodeRunData {
   providers: IProviderMetaData[];
   node: INodeMetaData;
   components: IComponentMetaData[];
+  discovery: IDiscoveryInfo;
 }
 
 export type ServiceBuilder = (options: IServiceOptions) => Service;

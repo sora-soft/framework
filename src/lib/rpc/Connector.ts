@@ -43,6 +43,7 @@ abstract class Connector {
   }
 
   abstract isAvailable(): boolean;
+  abstract get protocol(): string;
 
   protected abstract connect(target: IListenerInfo, context: Context): Promise<void>;
   public async start(target: IListenerInfo, context?: Context) {

@@ -32,9 +32,11 @@ class RPCSender {
   get metaData(): ISenderMetaData {
     return {
       id: this.listenerId_,
+      listenerId: this.listenerId_,
       targetId: this.targetId_,
       weight: this.weight_,
       state: this.connector_.state,
+      protocol: this.connector.protocol,
     };
   }
 

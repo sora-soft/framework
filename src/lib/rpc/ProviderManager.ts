@@ -170,7 +170,7 @@ class ProviderManager {
   }
 
   getAllProviders() {
-    return [...this.providerMap_].map(([_, provider]) => provider).flat();
+    return [...this.providerMap_].map(([_, providers]) => providers).flat();
   }
 
   isEndpointRunning(id: string) {

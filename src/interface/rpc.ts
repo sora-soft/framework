@@ -65,8 +65,10 @@ export interface IConnectorOptions {
 export interface ISenderMetaData {
   readonly id: string;
   readonly state: ConnectorState;
+  readonly listenerId: string;
   readonly targetId: string;
   readonly weight: number;
+  readonly protocol: string;
 }
 
 export interface IProviderMetaData {
