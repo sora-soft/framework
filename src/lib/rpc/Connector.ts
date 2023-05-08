@@ -172,9 +172,9 @@ abstract class Connector {
       });
       await promise.catch((err: ExError) => {
         if (err instanceof TimeoutError) {
-          Runtime.frameLogger.warn('connector', {event: 'ping-timeout'});
+          Runtime.frameLogger.warn('connector', {event: 'ping-timeout', target: this.target_});
         } else {
-          Runtime.frameLogger.error('connector', err, {event: 'connector-ping-error', error: Logger.errorMessage(err)});
+          Runtime.frameLogger.error('connector', err, {event: 'connector-ping-error', error: Logger.errorMessage(err), target: this.target_});
         }
         this.onPingError(err);
       });
@@ -306,7 +306,7 @@ abstract class Connector {
       case ConnectorCommand.PING: {
         const data = args as {id: number};
         this.sendPong(data.id).catch((err: ExError) => {
-          Runtime.frameLogger.error('connector', err, {event: 'send-pong-error', error: Logger.errorMessage(err)});
+          Runtime.frameLogger.error('connector', err, {event: 'send-pong-error', error: Logger.errorMessage(err), target: this.target_});
         });
         break;
       }
