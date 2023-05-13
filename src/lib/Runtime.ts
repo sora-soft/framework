@@ -261,7 +261,7 @@ class Runtime {
 
   static registerComponent(name: string, component: Component) {
     if (this.components_.has(name))
-      this.frameLogger.error('runtime', new FrameworkError(FrameworkErrorCode.ERR_DUPLICATED_COMPONENT, `ERR_DUPLICATED_COMPONENT, name=${name}`));
+      this.frameLogger.error('runtime', new FrameworkError(FrameworkErrorCode.ERR_DUPLICATED_COMPONENT, `ERR_DUPLICATED_COMPONENT, name=${name}`, undefined, {name}));
 
     this.components_.set(name, component);
     component.name = name;

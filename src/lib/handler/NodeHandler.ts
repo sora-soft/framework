@@ -39,7 +39,7 @@ class NodeHandler extends Route {
 
     const service = Node.serviceFactory(body.name, body.options);
     if (!service)
-      throw new FrameworkError(FrameworkErrorCode.ERR_SERVICE_NOT_FOUND, `ERR_SERVICE_NOT_FOUND, name=${body.name}`);
+      throw new FrameworkError(FrameworkErrorCode.ERR_SERVICE_NOT_FOUND, `ERR_SERVICE_NOT_FOUND, name=${body.name}`, undefined, {name: body.name});
     await Runtime.installService(service, new Context());
     return {id: service.id};
   }
@@ -48,7 +48,7 @@ class NodeHandler extends Route {
   async createWorker(body: IReqCreateWorker) {
     const worker = Node.workerFactory(body.name, body.options);
     if (!worker)
-      throw new FrameworkError(FrameworkErrorCode.ERR_WORKER_NOT_FOUND, `ERR_WORKER_NOT_FOUND, name=${body.name}`);
+      throw new FrameworkError(FrameworkErrorCode.ERR_WORKER_NOT_FOUND, `ERR_WORKER_NOT_FOUND, name=${body.name}`, undefined, {name: body.name});
     await Runtime.installWorker(worker);
     return {id: worker.id};
   }

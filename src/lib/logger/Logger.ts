@@ -50,7 +50,7 @@ abstract class Logger {
     const stack = ErrorStackParser.parse(err).map(frame => {
       return `${frame.functionName || 'unknown'}(${frame.fileName ? frame.fileName.replace(/\\/g, '/') : 'anonymous'}:${frame.lineNumber ? frame.lineNumber : 'NA'})`;
     });
-    return {code: err.code, name: err.name, message: err.message, stack};
+    return {code: err.code, name: err.name, message: err.message, stack, cause: e.cause};
   }
 
   constructor(options: ILoggerOptions) {

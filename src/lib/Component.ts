@@ -26,7 +26,7 @@ abstract class Component {
   protected abstract connect(context: Context): Promise<void>;
   async start(context?: Context) {
     if (!this.options_)
-      throw new FrameworkError(FrameworkErrorCode.ERR_COMPONENT_OPTIONS_NOT_SET, `ERR_COMPONENT_OPTIONS_NOT_SET, name=${this.name_}`);
+      throw new FrameworkError(FrameworkErrorCode.ERR_COMPONENT_OPTIONS_NOT_SET, `ERR_COMPONENT_OPTIONS_NOT_SET, name=${this.name_}`, undefined, {name: this.name_});
 
     await this.ref_.add(async () => {
       this.startContext_ = new Context(context);
