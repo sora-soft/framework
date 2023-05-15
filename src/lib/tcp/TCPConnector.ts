@@ -13,10 +13,10 @@ import {Logger} from '../logger/Logger.js';
 import {RetryEvent} from '../../Event.js';
 import {RPCSender} from '../rpc/RPCSender.js';
 import {Context} from '../Context.js';
-import {AbortError} from '../../utility/AbortError.js';
 import {ExError} from '../../utility/ExError.js';
 import {ProviderManager} from '../rpc/ProviderManager.js';
 import {TypeGuard} from '@sora-soft/type-guard';
+import {AbortError} from '../../index.js';
 
 class TCPConnector extends Connector {
   static register(manager?: ProviderManager) {
@@ -37,7 +37,7 @@ class TCPConnector extends Connector {
     if (socket) {
       this.socket_ = socket;
       this.bindSocketEvent(socket);
-      this.lifeCycle_.setState(ConnectorState.READY).catch(Utility.null);
+      this.lifeCycle_.setState(ConnectorState.READY);
       this.target_ = {
         protocol: 'tcp',
         endpoint: `${socket.remoteAddress || 'unkown'}:${socket.remotePort || 'unkown'}`,
@@ -59,9 +59,9 @@ class TCPConnector extends Connector {
     const retry = new Retry(async (ctx) => {
       return new Promise<boolean>((resolve, reject) => {
         Runtime.frameLogger.info('connector.tcp', {event: 'start-connect', endpoint: listenInfo.endpoint});
-        ctx.signal.addEventListener('abort', () => {
+        ctx.abortObserver.subscribe(() => {
           reject(new AbortError());
-        }, {once: true});
+        });
 
         const [ip, portStr] = listenInfo.endpoint.split(':');
         const port = Utility.parseInt(portStr);

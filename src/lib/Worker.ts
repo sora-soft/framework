@@ -26,44 +26,42 @@ abstract class Worker {
 
     this.componentPool_ = new Map();
     this.providerPool_ = new Map();
-
-    this.lifeCycle_.addHandler(WorkerState.STOPPED, async () => {
-      for (const provider of this.providerPool_.keys()) {
-        await this.unregisterProvider(provider).catch((err: Error) => {
-          Runtime.frameLogger.error(this.logCategory, err, {event: 'unregister-provider', error: Logger.errorMessage(err)});
-        });
-      }
-      for (const component of this.componentPool_.keys()) {
-        await this.disconnectComponent(component).catch((err: Error) => {
-          Runtime.frameLogger.error(this.logCategory, err, {event: 'disconnect-component', error: Logger.errorMessage(err)});
-        });
-      }
-    });
   }
 
   // 连接component等准备工作
   protected abstract startup(context: Context): Promise<void>;
   async start(context?: Context) {
     context = this.startupContext_ = new Context(context);
-    await context.await(this.lifeCycle_.setState(WorkerState.PENDING));
+    this.lifeCycle_.setState(WorkerState.PENDING);
     this.executor_.start();
     await context.await(this.startup(context).catch((err: ExError) => {
       this.onError(err);
     }));
-    await context.await(this.lifeCycle_.setState(WorkerState.READY));
+    this.lifeCycle_.setState(WorkerState.READY);
+    this.startupContext_.complete();
     this.startupContext_ = null;
   }
 
   protected abstract shutdown(reason: string): Promise<void>;
   async stop(reason: string) {
     this.abortStartup();
-    await this.lifeCycle_.setState(WorkerState.STOPPING);
+    this.lifeCycle_.setState(WorkerState.STOPPING);
     this.intervalJobTimer_.clearAll();
     await this.executor_.stop();
     await this.shutdown(reason).catch((err: ExError) => {
       this.onError(err);
     });
-    await this.lifeCycle_.setState(WorkerState.STOPPED);
+    for (const provider of this.providerPool_.keys()) {
+      await this.unregisterProvider(provider).catch((err: Error) => {
+        Runtime.frameLogger.error(this.logCategory, err, {event: 'unregister-provider', error: Logger.errorMessage(err)});
+      });
+    }
+    for (const component of this.componentPool_.keys()) {
+      await this.disconnectComponent(component).catch((err: Error) => {
+        Runtime.frameLogger.error(this.logCategory, err, {event: 'disconnect-component', error: Logger.errorMessage(err)});
+      });
+    }
+    this.lifeCycle_.setState(WorkerState.STOPPED);
   }
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -160,7 +158,7 @@ abstract class Worker {
   protected onError(err: Error) {
     Runtime.frameLogger.error(this.logCategory, err, {event: 'worker-on-error', error: Logger.errorMessage(err)});
     this.abortStartup();
-    this.lifeCycle_.setState(WorkerState.ERROR, err).catch(Utility.null);
+    this.lifeCycle_.setState(WorkerState.ERROR, err);
     throw err;
   }
 

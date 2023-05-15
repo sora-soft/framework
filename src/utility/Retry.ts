@@ -75,7 +75,7 @@ class Retry<T> {
         if (this.incrementInterval_) {
           this.currentInterval_ = Math.min(this.maxRetryIntervalMS_ || 0, this.currentInterval_ * 2);
         }
-        if (context.signal.aborted)
+        if (context.aborted)
           throw new AbortError();
 
         return context.await(this.executor_(context)).catch((e: Error) => {
@@ -90,9 +90,11 @@ class Retry<T> {
       }
     };
 
-    return this.executor_(context).catch((err: Error) => {
+    const res = await this.executor_(context).catch((err: Error) => {
       return retry(err);
     });
+    context.complete();
+    return res;
   }
 
   get errorEmitter() {

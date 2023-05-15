@@ -1,6 +1,6 @@
 import {WorkerState} from '../Enum.js';
 import {AbortErrorCode, FrameworkErrorCode} from '../ErrorCode.js';
-import {DiscoveryEvent} from '../Event.js';
+import {DiscoveryEvent, LifeCycleEvent} from '../Event.js';
 import {IRuntimeOptions} from '../interface/config.js';
 import {AbortError} from '../utility/AbortError.js';
 import {ExError} from '../utility/ExError.js';
@@ -120,6 +120,7 @@ class Runtime {
     });
 
     this.frameLogger_.success('framework', {event: 'start-runtime-success', discovery: discovery.info, node: node.metaData});
+    this.startCtx_?.complete();
     this.startCtx_ = null;
   }
 
@@ -180,12 +181,12 @@ class Runtime {
 
     this.frameLogger.info('runtime', {event: 'service-starting', name: service.name, id: service.id});
 
-    service.lifeCycle.addAllHandler(async () => {
+    service.stateEventEmitter.on(LifeCycleEvent.StateChange, async () => {
       await this.discovery_.registerService(service.metaData);
     });
 
     await this.discovery_.registerService(service.metaData);
-    if (context?.signal.aborted)
+    if (context?.aborted)
       throw new AbortError(AbortErrorCode.ERR_ABORT);
 
     await service.start(context).catch((err: ExError) => {
@@ -206,12 +207,12 @@ class Runtime {
 
     this.frameLogger.info('runtime', {event: 'worker-starting', name: worker.name, id: worker.id});
 
-    worker.lifeCycle.addAllHandler(async () => {
+    worker.stateEventEmitter.on(LifeCycleEvent.StateChange, async () => {
       await this.discovery_.registerWorker(worker.metaData);
     });
 
     await this.discovery_.registerWorker(worker.metaData);
-    if (context?.signal.aborted)
+    if (context?.aborted)
       throw new AbortError(AbortErrorCode.ERR_ABORT);
 
     await worker.start(context).catch((err: ExError) => {

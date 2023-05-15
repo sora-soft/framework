@@ -103,6 +103,7 @@ class Provider<T extends Route = Route> {
         }
       });
 
+      this.startCtx_.complete();
       this.startCtx_ = null;
     });
   }

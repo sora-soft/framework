@@ -87,6 +87,7 @@ abstract class Discovery {
   async connect(context: Context) {
     this.startupContext_ = new Context(context);
     await this.startup(this.startupContext_);
+    this.startupContext_.complete();
     this.startupContext_ = null;
   }
 

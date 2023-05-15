@@ -36,6 +36,8 @@ abstract class Component {
       });
       Runtime.frameLogger.success(`component.${this.name_}`, {event: 'success-connect', options: this.options, version: this.version});
       this.init_ = true;
+      this.startContext_.complete();
+      this.startContext_ = null;
     });
   }
 

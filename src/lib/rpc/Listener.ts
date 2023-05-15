@@ -39,12 +39,13 @@ abstract class Listener {
   protected abstract listen(context: Context): Promise<IListenerInfo>;
   public async startListen(context?: Context) {
     this.startContext_ = new Context(context);
-    await this.startContext_.await(this.lifeCycle_.setState(ListenerState.PENDING));
+    this.lifeCycle_.setState(ListenerState.PENDING);
     this.info_ = await this.listen(this.startContext_).catch((err: ExError) => {
       this.onError(err);
       throw err;
     }) ;
-    await this.startContext_.await(this.lifeCycle_.setState(ListenerState.READY));
+    this.lifeCycle_.setState(ListenerState.READY);
+    this.startContext_.complete();
     this.startContext_ = null;
   }
 
@@ -52,9 +53,9 @@ abstract class Listener {
   public async stopListen() {
     this.startContext_?.abort();
     this.startContext_ = null;
-    await this.lifeCycle_.setState(ListenerState.STOPPING);
+    this.lifeCycle_.setState(ListenerState.STOPPING);
     await this.shutdown();
-    await this.lifeCycle_.setState(ListenerState.STOPPED);
+    this.lifeCycle_.setState(ListenerState.STOPPED);
   }
 
   abstract get metaData(): IListenerInfo;

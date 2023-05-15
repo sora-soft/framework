@@ -3,7 +3,6 @@ import {FrameworkErrorCode} from '../../ErrorCode.js';
 import {IServiceOptions, IWorkerOptions} from '../../interface/config.js';
 import {INodeRunData} from '../../interface/node.js';
 import {ExError} from '../../utility/ExError.js';
-import {Context} from '../Context.js';
 import {FrameworkError} from '../FrameworkError.js';
 import {Logger} from '../logger/Logger.js';
 import {Node} from '../Node.js';
@@ -40,7 +39,7 @@ class NodeHandler extends Route {
     const service = Node.serviceFactory(body.name, body.options);
     if (!service)
       throw new FrameworkError(FrameworkErrorCode.ERR_SERVICE_NOT_FOUND, `ERR_SERVICE_NOT_FOUND, name=${body.name}`, undefined, {name: body.name});
-    await Runtime.installService(service, new Context());
+    await Runtime.installService(service);
     return {id: service.id};
   }
 

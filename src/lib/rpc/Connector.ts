@@ -28,18 +28,6 @@ abstract class Connector {
     this.executor_ = new Executor();
     this.pingInterval_ = null;
     this.startContext_ = null;
-
-    this.lifeCycle_.addAllHandler(async (context, state) => {
-      switch(state) {
-        case ConnectorState.READY:
-          this.executor_.start();
-          this.enablePingPong();
-          break;
-        default:
-          this.disablePingPong();
-          break;
-      }
-    });
   }
 
   abstract isAvailable(): boolean;
@@ -52,11 +40,14 @@ abstract class Connector {
     this.startContext_ = new Context(context);
 
     this.target_ = target;
-    await this.startContext_.await(this.lifeCycle_.setState(ConnectorState.CONNECTING));
+    this.lifeCycle_.setState(ConnectorState.CONNECTING);
     await this.connect(target, this.startContext_).catch((err: ExError) => {
       this.onError(err);
     });
-    await this.startContext_.await(this.lifeCycle_.setState(ConnectorState.READY));
+    this.lifeCycle_.setState(ConnectorState.READY);
+    this.executor_.start();
+    this.enablePingPong();
+    this.startContext_.complete();
     this.startContext_ = null;
   }
 
@@ -70,21 +61,22 @@ abstract class Connector {
     this.startContext_ = null;
 
     if (this.state < ConnectorState.STOPPING)
-      await this.lifeCycle_.setState(ConnectorState.STOPPING);
+      this.lifeCycle_.setState(ConnectorState.STOPPING);
+    this.disablePingPong();
     await this.resWaiter_.waitForAll(10000);
     await this.executor_.stop();
     await this.disconnect().catch((err: ExError) => {
       this.onError(err);
     });
     if (this.state < ConnectorState.STOPPED)
-      await this.lifeCycle_.setState(ConnectorState.STOPPED);
+      this.lifeCycle_.setState(ConnectorState.STOPPED);
 
     this.lifeCycle_.destory();
   }
 
   private onError(err: Error) {
     if (!(err instanceof AbortError))
-      this.lifeCycle_.setState(ConnectorState.ERROR, err).catch(Utility.null);
+      this.lifeCycle_.setState(ConnectorState.ERROR, err);
     throw err;
   }
 
@@ -185,7 +177,7 @@ abstract class Connector {
     if (this.state !== ConnectorState.READY)
       return;
 
-    this.lifeCycle_.setState(ConnectorState.ERROR, new ExError('ERR_CONNECTOR_PING', err.name, err.message, err.level)).catch(Utility.null);
+    this.lifeCycle_.setState(ConnectorState.ERROR, new ExError('ERR_CONNECTOR_PING', err.name, err.message, err.level));
   }
 
   protected disablePingPong() {
@@ -296,7 +288,7 @@ abstract class Connector {
     switch(command) {
       case ConnectorCommand.ERROR:
         const error = args as ExError;
-        this.lifeCycle_.setState(ConnectorState.ERROR, new ExError(error.code, error.name, error.message, error.level)).catch(Utility.null);
+        this.lifeCycle_.setState(ConnectorState.ERROR, new ExError(error.code, error.name, error.message, error.level));
         break;
       case ConnectorCommand.OFF:
         this.off().catch((err: ExError) => {

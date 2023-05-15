@@ -40,7 +40,7 @@ abstract class Service extends Worker {
 
   async stop(reason: string) {
     this.abortStartup();
-    await this.lifeCycle_.setState(WorkerState.STOPPING);
+    this.lifeCycle_.setState(WorkerState.STOPPING);
     this.intervalJobTimer_.clearAll();
     for (const id of this.listenerPool_.keys()) {
       await this.uninstallListener(id).catch((err: ExError) => {
@@ -51,16 +51,15 @@ abstract class Service extends Worker {
     await this.shutdown(reason).catch((err: ExError) => {
       this.onError(err);
     });
-    await this.lifeCycle_.setState(WorkerState.STOPPED);
+    this.lifeCycle_.setState(WorkerState.STOPPED);
   }
 
   public async installListener(listener: Listener, ctx?: Context) {
-    if (!ctx)
-      ctx = new Context();
+    const context = new Context(ctx);
 
     Runtime.frameLogger.info(this.logCategory, {event: 'install-listener', name: this.name, id: this.id, meta: listener.metaData, version: listener.version});
 
-    await ctx.await(this.registerEndpoint(listener));
+    await context.await(this.registerEndpoint(listener));
 
     listener.weightEventEmiiter.on(ListenerWeightEvent.WeightChange, async () => {
       await this.registerEndpoint(listener);
@@ -84,7 +83,7 @@ abstract class Service extends Worker {
     await listener.startListen();
 
     Runtime.frameLogger.success(this.logCategory, {event: 'listener-started', name: this.name, id: this.id, meta: listener.metaData, version: listener.version});
-
+    context.complete();
   }
 
   public async registerEndpoint(listener: Listener) {
