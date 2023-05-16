@@ -18,6 +18,7 @@ import {ListenerCallback} from './Listener.js';
 import {Notify} from './Notify.js';
 import {Request} from './Request.js';
 import {RPCError, RPCResponseError} from './RPCError.js';
+import {LifeCycleEvent} from '../../Event.js';
 
 abstract class Connector {
   constructor(options: IConnectorOptions) {
@@ -28,6 +29,26 @@ abstract class Connector {
     this.executor_ = new Executor();
     this.pingInterval_ = null;
     this.startContext_ = null;
+    this.executor_.start();
+
+    this.lifeCycle_.emitter.on(LifeCycleEvent.StateChangeTo, (state, ...args: unknown[]) => {
+      switch(state) {
+        case ConnectorState.READY:
+          this.enablePingPong();
+          break;
+        case ConnectorState.STOPPING:
+          this.disablePingPong();
+        case ConnectorState.STOPPED:
+          this.executor_.stop().catch(Utility.null);
+          break;
+        case ConnectorState.ERROR:
+          const err = args[0] as ExError;
+          this.disablePingPong();
+          this.executor_.stop().catch(Utility.null);
+          Runtime.frameLogger.error('connector', err, {event: 'connector-error', error: Logger.errorMessage(err)});
+          break;
+      }
+    });
   }
 
   abstract isAvailable(): boolean;
@@ -45,8 +66,6 @@ abstract class Connector {
       this.onError(err);
     });
     this.lifeCycle_.setState(ConnectorState.READY);
-    this.executor_.start();
-    this.enablePingPong();
     this.startContext_.complete();
     this.startContext_ = null;
   }
@@ -62,7 +81,6 @@ abstract class Connector {
 
     if (this.state < ConnectorState.STOPPING)
       this.lifeCycle_.setState(ConnectorState.STOPPING);
-    this.disablePingPong();
     await this.resWaiter_.waitForAll(10000);
     await this.executor_.stop();
     await this.disconnect().catch((err: ExError) => {
@@ -163,11 +181,6 @@ abstract class Connector {
         this.pongWaiter_.emitError(id, err);
       });
       await promise.catch((err: ExError) => {
-        if (err instanceof TimeoutError) {
-          Runtime.frameLogger.warn('connector', {event: 'ping-timeout', target: this.target_});
-        } else {
-          Runtime.frameLogger.error('connector', err, {event: 'connector-ping-error', error: Logger.errorMessage(err), target: this.target_});
-        }
         this.onPingError(err);
       });
     }, this.options_.ping.interval || NodeTime.second(10));
@@ -176,8 +189,7 @@ abstract class Connector {
   protected onPingError(err: ExError) {
     if (this.state !== ConnectorState.READY)
       return;
-
-    this.lifeCycle_.setState(ConnectorState.ERROR, new ExError('ERR_CONNECTOR_PING', err.name, err.message, err.level));
+    this.lifeCycle_.setState(ConnectorState.ERROR, new ExError('ERR_CONNECTOR_PING', 'ConnectorError', 'ERR_CONNECTOR_PING', err, ErrorLevel.UNEXPECTED));
   }
 
   protected disablePingPong() {
