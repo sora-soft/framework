@@ -277,15 +277,15 @@ class Provider<T extends Route = Route> {
       return;
 
     sender.connector.stateEmitter.on(LifeCycleEvent.StateChangeTo, (state) => {
-      Runtime.frameLogger.info(this.logCategory, {event: 'sender-state-change', id: sender.listenerId, state});
+      Runtime.frameLogger.info(this.logCategory, {event: 'sender-state-change', listenerId: sender.listenerId, targetId: sender.targetId, state});
       switch(state) {
         case ConnectorState.STOPPED:
         case ConnectorState.ERROR:
           this.removeSender(sender.listenerId).catch((err: ExError) => {
             Runtime.frameLogger.error(this.logCategory, err, {event: 'remove-sender-error', error: Logger.errorMessage(err), name: this.name_});
           });
-          if (this.pvdManager.isEndpointRunning(sender.targetId)) {
-            const meta = this.pvdManager.getEndpoingMeta(sender.targetId);
+          if (this.pvdManager.isEndpointRunning(sender.listenerId)) {
+            const meta = this.pvdManager.getEndpoingMeta(sender.listenerId);
             if (!meta)
               break;
             // 这个sender意外停止
