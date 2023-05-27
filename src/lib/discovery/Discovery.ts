@@ -1,42 +1,7 @@
-import EventEmitter = require('events');
-import {DiscoveryEvent, DiscoveryListenerEvent, DiscoveryNodeEvent, DiscoveryServiceEvent, DiscoveryWorkerEvent} from '../../Event.js';
-import {IEventEmitter} from '../../interface/event.js';
-import {IListenerEventData, IListenerMetaData, INodeMetaData, IServiceMetaData, IWorkerMetaData} from '../../interface/discovery.js';
-import {ListenerState, WorkerState} from '../../Enum.js';
+import {IListenerMetaData, INodeMetaData, IServiceMetaData, IWorkerMetaData} from '../../interface/discovery.js';
 import {Context} from '../Context.js';
 import {Election} from '../Election.js';
-
-export interface IWorkerEvent {
-  [DiscoveryWorkerEvent.WorkerCreated]: (info: IWorkerMetaData) => void;
-  [DiscoveryWorkerEvent.WorkerDeleted]: (id: string, info: IWorkerMetaData) => void;
-  [DiscoveryWorkerEvent.WorkerUpdated]: (id: string, info: IWorkerMetaData) => void;
-  [DiscoveryWorkerEvent.WorkerStateUpdate]: (id: string, state: WorkerState, pre: WorkerState, info: IWorkerMetaData) => void;
-}
-
-export interface IServiceEvent {
-  [DiscoveryServiceEvent.ServiceCreated]: (info: IServiceMetaData) => void;
-  [DiscoveryServiceEvent.ServiceDeleted]: (id: string, info: IServiceMetaData) => void;
-  [DiscoveryServiceEvent.ServiceUpdated]: (id: string, info: IServiceMetaData) => void;
-  [DiscoveryServiceEvent.ServiceStateUpdate]: (id: string, state: WorkerState, pre: WorkerState, info: IServiceMetaData) => void;
-}
-
-export interface IDiscoveryListenerEvent {
-  [DiscoveryListenerEvent.ListenerCreated]: (info: IListenerEventData) => void;
-  [DiscoveryListenerEvent.ListenerDeleted]: (id: string, info: IListenerEventData) => void;
-  [DiscoveryListenerEvent.ListenerUpdated]: (id: string, info: IListenerEventData) => void;
-  [DiscoveryListenerEvent.ListenerStateUpdate]: (id: string, state: ListenerState, pre: ListenerState, info: IListenerEventData) => void;
-}
-
-export interface INodeEvent {
-  [DiscoveryNodeEvent.NodeCreated]: (info: INodeMetaData) => void;
-  [DiscoveryNodeEvent.NodeUpdated]: (id: string, info: INodeMetaData) => void;
-  [DiscoveryNodeEvent.NodeDeleted]: (id: string, info: INodeMetaData) => void;
-  [DiscoveryNodeEvent.NodeStateUpdate]: (id: string, state: WorkerState, pre: WorkerState, info: INodeMetaData) => void;
-}
-
-export interface IDiscoveryEvent {
-  [DiscoveryEvent.DiscoveryReconnect]: () => void;
-}
+import {BehaviorSubject} from 'rxjs';
 
 export interface IDiscoveryInfo {
   version: string;
@@ -45,11 +10,10 @@ export interface IDiscoveryInfo {
 
 abstract class Discovery {
   constructor() {
-    this.serviceEmitter_ = new EventEmitter();
-    this.listenerEmitter_ = new EventEmitter();
-    this.nodeEmitter_ = new EventEmitter();
-    this.discoveryEmitter_ = new EventEmitter();
-    this.workerEmitter_ = new EventEmitter();
+    this.serviceSubject_ = new BehaviorSubject([]);
+    this.workerSubject_ = new BehaviorSubject([]);
+    this.listenerSubject_ = new BehaviorSubject([]);
+    this.nodeSubject_ = new BehaviorSubject([]);
     this.startupContext_ = null;
   }
 
@@ -63,10 +27,10 @@ abstract class Discovery {
   abstract getWorkerList(worker: string): Promise<IWorkerMetaData[]>;
 
   // 获取单个节点信息（本地与远端）
-  abstract getServiceById(id: string): Promise<IServiceMetaData>;
-  abstract getWorkerById(id: string): Promise<IWorkerMetaData>;
-  abstract getNodeById(id: string): Promise<INodeMetaData>;
-  abstract getEndpointById(id: string): Promise<IListenerMetaData>;
+  abstract getServiceById(id: string): Promise<IServiceMetaData | undefined>;
+  abstract getWorkerById(id: string): Promise<IWorkerMetaData | undefined>;
+  abstract getNodeById(id: string): Promise<INodeMetaData | undefined>;
+  abstract getEndpointById(id: string): Promise<IListenerMetaData | undefined>;
 
   // 注册本地信息
   abstract registerWorker(worker: IWorkerMetaData): Promise<void>;
@@ -95,37 +59,35 @@ abstract class Discovery {
     this.startupContext_?.abort();
     this.startupContext_ = null;
     await this.shutdown();
+    this.nodeSubject_.complete();
+    this.workerSubject_.complete();
+    this.serviceSubject_.complete();
+    this.listenerSubject_.complete();
   }
 
-  get serviceEmitter() {
-    return this.serviceEmitter_;
+  get serviceSubject() {
+    return this.serviceSubject_;
   }
 
-  get listenerEmitter() {
-    return this.listenerEmitter_;
+  get listenerSubject() {
+    return this.listenerSubject_;
   }
 
-  get discoveryEmitter() {
-    return this.discoveryEmitter_;
+  get workerSubject() {
+    return this.workerSubject_;
   }
 
-  get nodeEmitter() {
-    return this.nodeEmitter_;
-  }
-
-  get workerEmitter() {
-    return this.workerEmitter_;
+  get nodeSubject() {
+    return this.nodeSubject_;
   }
 
   abstract get version(): string;
 
   abstract get info(): IDiscoveryInfo;
-
-  protected serviceEmitter_: IEventEmitter<IServiceEvent>;
-  protected listenerEmitter_: IEventEmitter<IDiscoveryListenerEvent>;
-  protected nodeEmitter_: IEventEmitter<INodeEvent>;
-  protected workerEmitter_: IEventEmitter<IWorkerEvent>;
-  protected discoveryEmitter_: IEventEmitter<IDiscoveryEvent>;
+  protected serviceSubject_: BehaviorSubject<IServiceMetaData[]>;
+  protected listenerSubject_: BehaviorSubject<IListenerMetaData[]>;
+  protected nodeSubject_: BehaviorSubject<INodeMetaData[]>;
+  protected workerSubject_: BehaviorSubject<IWorkerMetaData[]>;
   private startupContext_: Context | null;
 }
 

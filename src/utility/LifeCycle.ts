@@ -1,26 +1,15 @@
-import EventEmitter = require('events');
-import {LifeCycleEvent} from '../Event.js';
-import {IEventEmitter} from '../interface/event.js';
-import {Context} from '../lib/Context.js';
 import {ExError} from './ExError.js';
 import {ErrorLevel} from '../Enum.js';
-
-export type LifeCycleHandler = (context: Context, ...args: any) => Promise<void>;
-export type LifeCycleAllHandler<T> = (context: Context, state: T, ...args: any) => Promise<void>;
-
-export interface ILifeCycleEvent<T> {
-  [LifeCycleEvent.StateChange]: (preState: T, state: T, ...args) => void;
-  [LifeCycleEvent.StateChangeTo]: (state: T, ...args) => void;
-}
+import {BehaviorSubject} from 'rxjs';
 
 class LifeCycle<T extends number> {
   constructor(state: T, backtrackable = true) {
     this.state_ = state;
     this.backtrackable_ = backtrackable;
-    this.emitter_ = new EventEmitter();
+    this.stateSubject_ = new BehaviorSubject(state);
   }
 
-  setState(state: T, ...args: unknown[]) {
+  setState(state: T) {
     const preState = this.state;
     if (preState > state && !this.backtrackable_) {
       throw new ExError('ERR_LIFE_CYCLE_CAN_NOT_BACKTACK', 'LifeCycleError', `ERR_LIFE_CYCLE_CAN_NOT_BACKTACK,pre=${preState},new=${state}`, null, ErrorLevel.UNEXPECTED, {preState, state});
@@ -28,12 +17,11 @@ class LifeCycle<T extends number> {
     if (preState === state)
       return;
     this.state_ = state;
-    this.emitter_.emit(LifeCycleEvent.StateChange, preState, state, ...args);
-    this.emitter_.emit(LifeCycleEvent.StateChangeTo, state, ...args);
+    this.stateSubject_.next(state);
   }
 
   destory() {
-    this.emitter_.removeAllListeners();
+    this.stateSubject_.complete();
   }
 
   get state() {
@@ -43,13 +31,13 @@ class LifeCycle<T extends number> {
     return this.state_ ;
   }
 
-  get emitter() {
-    return this.emitter_;
+  get stateSubject() {
+    return this.stateSubject_;
   }
 
   private state_: T | null;
-  private emitter_: IEventEmitter<ILifeCycleEvent<T>>;
   private backtrackable_: boolean;
+  private stateSubject_: BehaviorSubject<T>;
 }
 
 export {LifeCycle};

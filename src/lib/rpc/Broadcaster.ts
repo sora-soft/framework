@@ -2,15 +2,16 @@ import {Connector} from './Connector.js';
 import {Route} from './Route.js';
 import {ConvertRouteMethod, IRequestOptions} from './ProviderManager.js';
 import {Notify} from './Notify.js';
-import {LifeCycleEvent} from '../../Event.js';
 import {ConnectorState} from '../../Enum.js';
 import {Runtime} from '../Runtime.js';
 import {Logger} from '../logger/Logger.js';
 import {ExError} from '../../utility/ExError.js';
+import {Subscription} from 'rxjs';
 
 class Broadcaster<T extends Route> {
   constructor() {
     this.connectors_ = new Map();
+    this.subscriptionMap_ = new WeakMap();
   }
 
   registerConnector(method: keyof T, connector: Connector) {
@@ -28,7 +29,7 @@ class Broadcaster<T extends Route> {
     handler.methods.add(method as string);
     this.connectors_.set(connector.session, handler);
 
-    connector.stateEmitter.on(LifeCycleEvent.StateChangeTo, (state) => {
+    const sub = connector.stateSubject.subscribe((state) => {
       switch (state) {
         case ConnectorState.ERROR:
         case ConnectorState.STOPPING:
@@ -39,9 +40,15 @@ class Broadcaster<T extends Route> {
           break;
       }
     });
+    this.subscriptionMap_.set(connector, sub);
   }
 
   removeConnector(session: string) {
+    const unit = this.connectors_.get(session);
+    if (!unit)
+      return;
+    const sub = this.subscriptionMap_.get(unit.connector);
+    sub?.unsubscribe();
     this.connectors_.delete(session);
   }
 
@@ -91,6 +98,7 @@ class Broadcaster<T extends Route> {
     connector: Connector;
     methods: Set<string>;
   }>;
+  private subscriptionMap_: WeakMap<Connector, Subscription>;
 }
 
 export {Broadcaster};

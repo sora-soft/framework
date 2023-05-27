@@ -41,8 +41,3 @@ export interface IListenerMetaData extends IListenerInfo {
   readonly labels: ILabels;
   readonly weight: number;
 }
-
-export interface IListenerEventData extends IListenerMetaData {
-  readonly service: string;
-  readonly labels: ILabels;
-}

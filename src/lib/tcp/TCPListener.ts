@@ -4,7 +4,6 @@ import {ListenerState} from '../../Enum.js';
 import util = require('util');
 import {ILabels, ITCPListenerOptions} from '../../interface/config.js';
 import {v4 as uuid} from 'uuid';
-import EventEmitter = require('events');
 import {Runtime} from '../Runtime.js';
 import {Logger} from '../logger/Logger.js';
 import {ExError} from '../../utility/ExError.js';
@@ -19,10 +18,7 @@ class TCPListener extends Listener {
   constructor(options: ITCPListenerOptions, callback: ListenerCallback, labels: ILabels = {}) {
     super(callback, labels);
     this.options_ = options;
-
     this.usePort_ = 0;
-
-    this.connectionEmitter_ = new EventEmitter();
     this.server_ = net.createServer();
     this.server_.on('connection', (socket) => {
       this.onSocketConnect(socket);
@@ -44,7 +40,7 @@ class TCPListener extends Listener {
   }
 
   private onServerError(err: Error) {
-    this.lifeCycle_.setState(ListenerState.ERROR, err);
+    this.lifeCycle_.setState(ListenerState.ERROR);
     Runtime.frameLogger.error('listener.tcp', err, {event: 'tcp-server-on-error', error: Logger.errorMessage(err)});
   }
 

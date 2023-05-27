@@ -61,6 +61,7 @@ export * from './utility/TimeoutError.js';
 export * from './utility/Utility.js';
 export * from './utility/Waiter.js';
 export * from './utility/Ref.js';
+export * from './utility/SubscriptionManager.js';
 
 export * from './Const.js';
 export * from './Enum.js';

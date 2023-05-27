@@ -1,6 +1,5 @@
 import {WorkerState} from '../Enum.js';
 import {AbortErrorCode, FrameworkErrorCode} from '../ErrorCode.js';
-import {DiscoveryEvent, LifeCycleEvent} from '../Event.js';
 import {IRuntimeOptions} from '../interface/config.js';
 import {AbortError} from '../utility/AbortError.js';
 import {ExError} from '../utility/ExError.js';
@@ -79,7 +78,6 @@ class Runtime {
     });
 
     this.pvdManager_ = new ProviderManager(discovery);
-    await this.pvdManager_.start(context);
 
     this.node_ = node;
     await this.installService(node, context).catch((err: ExError) => {
@@ -94,29 +92,6 @@ class Runtime {
         throw err;
       this.frameLogger_.fatal('runtime', err, {event: 'register-node', error: Logger.errorMessage(err)});
       process.exit(1);
-    });
-
-    this.discovery_.discoveryEmitter.on(DiscoveryEvent.DiscoveryReconnect, async () => {
-      this.frameLogger_.info('runtime', {event: 'discovery-reconnect'});
-      this.discovery_.registerNode(this.node.nodeStateData).catch((err: ExError) => {
-        this.frameLogger_.error('runtime', err, {event: 'register-node', error: Logger.errorMessage(err)});
-      });
-
-      for(const service of this.services) {
-        await this.discovery_.registerService(service.metaData).catch((err: ExError) => {
-          this.frameLogger_.error('runtime', err, {event: 'register-service', error: Logger.errorMessage(err)});
-        });
-
-        await service.registerEndpoints().catch((err: ExError) => {
-          this.frameLogger_.error('runtime', err, {event: 'register-listener', error: Logger.errorMessage(err)});
-        });
-      }
-
-      for (const worker of this.workers) {
-        await this.discovery_.registerWorker(worker.metaData).catch((err: ExError) => {
-          this.frameLogger_.error('runtime', err, {event: 'register-worker', error: Logger.errorMessage(err)});
-        });
-      }
     });
 
     this.frameLogger_.success('framework', {event: 'start-runtime-success', discovery: discovery.info, node: node.metaData});
@@ -160,8 +135,6 @@ class Runtime {
         this.frameLogger_.error('runtime', err, {event: 'uninstall-service', error: Logger.errorMessage(err), id: this.node.id});
       });
 
-      await this.pvdManager_.stop();
-
       await this.discovery_.disconnect();
 
       await Time.timeout(1000);
@@ -181,8 +154,10 @@ class Runtime {
 
     this.frameLogger.info('runtime', {event: 'service-starting', name: service.name, id: service.id});
 
-    service.stateEventEmitter.on(LifeCycleEvent.StateChange, async () => {
-      await this.discovery_.registerService(service.metaData);
+    service.stateSubject.subscribe(() => {
+      this.discovery_.registerService(service.metaData).catch((err: ExError) => {
+        Runtime.frameLogger.error('runtime', err, {event: 'discovery-register-service', error: Logger.errorMessage(err), name: service.name, id: service.id});
+      });
     });
 
     await this.discovery_.registerService(service.metaData);
@@ -207,8 +182,10 @@ class Runtime {
 
     this.frameLogger.info('runtime', {event: 'worker-starting', name: worker.name, id: worker.id});
 
-    worker.stateEventEmitter.on(LifeCycleEvent.StateChange, async () => {
-      await this.discovery_.registerWorker(worker.metaData);
+    worker.stateSubject.subscribe(() => {
+      this.discovery_.registerWorker(worker.metaData).catch((err: ExError) => {
+        Runtime.frameLogger.error('runtime', err, {event: 'discovery-register-worker', error: Logger.errorMessage(err), name: worker.name, id: worker.id});
+      });
     });
 
     await this.discovery_.registerWorker(worker.metaData);

@@ -2,23 +2,25 @@ import {ConnectorState, ListenerState} from '../../Enum.js';
 import {LifeCycle} from '../../utility/LifeCycle.js';
 import {v4 as uuid} from 'uuid';
 import {IListenerInfo, IRawReqPacket, IRawResPacket} from '../../interface/rpc.js';
-import {IEventEmitter} from '../../interface/event.js';
-import {LifeCycleEvent, ListenerEvent, ListenerWeightEvent} from '../../Event.js';
 import {ILabels} from '../../interface/config.js';
-import {EventEmitter} from 'events';
 import {Connector} from './Connector.js';
 import {Context} from '../Context.js';
 import {ExError} from '../../utility/ExError.js';
 import {Runtime} from '../Runtime.js';
 import {Logger} from '../logger/Logger.js';
+import {SubscriptionManager} from '../../utility/SubscriptionManager.js';
+import {BehaviorSubject, Subject} from 'rxjs';
 
-export interface IListenerEvent {
-  [ListenerEvent.NewConnect]: (session: string, connector: Connector, ...args: any[]) => void;
-  [ListenerEvent.LostConnect]: (session: string, connector: Connector, ...args: any[]) => void;
+
+export enum ListenerConnectionEventType {
+  NewConnection = 'new-connection',
+  LostConnection = 'lost-connection',
 }
 
-export interface IListenerWeightEvent {
-  [ListenerWeightEvent.WeightChange]: (to: number, from: number) => void;
+export interface IListenerConnectionEvent {
+  type: ListenerConnectionEventType;
+  connector: Connector;
+  session: string;
 }
 
 export type ListenerCallback<Req=unknown, Res=unknown> = (data: IRawReqPacket<Req>, session: string | undefined, connector: Connector) => Promise<IRawResPacket<Res> | null>;
@@ -29,11 +31,12 @@ abstract class Listener {
     this.callback_ = callback;
     this.id_ = uuid();
     this.labels_ = labels;
-    this.connectionEmitter_ = new EventEmitter();
-    this.weightEmitter_ = new EventEmitter();
+    this.connectionSubject_ = new Subject();
     this.connectors_ = new Map();
     this.weight_ = 100;
     this.startContext_ = null;
+    this.weightSubject_ = new BehaviorSubject(this.weight);
+    this.subManager_ = new SubscriptionManager();
   }
 
   protected abstract listen(context: Context): Promise<IListenerInfo>;
@@ -56,6 +59,7 @@ abstract class Listener {
     this.lifeCycle_.setState(ListenerState.STOPPING);
     await this.shutdown();
     this.lifeCycle_.setState(ListenerState.STOPPED);
+    this.subManager_.destory();
   }
 
   abstract get metaData(): IListenerInfo;
@@ -65,7 +69,7 @@ abstract class Listener {
 
     connector.enableResponse(this.callback_.bind(this) as ListenerCallback<unknown, unknown>);
 
-    connector.stateEmitter.on(LifeCycleEvent.StateChangeTo, (state) => {
+    const sub = connector.stateSubject.subscribe((state) => {
       switch (state) {
         case ConnectorState.ERROR:
         case ConnectorState.STOPPED:
@@ -75,12 +79,22 @@ abstract class Listener {
             connector.off().catch((err: ExError) => {
               Runtime.rpcLogger.error('listener', err, {event: 'listener-connector-off-error', error: Logger.errorMessage(err)});
             });
-            this.connectionEmitter_.emit(ListenerEvent.LostConnect, session, connector);
+            this.connectionSubject_.next({
+              type: ListenerConnectionEventType.LostConnection,
+              connector,
+              session,
+            });
           }
           break;
       }
     });
-    this.connectionEmitter_.emit(ListenerEvent.NewConnect, session, connector);
+    this.subManager_.register(sub);
+
+    this.connectionSubject.next({
+      type: ListenerConnectionEventType.NewConnection,
+      connector,
+      session,
+    });
   }
 
   public getConnector(session: string) {
@@ -90,13 +104,12 @@ abstract class Listener {
   public setWeight(weight: number) {
     if (weight < 0)
       throw TypeError('listener weight should larger than 0');
-    const origin = this.weight;
     this.weight_ = weight;
-    this.weightEmitter_.emit(ListenerWeightEvent.WeightChange, weight, origin);
+    this.weightSubject_.next(weight);
   }
 
   private onError(err: Error) {
-    void this.lifeCycle_.setState(ListenerState.ERROR, err);
+    void this.lifeCycle_.setState(ListenerState.ERROR);
     throw err;
   }
 
@@ -104,12 +117,12 @@ abstract class Listener {
     return this.info_;
   }
 
-  get stateEventEmitter() {
-    return this.lifeCycle_.emitter;
+  get stateSubject() {
+    return this.lifeCycle_.stateSubject;
   }
 
-  get weightEventEmiiter() {
-    return this.weightEmitter_;
+  get weightSubject() {
+    return this.weightSubject_;
   }
 
   get state() {
@@ -135,14 +148,14 @@ abstract class Listener {
       return this.labels_;
   }
 
-  get connectionEmitter() {
-    return this.connectionEmitter_;
+  get connectionSubject() {
+    return this.connectionSubject_;
   }
 
   abstract get version (): string;
 
-  protected connectionEmitter_: IEventEmitter<IListenerEvent>;
-  protected weightEmitter_: IEventEmitter<IListenerWeightEvent>;
+  protected connectionSubject_: Subject<IListenerConnectionEvent>;
+  protected weightSubject_: BehaviorSubject<number>;
   protected connectors_: Map<string, Connector>;
   protected lifeCycle_: LifeCycle<ListenerState>;
   protected callback_: ListenerCallback;
@@ -151,6 +164,7 @@ abstract class Listener {
   private labels_: ILabels;
   private startContext_: Context | null;
   private weight_: number;
+  private subManager_: SubscriptionManager;
 }
 
 export {Listener};

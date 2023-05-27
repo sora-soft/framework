@@ -18,7 +18,7 @@ import {ListenerCallback} from './Listener.js';
 import {Notify} from './Notify.js';
 import {Request} from './Request.js';
 import {RPCError, RPCResponseError} from './RPCError.js';
-import {LifeCycleEvent} from '../../Event.js';
+import {SubscriptionManager} from '../../utility/SubscriptionManager.js';
 
 abstract class Connector {
   constructor(options: IConnectorOptions) {
@@ -30,8 +30,9 @@ abstract class Connector {
     this.pingInterval_ = null;
     this.startContext_ = null;
     this.executor_.start();
+    this.subManager_ = new SubscriptionManager();
 
-    this.lifeCycle_.emitter.on(LifeCycleEvent.StateChangeTo, (state, ...args: unknown[]) => {
+    this.subManager_.register(this.lifeCycle_.stateSubject.subscribe((state) => {
       switch(state) {
         case ConnectorState.READY:
           this.enablePingPong();
@@ -42,13 +43,11 @@ abstract class Connector {
           this.executor_.stop().catch(Utility.null);
           break;
         case ConnectorState.ERROR:
-          const err = args[0] as ExError;
           this.disablePingPong();
           this.executor_.stop().catch(Utility.null);
-          Runtime.frameLogger.error('connector', err, {event: 'connector-error', error: Logger.errorMessage(err)});
           break;
       }
-    });
+    }));
   }
 
   abstract isAvailable(): boolean;
@@ -90,11 +89,14 @@ abstract class Connector {
       this.lifeCycle_.setState(ConnectorState.STOPPED);
 
     this.lifeCycle_.destory();
+    this.subManager_.destory();
   }
 
   private onError(err: Error) {
-    if (!(err instanceof AbortError))
-      this.lifeCycle_.setState(ConnectorState.ERROR, err);
+    if (!(err instanceof AbortError)) {
+      this.lifeCycle_.setState(ConnectorState.ERROR);
+      Runtime.frameLogger.error('connector', err, {event: 'connector-error', error: Logger.errorMessage(err)});
+    }
     throw err;
   }
 
@@ -189,7 +191,8 @@ abstract class Connector {
   protected onPingError(err: ExError) {
     if (this.state !== ConnectorState.READY)
       return;
-    this.lifeCycle_.setState(ConnectorState.ERROR, new ExError('ERR_CONNECTOR_PING', 'ConnectorError', 'ERR_CONNECTOR_PING', err, ErrorLevel.UNEXPECTED));
+    const error = new ExError('ERR_CONNECTOR_PING', 'ConnectorError', 'ERR_CONNECTOR_PING', err, ErrorLevel.UNEXPECTED);
+    this.onError(error);
   }
 
   protected disablePingPong() {
@@ -300,7 +303,7 @@ abstract class Connector {
     switch(command) {
       case ConnectorCommand.ERROR:
         const error = args as ExError;
-        this.lifeCycle_.setState(ConnectorState.ERROR, new ExError(error.code, error.name, error.message, error.level));
+        this.onError(error);
         break;
       case ConnectorCommand.OFF:
         this.off().catch((err: ExError) => {
@@ -329,8 +332,8 @@ abstract class Connector {
     return this.lifeCycle_.state;
   }
 
-  get stateEmitter() {
-    return this.lifeCycle_.emitter;
+  get stateSubject() {
+    return this.lifeCycle_.stateSubject;
   }
 
   get session() {
@@ -351,6 +354,7 @@ abstract class Connector {
   private pingInterval_: NodeJS.Timer | null;
   private options_: IConnectorOptions;
   private startContext_: Context | null;
+  private subManager_: SubscriptionManager;
 }
 
 export {Connector};

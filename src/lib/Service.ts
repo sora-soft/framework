@@ -1,6 +1,5 @@
 import {TypeGuard} from '@sora-soft/type-guard';
 import {ListenerState, WorkerState} from '../Enum.js';
-import {LifeCycleEvent, ListenerWeightEvent} from '../Event.js';
 import {ILabels, IServiceOptions} from '../interface/config.js';
 import {IServiceMetaData, IServiceRunData} from '../interface/discovery.js';
 import {ExError} from '../utility/ExError.js';
@@ -11,6 +10,7 @@ import {Logger} from './logger/Logger.js';
 import {Listener} from './rpc/Listener.js';
 import {Runtime} from './Runtime.js';
 import {Worker} from './Worker.js';
+import {SubscriptionManager} from '../utility/SubscriptionManager.js';
 
 abstract class Service extends Worker {
   constructor(name: string, options: IServiceOptions) {
@@ -18,12 +18,12 @@ abstract class Service extends Worker {
     TypeGuard.assert<IServiceOptions>(options);
     this.serviceOptions_ = options;
 
+    this.subManager_ = new SubscriptionManager();
     this.listenerPool_ = new Map();
     this.discoveryExecutor_ = new QueueExecutor();
     this.discoveryExecutor_.start();
 
-    this.lifeCycle_.emitter.on(LifeCycleEvent.StateChangeTo, (state: WorkerState) => {
-
+    const sub = this.lifeCycle_.stateSubject.subscribe((state) => {
       Runtime.frameLogger.debug(this.logCategory, {event: 'service-state-change', state});
 
       switch (state) {
@@ -36,6 +36,7 @@ abstract class Service extends Worker {
           break;
       }
     });
+    this.subManager_.register(sub);
   }
 
   async stop(reason: string) {
@@ -52,6 +53,7 @@ abstract class Service extends Worker {
       this.onError(err);
     });
     this.lifeCycle_.setState(WorkerState.STOPPED);
+    this.subManager_.destory();
   }
 
   public async installListener(listener: Listener, ctx?: Context) {
@@ -61,15 +63,16 @@ abstract class Service extends Worker {
 
     await context.await(this.registerEndpoint(listener));
 
-    listener.weightEventEmiiter.on(ListenerWeightEvent.WeightChange, async () => {
+    const weightSub = listener.weightSubject.subscribe(async () => {
       await this.registerEndpoint(listener);
     });
+    this.subManager_.register(weightSub);
 
-    listener.stateEventEmitter.on(LifeCycleEvent.StateChange, async (pre, state, err: Error) => {
+    const stateSub = listener.stateSubject.subscribe(async (state) => {
       await this.registerEndpoint(listener);
       switch (state) {
         case ListenerState.ERROR: {
-          Runtime.frameLogger.error(this.logCategory, err, {event: 'listener-err', name: this.name, id: this.id, listenerId: listener.id, preState: pre, error: Logger.errorMessage(err)});
+          Runtime.frameLogger.info(this.logCategory, {event: 'listener-err', name: this.name, id: this.id, listenerId: listener.id});
           this.uninstallListener(listener.id).catch((e: ExError) => {
             Runtime.frameLogger.error('service', e, {event: 'uninstall-listener', error: Logger.errorMessage(e)});
           });
@@ -77,6 +80,7 @@ abstract class Service extends Worker {
         }
       }
     });
+    this.subManager_.register(stateSub);
 
     this.listenerPool_.set(listener.id, listener);
 
@@ -173,6 +177,7 @@ abstract class Service extends Worker {
   private listenerPool_: Map<string/* id*/, Listener>;
   private discoveryExecutor_: QueueExecutor;
   private serviceOptions_: IServiceOptions;
+  private subManager_: SubscriptionManager;
 }
 
 export {Service};

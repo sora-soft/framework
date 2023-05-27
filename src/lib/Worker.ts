@@ -11,7 +11,7 @@ import {Logger} from './logger/Logger.js';
 import {Context} from './Context.js';
 import {UnixTime, Utility} from '../utility/Utility.js';
 import {ExError} from '../utility/ExError.js';
-import {IWorkerOptions} from '../index.js';
+import {AbortError, IWorkerOptions} from '../index.js';
 
 abstract class Worker {
   constructor(name: string, options: IWorkerOptions) {
@@ -156,9 +156,11 @@ abstract class Worker {
   }
 
   protected onError(err: Error) {
-    Runtime.frameLogger.error(this.logCategory, err, {event: 'worker-on-error', error: Logger.errorMessage(err)});
-    this.abortStartup();
-    this.lifeCycle_.setState(WorkerState.ERROR, err);
+    if (!(err instanceof AbortError)) {
+      Runtime.frameLogger.error(this.logCategory, err, {event: 'worker-on-error', error: Logger.errorMessage(err)});
+      this.abortStartup();
+      this.lifeCycle_.setState(WorkerState.ERROR);
+    }
     throw err;
   }
 
@@ -174,8 +176,8 @@ abstract class Worker {
     return this.state === WorkerState.READY && this.executor_.isIdle;
   }
 
-  get stateEventEmitter() {
-    return this.lifeCycle_.emitter;
+  get stateSubject() {
+    return this.lifeCycle_.stateSubject;
   }
 
   get lifeCycle() {
