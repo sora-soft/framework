@@ -40,11 +40,13 @@ class Provider<T extends Route = Route> {
       this.startCtx_?.abort();
       this.startCtx_ = null;
 
+      this.subManager_.destory();
       await Promise.all([...this.senders_].map(async ([_, sender]) => {
-        await sender.connector.off();
+        await sender.connector.off().catch((err: ExError) => {
+          Runtime.frameLogger.error(`provider.${this.name_}`, err, {event: 'connector-off', error: Logger.errorMessage(err)});
+        });
       }));
 
-      this.subManager_.destory();
       this.pvdManager.removeProvider(this);
       this.senderSubject_.complete();
     }).catch((err: Error) => {
@@ -98,7 +100,12 @@ class Provider<T extends Route = Route> {
                 break;
             }
           } else {
-            this.createSender(listener);
+            if (this.senders_.has(listener.id))
+              continue;
+
+            if (listener.state === ListenerState.READY) {
+              this.createSender(listener);
+            }
           }
         }
       });
