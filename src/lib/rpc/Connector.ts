@@ -191,7 +191,7 @@ abstract class Connector {
   protected onPingError(err: ExError) {
     if (this.state !== ConnectorState.READY)
       return;
-    const error = new ExError('ERR_CONNECTOR_PING', 'ConnectorError', 'ERR_CONNECTOR_PING', err, ErrorLevel.UNEXPECTED);
+    const error = new ExError('ERR_CONNECTOR_PING', 'ConnectorError', 'ERR_CONNECTOR_PING', ErrorLevel.UNEXPECTED, err);
     this.onError(error);
   }
 

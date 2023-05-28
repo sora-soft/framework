@@ -12,7 +12,7 @@ class LifeCycle<T extends number> {
   setState(state: T) {
     const preState = this.state;
     if (preState > state && !this.backtrackable_) {
-      throw new ExError('ERR_LIFE_CYCLE_CAN_NOT_BACKTACK', 'LifeCycleError', `ERR_LIFE_CYCLE_CAN_NOT_BACKTACK,pre=${preState},new=${state}`, null, ErrorLevel.UNEXPECTED, {preState, state});
+      throw new ExError('ERR_LIFE_CYCLE_CAN_NOT_BACKTACK', 'LifeCycleError', `ERR_LIFE_CYCLE_CAN_NOT_BACKTACK,pre=${preState},new=${state}`, ErrorLevel.UNEXPECTED, null, {preState, state});
     }
     if (preState === state)
       return;

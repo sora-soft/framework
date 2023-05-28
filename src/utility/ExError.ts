@@ -5,13 +5,13 @@ class ExError extends Error {
     if (err instanceof ExError) {
       return err;
     } else {
-      const exError = new ExError('ERR_UNKNOWN', 'ERR_UNKNOWN', err.message, err.cause, ErrorLevel.UNEXPECTED);
+      const exError = new ExError('ERR_UNKNOWN', 'ERR_UNKNOWN', err.message, ErrorLevel.UNEXPECTED, err.cause);
       exError.stack = err.stack;
       return exError;
     }
   }
 
-  constructor(code: string, name: string, message: string, cause?: unknown, level = ErrorLevel.NORMAL, ...args: unknown[]) {
+  constructor(code: string, name: string, message: string, level = ErrorLevel.NORMAL, cause?: unknown, ...args: unknown[]) {
     super(message, {cause});
     this.code_ = code;
     this.name_ = name;
