@@ -107,29 +107,31 @@ class Runtime {
     this.startCtx_?.abort();
     this.startCtx_ = null;
     this.shutdownPromise_ = new Promise(async (resolve) => {
-      const promises: Promise<unknown>[] = [];
+      const servicePromises: Promise<unknown>[] = [];
       for (const [id, service] of [...this.services_]) {
         if (id === this.node_.id)
           continue;
         const promise = this.uninstallService(id, 'runtime_shutdown').catch((err: ExError) => {
           this.frameLogger_.error('runtime', err, {event: 'uninstall-service', error: Logger.errorMessage(err), id: service.id});
         });
-        promises.push(promise);
+        servicePromises.push(promise);
       }
-      await Promise.all(promises);
+      const servicePromise = Promise.all(servicePromises).then(() => {
+        this.frameLogger_.info('runtime', {event: 'all-service-closed'});
+      });
 
-      this.frameLogger_.info('runtime', {event: 'all-service-closed'});
-
-      promises.length = 0;
+      const workerPromises: Promise<unknown>[] = [];
       for (const [id, worker] of [...this.workers_]) {
         const promise = this.uninstallWorker(id, 'runtime_shutdown').catch((err: ExError) => {
           this.frameLogger_.error('runtime', err, {event: 'uninstall-worker', error: Logger.errorMessage(err), id: worker.id});
         });
-        promises.push(promise);
+        workerPromises.push(promise);
       }
-      await Promise.all(promises);
+      const workerPromise = Promise.all(workerPromises).then(() => {
+        this.frameLogger_.info('runtime', {event: 'all-worker-closed'});
+      });
 
-      this.frameLogger_.info('runtime', {event: 'all-worker-closed'});
+      await Promise.all([servicePromise, workerPromise]);
 
       await this.uninstallService(this.node_.id, 'runtime_shutdown').catch((err: ExError) => {
         this.frameLogger_.error('runtime', err, {event: 'uninstall-service', error: Logger.errorMessage(err), id: this.node.id});
