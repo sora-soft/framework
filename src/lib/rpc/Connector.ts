@@ -97,7 +97,6 @@ abstract class Connector {
       this.lifeCycle_.setState(ConnectorState.ERROR);
       Runtime.frameLogger.error('connector', err, {event: 'connector-error', error: Logger.errorMessage(err)});
     }
-    throw err;
   }
 
   abstract send<RequestPayload>(request: IRawNetPacket<RequestPayload>): Promise<void>;
