@@ -19,6 +19,7 @@ import {Notify} from './Notify.js';
 import {Request} from './Request.js';
 import {RPCError, RPCResponseError} from './RPCError.js';
 import {SubscriptionManager} from '../../utility/SubscriptionManager.js';
+import {Subscription, interval} from 'rxjs';
 
 abstract class Connector {
   constructor(options: IConnectorOptions) {
@@ -27,7 +28,7 @@ abstract class Connector {
     this.resWaiter_ = new Waiter();
     this.pongWaiter_ = new Waiter();
     this.executor_ = new Executor();
-    this.pingInterval_ = null;
+    this.pingSub_ = null;
     this.startContext_ = null;
     this.executor_.start();
     this.subManager_ = new SubscriptionManager();
@@ -80,6 +81,7 @@ abstract class Connector {
 
     if (this.state < ConnectorState.STOPPING)
       this.lifeCycle_.setState(ConnectorState.STOPPING);
+    this.disablePingPong();
     await this.resWaiter_.waitForAll(10000);
     await this.executor_.stop();
     await this.disconnect().catch((err: ExError) => {
@@ -164,13 +166,13 @@ abstract class Connector {
   }
 
   protected enablePingPong() {
-    if (this.pingInterval_)
+    if (this.pingSub_)
       return;
 
     if (!this.options_.ping.enabled)
       return;
 
-    this.pingInterval_ = setInterval(async () => {
+    this.pingSub_ = interval(this.options_.ping.interval || NodeTime.second(10)).subscribe(async () => {
       if (!this.options_.ping.enabled)
         return;
 
@@ -184,7 +186,7 @@ abstract class Connector {
       await promise.catch((err: ExError) => {
         this.onPingError(err);
       });
-    }, this.options_.ping.interval || NodeTime.second(10));
+    });
   }
 
   protected onPingError(err: ExError) {
@@ -195,10 +197,10 @@ abstract class Connector {
   }
 
   protected disablePingPong() {
-    if (this.pingInterval_) {
-      clearInterval(this.pingInterval_);
+    if (this.pingSub_) {
+      this.pingSub_.unsubscribe();
       this.pongWaiter_.clear();
-      this.pingInterval_ = null;
+      this.pingSub_ = null;
     }
   }
 
@@ -350,7 +352,7 @@ abstract class Connector {
   protected session_: string | undefined;
   private resWaiter_: Waiter<IRawResPacket>;
   private pongWaiter_: Waiter<void>;
-  private pingInterval_: NodeJS.Timer | null;
+  private pingSub_: Subscription | null;
   private options_: IConnectorOptions;
   private startContext_: Context | null;
   private subManager_: SubscriptionManager;
