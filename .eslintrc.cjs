@@ -107,6 +107,11 @@ module.exports = {
     ],
     '@typescript-eslint/typedef': 'off',
     '@typescript-eslint/unified-signatures': 'error',
+    'space-before-function-paren': ['error', {
+      'anonymous': 'always',
+      'named': 'never',
+      'asyncArrow': 'always',
+    }],
     'comma-spacing': ['error', {
       'before': false,
       'after': true,
@@ -128,7 +133,6 @@ module.exports = {
     'guard-for-in': 'error',
     'id-denylist': [
       'error',
-      'any',
       'Number',
       'number',
       'String',
@@ -207,7 +211,12 @@ module.exports = {
     'jsdoc/check-indentation': 'error',
     'jsdoc/newline-after-description': 'error',
     'max-classes-per-file': 'off',
-    'indent': ['error', 2, {'SwitchCase': 1}],
+    'indent': ['error', 2, {'SwitchCase': 1, 'MemberExpression': 1,
+      'ignoredNodes': [
+        'FunctionExpression > .params[decorators.length > 0]',
+        'FunctionExpression > .params > :matches(Decorator, :not(:first-child))',
+        'ClassBody.body > PropertyDefinition[decorators.length > 0] > .key',
+      ]}],
     'max-len': 'off',
     'new-parens': 'error',
     'no-caller': 'error',
