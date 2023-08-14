@@ -33,10 +33,21 @@ export interface INotifyHandler<Req=unknown> {
   handler: NotifyHandler<Req>;
 }
 
+export enum MiddlewarePosition {
+  Before = 'before',
+  After = 'after',
+}
+
 const MethodMapSymbol = Symbol('sora:method');
 const NotifyMapSymbol = Symbol('sora:notify');
 const ProviderSymbol = Symbol('sora:provider');
-const MiddlewareSymbol = Symbol('sora:middleware');
+const MiddlewareBeforeSymbol = Symbol('sora:middleware-before');
+const MiddlewareAfterSymbol = Symbol('sora:middleware-after');
+
+const symbolMap = {
+  [MiddlewarePosition.After]: MiddlewareAfterSymbol,
+  [MiddlewarePosition.Before]: MiddlewareBeforeSymbol,
+};
 
 class Route {
   protected static method(target: Route, key: string) {
@@ -87,14 +98,14 @@ class Route {
     Reflect.defineMetadata(ProviderSymbol, providers, target, method);
   }
 
-  protected static registerMiddleware<T extends Route = Route>(target: T, method: string, middleware: IRPCMiddlewares<T>) {
-    let middlewares = Reflect.getMetadata(MiddlewareSymbol, target, method) as IRPCMiddlewares[] | undefined;
+  protected static registerMiddleware<T extends Route = Route>(target: T, method: string, position: MiddlewarePosition, middleware: IRPCMiddlewares<T>) {
+    let middlewares = Reflect.getMetadata(symbolMap[position], target, method) as IRPCMiddlewares[] | undefined;
     if (!middlewares) {
       middlewares = [];
     }
 
     middlewares.push(middleware);
-    Reflect.defineMetadata(MiddlewareSymbol, middlewares, target, method);
+    Reflect.defineMetadata(symbolMap[position], middlewares, target, method);
   }
 
   protected static makeErrorRPCResponse(request: Request, response: Response, err: ExError) {
@@ -217,9 +228,9 @@ class Route {
           throw new RPCResponseError(RPCErrorCode.ERR_RPC_METHOD_NOT_FOUND, ErrorLevel.EXPECTED, 'ERR_RPC_METHOD_NOT_FOUND');
         }
 
-        const middlewares = Reflect.getMetadata(MiddlewareSymbol, prototype, method) as IRPCMiddlewares[];
-        if (middlewares) {
-          for (const middleware of middlewares) {
+        const beforeMiddlewares = Reflect.getMetadata(MiddlewareBeforeSymbol, prototype, method) as IRPCMiddlewares[];
+        if (beforeMiddlewares) {
+          for (const middleware of beforeMiddlewares) {
             const next = await middleware(this, request.payload, request, null, connector);
             if (!next)
               break;
@@ -228,6 +239,15 @@ class Route {
 
         const params = await this.buildCallParams(method, handler.params, request, response, connector);
         const result = await (this[method] as RPCHandler).apply(this, params) as unknown;
+
+        const afterMiddlewares = Reflect.getMetadata(MiddlewareAfterSymbol, prototype, method) as IRPCMiddlewares[];
+        if (afterMiddlewares) {
+          for (const middleware of afterMiddlewares) {
+            const next = await middleware(this, request.payload, request, response, connector);
+            if (!next)
+              break;
+          }
+        }
         return {
           error: null,
           result,
@@ -255,9 +275,9 @@ class Route {
           throw new RPCResponseError(RPCErrorCode.ERR_RPC_METHOD_NOT_FOUND, ErrorLevel.EXPECTED, 'ERR_RPC_METHOD_NOT_FOUND');
         }
 
-        const middlewares = Reflect.getMetadata(MiddlewareSymbol, prototype) as IRPCMiddlewares[];
-        if (middlewares) {
-          for (const middleware of middlewares) {
+        const beforeMiddlewares = Reflect.getMetadata(MiddlewareBeforeSymbol, prototype) as IRPCMiddlewares[];
+        if (beforeMiddlewares) {
+          for (const middleware of beforeMiddlewares) {
             const next = await middleware(this, request.payload, request, null, connector);
             if (!next)
               break;
@@ -266,6 +286,15 @@ class Route {
 
         const params = await this.buildCallParams(method, handler.params, request, null, connector);
         await (this[method] as NotifyHandler).apply(this, params);
+
+        const afterMiddlewares = Reflect.getMetadata(MiddlewareAfterSymbol, prototype, method) as IRPCMiddlewares[];
+        if (afterMiddlewares) {
+          for (const middleware of afterMiddlewares) {
+            const next = await middleware(this, request.payload, request, null, connector);
+            if (!next)
+              break;
+          }
+        }
       } catch (e) {
         if (e instanceof TypeGuardError) {
           throw new RPCResponseError(RPCErrorCode.ERR_RPC_PARAMETER_INVALID, ErrorLevel.EXPECTED, `ERR_RPC_PARAMETER_INVALID, ${e.message}}`);
