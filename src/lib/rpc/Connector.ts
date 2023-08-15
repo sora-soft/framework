@@ -345,6 +345,10 @@ abstract class Connector {
     this.session_ = value;
   }
 
+  get target() {
+    return this.target_;
+  }
+
   protected lifeCycle_: LifeCycle<ConnectorState>;
   protected target_?: IListenerInfo;
   private routeCallback_?: ListenerCallback;
