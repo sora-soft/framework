@@ -1,6 +1,6 @@
 {
   "name": "@sora-soft/framework",
-  "version": "1.12.4",
+  "version": "1.12.5",
   "description": "sora system framework project",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
