@@ -115,6 +115,7 @@ class Route {
         level: err.level || ErrorLevel.UNEXPECTED,
         name: err.name,
         message: err.message,
+        args: err.args,
       },
       result: null,
     };
@@ -139,7 +140,7 @@ class Route {
             response.setHeader(RPCHeader.RPC_ID_HEADER, rpcId);
 
             if (!route.hasMethod(request.method))
-              throw new RPCResponseError(RPCErrorCode.ERR_RPC_METHOD_NOT_FOUND, ErrorLevel.EXPECTED, `ERR_RPC_METHOD_NOT_FOUND, method=${request.method}`);
+              throw new RPCResponseError(RPCErrorCode.ERR_RPC_METHOD_NOT_FOUND, ErrorLevel.EXPECTED, `ERR_RPC_METHOD_NOT_FOUND, method=${request.method}`, request.method);
 
             const result = await route.callMethod(request.method, request, response, connector).catch((err: ExError) => {
               if (err.level !== ErrorLevel.EXPECTED) {
@@ -151,6 +152,7 @@ class Route {
                   level: err.level || ErrorLevel.UNEXPECTED,
                   name: err.name,
                   message: err.message,
+                  args: err.args,
                 },
                 result: null,
               } as IResPayloadPacket<null>;
@@ -225,7 +227,7 @@ class Route {
       try {
         const handler = map.get(method);
         if (!handler) {
-          throw new RPCResponseError(RPCErrorCode.ERR_RPC_METHOD_NOT_FOUND, ErrorLevel.EXPECTED, 'ERR_RPC_METHOD_NOT_FOUND');
+          throw new RPCResponseError(RPCErrorCode.ERR_RPC_METHOD_NOT_FOUND, ErrorLevel.EXPECTED, 'ERR_RPC_METHOD_NOT_FOUND', method);
         }
 
         const beforeMiddlewares = Reflect.getMetadata(MiddlewareBeforeSymbol, prototype, method) as IRPCMiddlewares[];
@@ -254,13 +256,13 @@ class Route {
         };
       } catch(e) {
         if (e instanceof TypeGuardError) {
-          throw new RPCResponseError(RPCErrorCode.ERR_RPC_PARAMETER_INVALID, ErrorLevel.EXPECTED, `ERR_RPC_PARAMETER_INVALID, ${e.message}}`);
+          throw new RPCResponseError(RPCErrorCode.ERR_RPC_PARAMETER_INVALID, ErrorLevel.EXPECTED, `ERR_RPC_PARAMETER_INVALID, ${e.message}}`, e.message);
         }
         const err = ExError.fromError(e as Error);
         throw err;
       }
     } else {
-      throw new RPCResponseError(RPCErrorCode.ERR_RPC_METHOD_NOT_FOUND, ErrorLevel.EXPECTED, 'ERR_RPC_METHOD_NOT_FOUND');
+      throw new RPCResponseError(RPCErrorCode.ERR_RPC_METHOD_NOT_FOUND, ErrorLevel.EXPECTED, 'ERR_RPC_METHOD_NOT_FOUND', method);
     }
   }
 
@@ -272,7 +274,7 @@ class Route {
       try {
         const handler = map.get(method);
         if (!handler) {
-          throw new RPCResponseError(RPCErrorCode.ERR_RPC_METHOD_NOT_FOUND, ErrorLevel.EXPECTED, 'ERR_RPC_METHOD_NOT_FOUND');
+          throw new RPCResponseError(RPCErrorCode.ERR_RPC_METHOD_NOT_FOUND, ErrorLevel.EXPECTED, 'ERR_RPC_METHOD_NOT_FOUND', method);
         }
 
         const beforeMiddlewares = Reflect.getMetadata(MiddlewareBeforeSymbol, prototype) as IRPCMiddlewares[];
@@ -297,7 +299,7 @@ class Route {
         }
       } catch (e) {
         if (e instanceof TypeGuardError) {
-          throw new RPCResponseError(RPCErrorCode.ERR_RPC_PARAMETER_INVALID, ErrorLevel.EXPECTED, `ERR_RPC_PARAMETER_INVALID, ${e.message}}`);
+          throw new RPCResponseError(RPCErrorCode.ERR_RPC_PARAMETER_INVALID, ErrorLevel.EXPECTED, `ERR_RPC_PARAMETER_INVALID, ${e.message}}`, e.message);
         }
         const err = ExError.fromError(e as Error);
         throw err;

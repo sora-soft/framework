@@ -152,7 +152,7 @@ abstract class Connector {
 
     if (packet.payload.error) {
       const error = packet.payload.error;
-      this.resWaiter_.emitError(rpcId, new RPCResponseError(error.code, error.level, error.message));
+      this.resWaiter_.emitError(rpcId, new RPCResponseError(error.code, error.level, error.message, ...error.args));
     } else {
       this.resWaiter_.emit(rpcId, packet);
     }
@@ -228,6 +228,7 @@ abstract class Connector {
                     level: err.level || ErrorLevel.UNEXPECTED,
                     name: err.name,
                     message: err.message,
+                    args: err.args,
                   },
                   result: null,
                 },

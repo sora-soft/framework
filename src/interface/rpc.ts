@@ -39,6 +39,7 @@ export interface IPayloadError {
   message: string;
   level: ErrorLevel;
   name: string;
+  args: unknown[];
 }
 
 export interface IResPayloadPacket<T = unknown> {

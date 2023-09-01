@@ -54,7 +54,7 @@ abstract class Logger {
     if (cause instanceof Error) {
       cause = `${cause.name}: ${cause.message}`;
     }
-    return {code: err.code, name: err.name, message: err.message, stack, cause};
+    return {code: err.code, name: err.name, message: err.message, args: err.args, stack, cause};
   }
 
   constructor(options: ILoggerOptions) {
