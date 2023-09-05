@@ -4,6 +4,7 @@ import path = require('path');
 import {Utility} from '../../utility/Utility.js';
 import {ExError} from '../../utility/ExError.js';
 import {ErrorLevel} from '../../Enum.js';
+import {Runtime} from '../Runtime.js';
 
 export interface ILoggerOptions {
   identify: string;
@@ -47,14 +48,20 @@ abstract class Logger {
 
   static errorMessage(e: ExError | Error) {
     const err = ExError.fromError(e);
-    const stack = ErrorStackParser.parse(err).map(frame => {
-      return `${frame.functionName || 'unknown'}(${frame.fileName ? frame.fileName.replace(/\\/g, '/') : 'anonymous'}:${frame.lineNumber ? frame.lineNumber : 'NA'})`;
-    });
-    let cause = err.cause;
-    if (cause instanceof Error) {
-      cause = `${cause.name}: ${cause.message}`;
+    try {
+      const stack = ErrorStackParser.parse(err).map(frame => {
+        return `${frame.functionName || 'unknown'}(${frame.fileName ? frame.fileName.replace(/\\/g, '/') : 'anonymous'}:${frame.lineNumber ? frame.lineNumber : 'NA'})`;
+      });
+      let cause: unknown = err.cause;
+      if (cause instanceof Error) {
+        cause = `${cause.name}: ${cause.message}`;
+      }
+      return {code: err.code, name: err.name, message: err.message, stack, cause, args: err.args};
+    } catch (parseError) {
+      const exErr = ExError.fromError(parseError as Error);
+      Runtime.frameLogger.error('logger', exErr, {event: 'error-message-parse-error', message: exErr.message, arg: e});
+      return e;
     }
-    return {code: err.code, name: err.name, message: err.message, args: err.args, stack, cause};
   }
 
   constructor(options: ILoggerOptions) {
