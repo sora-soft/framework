@@ -107,7 +107,11 @@ abstract class Logger {
 
   private write(level: LogLevel, category: string, error: Error | null | undefined, ...args: unknown[]) {
     const now = new Date();
-    const stack = error ? ErrorStackParser.parse(error)[0] : Logger.getStackPosition(3);
+    let stack = Logger.getStackPosition(3);
+    try {
+      if (error)
+        stack = ErrorStackParser.parse(error)[0];
+    } catch(err) {}
     const timeString = Utility.formatLogTimeString();
     for (const output of this.output_) {
       output.log({
