@@ -4,7 +4,6 @@ import path = require('path');
 import {Utility} from '../../utility/Utility.js';
 import {ExError} from '../../utility/ExError.js';
 import {ErrorLevel} from '../../Enum.js';
-import {Runtime} from '../Runtime.js';
 
 export interface ILoggerOptions {
   identify: string;
@@ -58,8 +57,6 @@ abstract class Logger {
       }
       return {code: err.code, name: err.name, message: err.message, stack, cause, args: err.args};
     } catch (parseError) {
-      const exErr = ExError.fromError(parseError as Error);
-      Runtime.frameLogger.error('logger', exErr, {event: 'error-message-parse-error', message: exErr.message, arg: e});
       return e;
     }
   }
