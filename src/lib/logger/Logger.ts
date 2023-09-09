@@ -101,6 +101,12 @@ abstract class Logger {
     return this;
   }
 
+  async end() {
+    await Promise.all(this.output_.map(async (output) => {
+      await output.end();
+    }));
+  }
+
   private write(level: LogLevel, category: string, error: Error | null | undefined, ...args: unknown[]) {
     const now = new Date();
     const stack = error ? ErrorStackParser.parse(error)[0] : Logger.getStackPosition(3);

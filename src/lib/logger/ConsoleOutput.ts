@@ -49,6 +49,8 @@ class ConsoleOutput extends LoggerOutput {
     console.log(wrapper(`${data.timeString},${data.level},${data.identify},${data.category},${data.position},${data.content}`));
   }
 
+  async end() {}
+
   protected consoleOptions_: IConsoleOutputOptions;
 }
 
