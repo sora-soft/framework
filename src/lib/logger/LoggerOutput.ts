@@ -14,6 +14,7 @@ abstract class LoggerOutput {
   }
 
   protected abstract output(log: ILoggerData): Promise<void>;
+  abstract end(): Promise<void>;
   log(log: ILoggerData) {
     if (!this.options_.levels || this.options_.levels.includes(log.level)) {
       this.executor_.doJob(async () => {
