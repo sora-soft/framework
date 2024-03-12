@@ -40,7 +40,7 @@ class Provider<T extends Route = Route> {
       this.startCtx_?.abort();
       this.startCtx_ = null;
 
-      this.subManager_.destory();
+      this.subManager_.destroy();
       await Promise.all([...this.senders_].map(async ([_, sender]) => {
         await sender.connector.off().catch((err: ExError) => {
           Runtime.frameLogger.error(`provider.${this.name_}`, err, {event: 'connector-off', error: Logger.errorMessage(err)});
@@ -285,7 +285,7 @@ class Provider<T extends Route = Route> {
       return;
 
     const sub = sender.connector.stateSubject.subscribe(async (state) => {
-      Runtime.frameLogger.info(this.logCategory, {event: 'sender-state-change', listenerId: sender.listenerId, targetId: sender.targetId, state});
+      Runtime.frameLogger.info(this.logCategory, {event: 'sender-state-change', targetName: endpoint.targetName, listenerId: sender.listenerId, targetId: sender.targetId, state});
       switch(state) {
         case ConnectorState.STOPPED:
         case ConnectorState.ERROR:

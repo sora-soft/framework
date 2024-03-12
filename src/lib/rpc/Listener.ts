@@ -60,7 +60,7 @@ abstract class Listener {
     this.closeAllConnector();
     await this.shutdown();
     this.lifeCycle_.setState(ListenerState.STOPPED);
-    this.subManager_.destory();
+    this.subManager_.destroy();
   }
 
   abstract get metaData(): IListenerInfo;

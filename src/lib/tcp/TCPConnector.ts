@@ -73,6 +73,9 @@ class TCPConnector extends Connector {
         this.bindSocketEvent(this.socket_);
 
         this.socket_.connect(port, ip, () => {
+          if (ctx.aborted)
+            return;
+
           if (this.socket_ === socket) {
             this.socket_.removeListener('error', handlerError);
             this.socket_.on('error', this.onSocketError(this.socket_));

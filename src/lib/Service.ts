@@ -53,7 +53,7 @@ abstract class Service extends Worker {
       this.onError(err);
     });
     this.lifeCycle_.setState(WorkerState.STOPPED);
-    this.subManager_.destory();
+    this.subManager_.destroy();
   }
 
   public async installListener(listener: Listener, ctx?: Context) {

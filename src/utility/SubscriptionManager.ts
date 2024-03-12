@@ -13,7 +13,7 @@ class SubscriptionManager {
     this.subscriptions_.delete(sub);
   }
 
-  destory() {
+  destroy() {
     for (const sub of this.subscriptions_) {
       sub.unsubscribe();
     }

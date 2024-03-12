@@ -90,13 +90,15 @@ abstract class Connector {
     if (this.state < ConnectorState.STOPPED)
       this.lifeCycle_.setState(ConnectorState.STOPPED);
 
-    this.lifeCycle_.destory();
-    this.subManager_.destory();
+    this.lifeCycle_.destroy();
+    this.subManager_.destroy();
   }
 
   private onError(err: Error) {
     if (!(err instanceof AbortError)) {
       this.lifeCycle_.setState(ConnectorState.ERROR);
+      this.lifeCycle_.destroy();
+      this.subManager_.destroy();
       Runtime.frameLogger.error('connector', err, {event: 'connector-error', error: Logger.errorMessage(err)});
     }
   }
