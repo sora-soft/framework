@@ -46,5 +46,6 @@ export enum ConnectorCommand {
   ERROR = 'error',
   PING = 'ping',
   PONG = 'pong',
+  Close = 'close',
 }
 

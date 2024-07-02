@@ -58,13 +58,13 @@ class Runtime {
     });
 
     process.on('SIGINT', async () => {
-      this.frameLogger_.info('process', 'receive SIGINT');
+      this.frameLogger_.info('process', {event: 'process-command', command: 'SIGINT'});
       await this.shutdown();
       process.exit(0);
     });
 
     process.on('SIGTERM', async () => {
-      this.frameLogger_.info('process', 'receive SIGTERM');
+      this.frameLogger_.info('process', {event: 'process-command', command: 'SIGTERM'});
       await this.shutdown();
       process.exit(0);
     });

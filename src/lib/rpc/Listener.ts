@@ -1,4 +1,4 @@
-import {ConnectorState, ListenerState} from '../../Enum.js';
+import {ConnectorCommand, ConnectorState, ListenerState} from '../../Enum.js';
 import {LifeCycle} from '../../utility/LifeCycle.js';
 import {v4 as uuid} from 'uuid';
 import {IListenerInfo, IRawReqPacket, IRawResPacket} from '../../interface/rpc.js';
@@ -57,6 +57,7 @@ abstract class Listener {
     this.startContext_?.abort();
     this.startContext_ = null;
     this.lifeCycle_.setState(ListenerState.STOPPING);
+    this.closeAllConnector();
     await this.shutdown();
     this.lifeCycle_.setState(ListenerState.STOPPED);
     this.subManager_.destory();
@@ -95,6 +96,12 @@ abstract class Listener {
       connector,
       session,
     });
+  }
+
+  protected closeAllConnector() {
+    for (const [_, connector] of [...this.connectors_]) {
+      connector.sendCommand(ConnectorCommand.Close, {}).catch(() => {});
+    }
   }
 
   public getConnector(session: string) {
@@ -150,6 +157,10 @@ abstract class Listener {
 
   get connectionSubject() {
     return this.connectionSubject_;
+  }
+
+  get connectors() {
+    return this.connectors_;
   }
 
   abstract get version (): string;
