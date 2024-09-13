@@ -21,8 +21,8 @@ class Response<T = unknown> extends RawPacket<IResPayloadPacket<T>> {
   }
 
   toResult() {
-    if (this.payload && this.payload.result)
-      return this.payload.result;
+    if (this.payload && this.payload.data)
+      return this.payload.data;
   }
 }
 

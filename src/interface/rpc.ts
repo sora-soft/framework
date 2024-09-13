@@ -44,7 +44,7 @@ export interface IPayloadError {
 
 export interface IResPayloadPacket<T = unknown> {
   error: IPayloadError | null;
-  result: T | null;
+  data: T | null;
 }
 
 export interface IConnectorPingOptions {

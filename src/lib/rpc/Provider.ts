@@ -167,7 +167,7 @@ class Provider<T extends Route = Route> {
             );
             const response = new Response(res);
             if (raw) return response;
-            return response.payload.result;
+            return response.payload.data;
           };
         },
       });

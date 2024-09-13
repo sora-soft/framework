@@ -117,7 +117,7 @@ class Route {
         message: err.message,
         args: err.args,
       },
-      result: null,
+      data: null,
     };
     return response.toPacket();
   }
@@ -130,7 +130,7 @@ class Route {
           const request = new Request(packet);
           const response = new Response<unknown>({
             headers: {},
-            payload: {error: null, result: null},
+            payload: {error: null, data: null},
           });
           try {
             const rpcId = request.getHeader<number>(RPCHeader.RPC_ID_HEADER);
@@ -154,7 +154,7 @@ class Route {
                   message: err.message,
                   args: err.args,
                 },
-                result: null,
+                data: null,
               } as IResPayloadPacket<null>;
             });
             response.payload = result;
@@ -240,7 +240,7 @@ class Route {
         }
 
         const params = await this.buildCallParams(method, handler.params, request, response, connector);
-        const result = await (this[method] as RPCHandler).apply(this, params) as unknown;
+        const data = await (this[method] as RPCHandler).apply(this, params) as unknown;
 
         const afterMiddlewares = Reflect.getMetadata(MiddlewareAfterSymbol, prototype, method) as IRPCMiddlewares[];
         if (afterMiddlewares) {
@@ -252,7 +252,7 @@ class Route {
         }
         return {
           error: null,
-          result,
+          data,
         };
       } catch(e) {
         if (e instanceof TypeGuardError) {

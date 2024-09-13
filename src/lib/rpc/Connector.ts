@@ -230,7 +230,7 @@ abstract class Connector {
                     message: err.message,
                     args: err.args,
                   },
-                  result: null,
+                  data: null,
                 },
               } as IRawResPacket<null>;
             };

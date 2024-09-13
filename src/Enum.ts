@@ -35,10 +35,10 @@ export enum ConnectorState {
 }
 
 export enum ErrorLevel {
-  FATAL = -1,
-  UNEXPECTED = 0,
-  NORMAL = 1,
-  EXPECTED = 2,
+  FATAL = 'fatal',
+  UNEXPECTED = 'unexpected',
+  NORMAL = 'normal',
+  EXPECTED = 'expected',
 }
 
 export enum ConnectorCommand {
